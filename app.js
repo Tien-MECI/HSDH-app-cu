@@ -64,7 +64,7 @@ const drive = google.drive({ version: "v3", auth });
 
 // --- Express ---
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -2733,13 +2733,13 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-const express = require('express');
+
 const { google } = require('googleapis');
 const router = express.Router();
 const path = require('path');
 
 
-router.get('/taohoadon-madh', async (req, res) => {
+router.get('/taohoadon-:madh', async (req, res) => {
     try {
         const { madh } = req.query;
         
