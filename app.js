@@ -2733,8 +2733,6 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-
-const { google } = require('googleapis');
 const router = express.Router();
 const path = require('path');
 
