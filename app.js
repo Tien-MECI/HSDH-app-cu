@@ -2969,7 +2969,7 @@ router.get('/taohoadon-:madh', async (req, res) => {
                 </table>
 
                 <div class="amount-in-words">
-                    Tổng số tiền viết bằng chữ (Amount in words): ${convertNumberToWords(totalAmount)}
+                    Tổng số tiền viết bằng chữ (Amount in words): ${numberToWords(totalAmount)}
                 </div>
 
                 <div class="signature">
@@ -3001,12 +3001,6 @@ router.get('/taohoadon-:madh', async (req, res) => {
 });
 
 
-// Hàm chuyển số thành chữ (cần triển khai đầy đủ)
-function convertNumberToWords(number) {
-    // Triển khai hàm chuyển số thành chữ tiếng Việt
-    // Đây là phiên bản đơn giản, bạn cần triển khai đầy đủ
-    return "Một triệu bảy trăm mười chín nghìn bốn trăm tám mươi đồng chẵn./.";
-}
 
 // Hàm trả về CSS
 function getInvoiceCSS() {
