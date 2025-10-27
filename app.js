@@ -3000,13 +3000,6 @@ router.get('/taohoadon-:madh', async (req, res) => {
     }
 });
 
-// Hàm định dạng số
-function formatNumber(num) {
-    return parseFloat(num || 0).toLocaleString('vi-VN', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-}
 
 // Hàm chuyển số thành chữ (cần triển khai đầy đủ)
 function convertNumberToWords(number) {
