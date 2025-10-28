@@ -10,7 +10,7 @@ import { promisify } from "util";
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 const renderFileAsync = promisify(ejs.renderFile);
-
+const app = express();
 app.set("view engine", "ejs");
 app.set("views", "./views");
 
@@ -66,7 +66,6 @@ const sheets = google.sheets({ version: "v4", auth });
 const drive = google.drive({ version: "v3", auth });
 
 // --- Express ---
-const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set("view engine", "ejs");
