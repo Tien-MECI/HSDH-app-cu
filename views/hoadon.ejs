@@ -110,6 +110,18 @@
             height: auto;
             pointer-events: none;
         }
+
+        .header-right {
+            text-align: right;
+            width: 240px; /* rộng hơn để tránh xuống dòng */
+            font-size: 12px;
+            line-height: 1.3;
+            white-space: nowrap; /* KHÔNG cho phép xuống dòng */
+        }
+
+        .header-right div {
+         margin-bottom: 2px;
+        }
         
         @media print {
             body {
@@ -125,6 +137,7 @@
                 opacity: 0.15;
             }
         }
+        
     </style>
 </head>
 <body>
@@ -145,6 +158,7 @@
                 <div>Ngày <%= today.getDate() %> tháng <%= today.getMonth() + 1 %> năm <%= today.getFullYear() %></div>
             </div>
             
+                    
             <div class="header-right">
                 <div>Mẫu số (Form No.): 1</div>
                 <div>Mã của Cơ quan thuế (Tax Authority Code):</div>
