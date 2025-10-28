@@ -16,6 +16,8 @@
             padding: 0;
             font-size: 12px;
             line-height: 1.2;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         
         .container {
@@ -24,7 +26,8 @@
             margin: 0 auto;
             position: relative;
             min-height: 297mm;
-            padding: 10px;
+            padding: 15px;
+            box-sizing: border-box;
         }
         
         .header {
@@ -39,8 +42,17 @@
             height: auto;
         }
         
-        .invoice-title {
+        .header-center {
+            flex-grow: 1;
             text-align: center;
+        }
+        
+        .header-right {
+            text-align: right;
+            width: 200px;
+        }
+        
+        .invoice-title {
             font-weight: bold;
             font-size: 16px;
             margin-bottom: 15px;
@@ -72,8 +84,8 @@
         }
         
         .summary-table {
-            width: 60%;
-            margin-left: auto;
+            width: 100%;
+            margin-top: 10px;
         }
         
         .amount-in-words {
@@ -88,24 +100,29 @@
         }
         
         .watermark {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
             opacity: 0.1;
             z-index: -1;
-            width: 400px;
+            width: 600px;
             height: auto;
+            pointer-events: none;
         }
         
         @media print {
             body {
-                padding: 0;
                 margin: 0;
+                padding: 0;
             }
             .container {
-                padding: 10px;
+                padding: 15px;
                 max-width: 100%;
+                margin: 0;
+            }
+            .watermark {
+                opacity: 0.15;
             }
         }
     </style>
@@ -117,14 +134,19 @@
             <img src="<%= watermarkBase64 %>" alt="Watermark" class="watermark">
         <% } %>
         
-        <!-- Header với logo -->
+        <!-- Header với logo và thông tin hóa đơn -->
         <div class="header">
             <% if (logoBase64) { %>
                 <img src="<%= logoBase64 %>" alt="Logo" class="logo">
             <% } %>
-            <div style="flex-grow: 1; text-align: center;">
+            
+            <div class="header-center">
                 <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br>(VẬT INVOICE)</div>
                 <div>Ngày <%= today.getDate() %> tháng <%= today.getMonth() + 1 %> năm <%= today.getFullYear() %></div>
+            </div>
+            
+            <div class="header-right">
+                <div>Mẫu số (Form No.): 1</div>
                 <div>Mã của Cơ quan thuế (Tax Authority Code):</div>
                 <div>Số (Invoice No.): 00000000</div>
             </div>
@@ -151,7 +173,7 @@
         </div>
 
         <!-- Bảng hàng hóa -->
-        <table id="productsTable">
+        <table>
             <thead>
                 <tr>
                     <th>STT</th>
@@ -179,7 +201,7 @@
                 <% products.forEach((product, index) => { %>
                     <tr>
                         <td><%= index + 1 %></td>
-                        <td><%= product.description %></td>
+                        <td style="text-align: left;"><%= product.description %></td>
                         <td><%= product.unit %></td>
                         <td><%= formatNumber(product.quantity) %></td>
                         <td><%= formatNumber(product.unitPrice) %></td>
