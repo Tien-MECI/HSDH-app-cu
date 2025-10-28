@@ -2823,8 +2823,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
             const quantity = parseFloat(row[quantityIndex]) || 0;  //số lượng
             const amount = parseFloat(row[totalAmountIndex]) || 0; //đơn giá
             const taxRate = parseFloat(row[taxRateIndex]) || 0; //thuế xuất
-            const unitPrice = totalAmount / (1 + taxRate / 100); // đơn giá trước thuế
             const totalAmount = quantity * unitPrice; // thành tiền chưa thuế
+            const unitPrice = totalAmount / (1 + taxRate / 100); // đơn giá trước thuế
             const taxAmount = amount * (taxRate / 100); //tiền thuế
 
             return {
