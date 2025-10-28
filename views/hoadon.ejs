@@ -282,10 +282,10 @@ tbody td {
                             <td><%= p.unit %></td> 
                             <td><%= formatNumber1(p.quantity) %></td>
                             <td style="text-align:right;"><%= formatNumber1(p.amount) %></td>
-                            <td style="text-align:right;"><%= formatNumber1(p.totalAmount) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.unitPrice) %></td>
                             <td style="text-align:center;"><%= p.taxRate %>%</td>
                             <td style="text-align:right;"><%= formatNumber1(p.taxAmount) %></td>
-                            <td style="text-align:right;"><%= formatNumber1(p.thanhtiensauthueindex) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.totalAmount) %></td>
                         </tr>
                     <% }) %>
                 <% } else { %>
