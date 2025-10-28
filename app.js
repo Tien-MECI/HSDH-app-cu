@@ -2733,10 +2733,6 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-const router = express.Router();
-
-
-
 router.get('/taohoadon-:madh', async (req, res) => {
     try {
         const { madh } = req.query;
