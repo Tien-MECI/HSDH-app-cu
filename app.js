@@ -2740,158 +2740,151 @@ app.get("/copy-:madh", async (req, res) => {
 
 // 🔥 Route chính
 app.get("/taohoadon-:madh", async (req, res) => {
-    try {
-        const { madh } = req.params;
-        console.log("➡️ Nhận yêu cầu tạo hóa đơn cho mã:", madh);
+  try {
+    const { madh } = req.params;
+    console.log("➡️ Nhận yêu cầu tạo hóa đơn cho mã:", madh);
 
-        if (!madh) return res.status(400).send("Thiếu mã đơn hàng (madh)");
+    if (!madh) return res.status(400).send("Thiếu mã đơn hàng (madh)");
 
-        // === 1. Lấy dữ liệu đơn hàng ===
-        console.log("📄 Đang lấy sheet Don_hang...");
-        const donhangRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "Don_hang!A1:Z",
-        });
+    // === 1. Lấy sheet Don_hang ===
+    const donhangRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Don_hang!A1:Z",
+    });
 
-        const donhangData = donhangRes.data.values;
-        if (!donhangData || donhangData.length < 2) {
-            console.error("❌ Sheet Don_hang trống hoặc không có dữ liệu.");
-            return res.status(404).send("Không có dữ liệu đơn hàng");
-        }
+    const donhangData = donhangRes.data.values;
+    if (!donhangData || donhangData.length < 2)
+      return res.status(404).send("Không có dữ liệu đơn hàng");
 
-        // === Xác định chỉ số cột ===
-        const colToIndex = (col) =>
-            col
-                .toUpperCase()
-                .split("")
-                .reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
+    const colToIndex = (col) =>
+      col
+        .toUpperCase()
+        .split("")
+        .reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
 
-        const madhIndex = colToIndex("G"); // Mã đơn hàng
-        const companyNameIndex = colToIndex("J"); // Tên công ty
-        const taxCodeIndex = colToIndex("K"); // Mã số thuế
-        const addressIndex = colToIndex("L"); // Địa chỉ
+    const madhIndex = colToIndex("G");
+    const companyNameIndex = colToIndex("J");
+    const taxCodeIndex = colToIndex("K");
+    const addressIndex = colToIndex("L");
 
-        console.log("📊 Đang tìm đơn hàng có mã:", madh, "ở cột G (index =", madhIndex, ")");
+    const orderRow = donhangData.find(
+      (r) => (r[madhIndex] || "").trim() === madh.trim()
+    );
 
-        const orderRow = donhangData.find(
-            (r) => (r[madhIndex] || "").trim() === madh.trim()
-        );
+    if (!orderRow) return res.status(404).send("Không tìm thấy đơn hàng");
 
-        if (!orderRow) {
-            console.error("❌ Không tìm thấy đơn hàng:", madh);
-            console.log("🧾 Một vài mã đang có trong sheet:", donhangData.slice(1, 6).map(r => r[madhIndex]));
-            return res.status(404).send("Không tìm thấy đơn hàng");
-        }
+    // === 2. Lấy sheet chi tiết ===
+    const detailRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Don_hang_PVC_ct!A1:AB",
+    });
 
-        console.log("✅ Tìm thấy đơn hàng:", orderRow);
+    const detailData = detailRes.data.values;
+    if (!detailData || detailData.length < 2)
+      return res.status(404).send("Không có dữ liệu chi tiết");
 
-        // === 2. Lấy chi tiết đơn hàng ===
-        console.log("📄 Đang lấy sheet Don_hang_PVC_ct...");
-        const detailRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A1:AB",
-        });
+    const madhDetailIndex = colToIndex("B");
+    const descriptionIndex = colToIndex("J");
+    const quantityIndex = colToIndex("V");
+    const unitIndex = colToIndex("W");
+    const totalAmountIndex = colToIndex("Z"); // Thành tiền sau thuế
+    const taxRateIndex = colToIndex("AA"); // %
+    const thanhtiensauthueIndex = colToIndex("AB"); // Tổng cộng sau thuế
 
-        const detailData = detailRes.data.values;
-        if (!detailData || detailData.length < 2) {
-            console.error("❌ Sheet Don_hang_PVC_ct trống hoặc không có dữ liệu.");
-            return res.status(404).send("Không có dữ liệu chi tiết đơn hàng");
-        }
+    const orderDetails = detailData.filter(
+      (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
+    );
 
-        const madhDetailIndex = colToIndex("B"); // Mã đơn hàng
-        const descriptionIndex = colToIndex("J"); // Diễn giải
-        const quantityIndex = colToIndex("V"); // Số lượng
-        const unitIndex = colToIndex("W"); // ĐVT
-        const totalAmountIndex = colToIndex("Z"); // Thành tiền
-        const taxRateIndex = colToIndex("AA"); // Thuế suất
+    if (orderDetails.length === 0)
+      return res.status(404).send("Không có chi tiết cho đơn hàng này");
 
-        const orderDetails = detailData.filter(
-            (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
-        );
+    // === 3. Xử lý dữ liệu sản phẩm ===
+    const products = orderDetails.map((row, i) => {
+      const quantity = parseFloat(row[quantityIndex]) || 0;
+      const totalAfterTax = parseFloat(row[thanhtiensauthueIndex]) || 0;
+      const taxRate = parseFloat(row[taxRateIndex]) || 0;
+      const amount = totalAfterTax / (1 + taxRate / 100); // tiền chưa thuế
+      const unitPrice = quantity > 0 ? amount / quantity : 0;
+      const taxAmount = amount * (taxRate / 100); // tiền thuế VAT
 
-        if (orderDetails.length === 0) {
-            console.error("⚠️ Không có chi tiết cho đơn hàng:", madh);
-            console.log("🧾 Một vài mã chi tiết đang có:", detailData.slice(1, 6).map(r => r[madhDetailIndex]));
-            return res.status(404).send("Không có chi tiết cho đơn hàng này");
-        }
+      return {
+        stt: i + 1,
+        description: row[descriptionIndex] || "",
+        unit: row[unitIndex] || "",
+        quantity,
+        unitPrice,
+        amount,
+        taxRate,
+        taxAmount,
+        totalAmount: totalAfterTax, // thành tiền sau thuế
+      };
+    });
 
-        console.log("✅ Có", orderDetails.length, "dòng chi tiết đơn hàng");
+    // === 4. Tính tổng hợp ===
+    const summary = {
+      totalAmount0: 0,
+      totalAmount8: 0,
+      totalTax8: 0,
+      totalAmount10: 0,
+      totalTax10: 0,
+    };
 
-        // === 3. Xử lý dữ liệu sản phẩm ===
-        const products = orderDetails.map((row, i) => {
-            const quantity = parseFloat(row[quantityIndex]) || 0;
-            const totalAmount = parseFloat(row[totalAmountIndex]) || 0;
-            const taxRate = parseFloat(row[taxRateIndex]) || 0;
-            const unitPrice = totalAmount / (1 + taxRate / 100);
-            const amount = quantity * unitPrice;
-            const taxAmount = amount * (taxRate / 100);
+    products.forEach((p) => {
+      if (p.taxRate === 8) {
+        summary.totalAmount8 += p.amount;
+        summary.totalTax8 += p.taxAmount;
+      } else if (p.taxRate === 10) {
+        summary.totalAmount10 += p.amount;
+        summary.totalTax10 += p.taxAmount;
+      } else {
+        summary.totalAmount0 += p.amount;
+      }
+    });
 
-            return {
-                stt: i + 1,
-                description: row[descriptionIndex] || "",
-                unit: row[unitIndex] || "",
-                quantity,
-                unitPrice,
-                amount,
-                taxRate,
-                taxAmount,
-                totalAmount,
-            };
-        });
+    const totalAmountBeforeTax =
+      summary.totalAmount0 + summary.totalAmount8 + summary.totalAmount10;
+    const totalTax = summary.totalTax8 + summary.totalTax10;
+    const totalAmount = totalAmountBeforeTax + totalTax;
 
-        // === 4. Tính tổng ===
-        const summary = {
-            totalAmount0: 0,
-            totalAmount8: 0,
-            totalTax8: 0,
-            totalAmount10: 0,
-            totalTax10: 0,
-        };
+    // === 5. Chuẩn bị logo + watermark (PNG thật) ===
+    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEHOADON_ID);
 
-        products.forEach((p) => {
-            if (p.taxRate === 8) {
-                summary.totalAmount8 += p.amount;
-                summary.totalTax8 += p.taxAmount;
-            } else if (p.taxRate === 10) {
-                summary.totalAmount10 += p.amount;
-                summary.totalTax10 += p.taxAmount;
-            } else {
-                summary.totalAmount0 += p.amount;
-            }
-        });
+    // === 6. Hàm formatNumber1 chuẩn kế toán (server-side) ===
+    const formatNumber1 = (num) => {
+      if (num == null || num === "" || isNaN(num)) return "0";
+      num = Number(num);
+      const fixed = num.toFixed(2);
+      const [intPart, decPart] = fixed.split(".");
+      const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return decPart === "00" ? formattedInt : `${formattedInt},${decPart}`;
+    };
 
-        const totalAmountBeforeTax =
-            summary.totalAmount8 + summary.totalAmount10 + summary.totalAmount0;
-        const totalTax = summary.totalTax8 + summary.totalTax10;
-        const totalAmount = totalAmountBeforeTax + totalTax;
-        // Logo & Watermark
-        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEHOADON_ID);
-        // === 5. Render EJS ===
-        console.log("🧾 Đang render hóa đơn EJS...");
-        res.render("hoadon", {
-            products,
-            summary,
-            totalAmountBeforeTax,
-            totalTax,
-            totalAmount,
-            order: {
-                madh,
-                companyName: orderRow[companyNameIndex] || "",
-                address: orderRow[addressIndex] || "",
-                taxCode: orderRow[taxCodeIndex] || "",
-            },
-            today: new Date(),
-            formatNumber,
-            numberToWords,
-            logoBase64,
-            watermarkBase64,
-        });
-    } catch (err) {
-        console.error("❌ Lỗi khi tạo hóa đơn:", err);
-        res.status(500).send("Internal Server Error");
-    }
+    // === 7. Render EJS ===
+    res.render("hoadon", {
+      products,
+      summary,
+      totalAmountBeforeTax,
+      totalTax,
+      totalAmount,
+      order: {
+        madh,
+        companyName: orderRow[companyNameIndex] || "",
+        address: orderRow[addressIndex] || "",
+        taxCode: orderRow[taxCodeIndex] || "",
+      },
+      today: new Date(),
+      formatNumber1,
+      numberToWords,
+      logoBase64,
+      watermarkBase64,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi tạo hóa đơn:", err);
+    res.status(500).send("Internal Server Error");
+  }
 });
+
 
 
 
@@ -2988,3 +2981,11 @@ function formatVietnameseDate(dateStr) {
         return dateStr;
       }
     }
+function formatNumber1(num) {
+  if (num == null || isNaN(num)) return "0";
+  num = Math.abs(Number(num));
+  const [int, dec] = num.toFixed(2).split(".");
+  const formattedInt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return dec === "00" ? formattedInt : `${formattedInt},${dec}`;
+}
+
