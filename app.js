@@ -2817,11 +2817,12 @@ app.get("/taohoadon-:madh", async (req, res) => {
     // === 3️⃣ Xử lý dữ liệu sản phẩm ===
     const products = orderDetails.map((row, i) => {
       const quantity = parseFloat(row[quantityIndex]) || 0;          // Số lượng
+      const amountchuathue = parseFloat(row[unitPriceIndex]) || 0; 
       const taxRate = parseFloat(row[taxRateIndex]) || 0;            // Thuế suất
       const totalAfterTax = parseFloat(row[totalAfterTaxIndex]) || 0;// Thành tiền sau thuế
 
       // 👉 Tính toán lại theo chuẩn kế toán
-      const amount = unitPriceIndex / (1 + taxRate / 100);            // đơn giá chưa thuế
+      const amount = amountchuathue / (1 + taxRate / 100);            // đơn giá chưa thuế
       const unitPrice = amount * quantity;        // thành tiền chưa thuế
       const taxAmount = amount * (taxRate / 100);                    // Tiền thuế GTGT
 
