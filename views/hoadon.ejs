@@ -168,7 +168,7 @@
 
         /* Khi in, đảm bảo watermark và box vẫn hiện */
         @media print {
-            .watermark { opacity: 0.35 !important; }
+            .watermark { opacity: 0.8 !important; }
             .container { border-width: 3px; }
         }
         table {
@@ -279,13 +279,13 @@ tbody td {
                         <tr>
                             <td style="text-align:center;"><%= p.stt || (idx+1) %></td>
                             <td style="text-align:left; padding-left:6px;"><%= p.description %></td>
-                            <td><%= p.unit %></td>
-                            <td><%= formatNumber(p.quantity) %></td>
-                            <td style="text-align:right;"><%= formatNumber(p.unitPrice) %></td>
-                            <td style="text-align:right;"><%= formatNumber(p.amount) %></td>
+                            <td><%= p.unit %></td> 
+                            <td><%= formatNumber1(p.quantity) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.amount) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.totalAmount) %></td>
                             <td style="text-align:center;"><%= p.taxRate %>%</td>
-                            <td style="text-align:right;"><%= formatNumber(p.taxAmount) %></td>
-                            <td style="text-align:right;"><%= formatNumber(p.totalAmount) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.taxAmount) %></td>
+                            <td style="text-align:right;"><%= formatNumber1(p.thanhtiensauthue) %></td>
                         </tr>
                     <% }) %>
                 <% } else { %>
@@ -295,10 +295,10 @@ tbody td {
             <tfoot>
                 <tr>
                     <td colspan="5" style="text-align:right;"><strong>Tổng cộng (Amount):</strong></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalAmountBeforeTax) %></strong></td>
                     <td></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalTax) %></strong></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalAmount) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalTax) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalAmount) %></strong></td>
                 </tr>
             </tfoot>
         </table>
@@ -318,29 +318,29 @@ tbody td {
                 <tr>
                     <td style="text-align:left;">Tổng tiền chịu thuế suất (0%)</td>
                     <td>0%</td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalAmount0 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalAmount0 || 0) %></td>
                     <td style="text-align:right;">0</td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalAmount0 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalAmount0 || 0) %></td>
                 </tr>
                 <tr>
                     <td style="text-align:left;">Tổng tiền chịu thuế suất (8%)</td>
                     <td>8%</td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalAmount8 || 0) %></td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalTax8 || 0) %></td>
-                    <td style="text-align:right;"><%= formatNumber((summary.totalAmount8||0) + (summary.totalTax8||0)) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalAmount8 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalTax8 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1((summary.totalAmount8||0) + (summary.totalTax8||0)) %></td>
                 </tr>
                 <tr>
                     <td style="text-align:left;">Tổng tiền chịu thuế suất (10%)</td>
                     <td>10%</td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalAmount10 || 0) %></td>
-                    <td style="text-align:right;"><%= formatNumber(summary.totalTax10 || 0) %></td>
-                    <td style="text-align:right;"><%= formatNumber((summary.totalAmount10||0) + (summary.totalTax10||0)) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalAmount10 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1(summary.totalTax10 || 0) %></td>
+                    <td style="text-align:right;"><%= formatNumber1((summary.totalAmount10||0) + (summary.totalTax10||0)) %></td>
                 </tr>
                 <tr>
                     <td colspan="2" style="text-align:center;"><strong>Tổng cộng</strong></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalTax) %></strong></td>
-                    <td style="text-align:right;"><strong><%= formatNumber(totalAmount) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalAmountBeforeTax) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalTax) %></strong></td>
+                    <td style="text-align:right;"><strong><%= formatNumber1(totalAmount) %></strong></td>
                 </tr>
             </tbody>
         </table>
