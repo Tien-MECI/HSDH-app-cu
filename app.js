@@ -25,6 +25,8 @@ const __dirname = dirname(__filename);
 // --- IDs file Drive ---
 const LOGO_FILE_ID = "1Rwo4pJt222dLTXN9W6knN3A5LwJ5TDIa";
 const WATERMARK_FILE_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
+const WATERMARK_FILEHOADON_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
+
 
 // --- ENV ---
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
@@ -2862,7 +2864,9 @@ app.get("/taohoadon-:madh", async (req, res) => {
             summary.totalAmount8 + summary.totalAmount10 + summary.totalAmount0;
         const totalTax = summary.totalTax8 + summary.totalTax10;
         const totalAmount = totalAmountBeforeTax + totalTax;
-
+        // Logo & Watermark
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
         // === 5. Render EJS ===
         console.log("🧾 Đang render hóa đơn EJS...");
         res.render("hoadon", {
@@ -2880,8 +2884,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
             today: new Date(),
             formatNumber,
             numberToWords,
-            LOGO_FILE_ID: process.env.LOGO_FILE_ID,
-            WATERMARK_FILEHOADON_ID: process.env.WATERMARK_FILEHOADON_ID,
+            logoBase64,
+            watermarkBase64,
         });
     } catch (err) {
         console.error("❌ Lỗi khi tạo hóa đơn:", err);
