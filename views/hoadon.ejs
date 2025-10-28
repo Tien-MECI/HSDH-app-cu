@@ -168,6 +168,34 @@
             .watermark { opacity: 0.35 !important; }
             .container { border-width: 3px; }
         }
+        table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+th, td {
+  border: 1px solid #000;
+  padding: 5px;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+thead th {
+  font-weight: bold;
+}
+
+thead th em {
+  font-weight: normal;
+  font-style: italic;
+  font-size: 11px;
+}
+
+tbody td {
+  font-size: 12px;
+}
+
     </style>
 </head>
 <body>
@@ -226,21 +254,22 @@
         <!-- Products table -->
         <table>
             <thead>
-                <tr>
-                    <th class="col-stt">STT</th>
-                    <th class="col-desc">Tên hàng hóa, dịch vụ (Description)</th>
-                    <th class="col-unit">ĐVT (Unit)</th>
-                    <th class="col-qty">SL (Quantity)</th>
-                    <th class="col-unitprice">Đơn giá (Unit price)</th>
-                    <th class="col-amount">Tiền chưa thuế (Amount)</th>
-                    <th class="col-tax-percent" colspan="2">Thuế GTGT (VAT)</th>
-                    <th class="col-total">Thành tiền sau thuế (Total Amount)</th>
-                </tr>
-                <tr>
-                    <th></th><th></th><th></th><th></th><th></th><th></th>
-                    <th>%</th><th>Tiền thuế (VAT Amount)</th><th></th>
-                </tr>
-            </thead>
+  <tr>
+    <th rowspan="2" style="width: 4%;">STT<br><em>(No.)</em></th>
+    <th rowspan="2" style="width: 36%;">Tên hàng hóa, dịch vụ<br><em>(Description)</em></th>
+    <th rowspan="2" style="width: 6%;">ĐVT<br><em>(Unit)</em></th>
+    <th rowspan="2" style="width: 8%;">SL<br><em>(Quantity)</em></th>
+    <th rowspan="2" style="width: 10%;">Đơn giá<br><em>(Unit price)</em></th>
+    <th rowspan="2" style="width: 12%;">Tiền chưa thuế<br><em>(Amount)</em></th>
+    <th colspan="2" style="width: 14%;">Thuế GTGT<br><em>(VAT)</em></th>
+    <th rowspan="2" style="width: 10%;">Thành tiền sau thuế<br><em>(Total Amount)</em></th>
+  </tr>
+  <tr>
+    <th style="width: 5%;">%</th>
+    <th style="width: 9%;">Tiền thuế<br><em>(VAT Amount)</em></th>
+  </tr>
+</thead>
+
             <tbody>
                 <% if (products && products.length) { %>
                     <% products.forEach(function(p, idx) { %>
