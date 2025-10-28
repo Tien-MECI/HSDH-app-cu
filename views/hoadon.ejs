@@ -1,313 +1,268 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <title>Hóa đơn giá trị gia tăng</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    @page { size: A4 portrait; margin: 0; }
-    body {
-      font-family: "Times New Roman", Times, serif;
-      margin: 0;
-      padding: 18px 20px;
-      font-size: 12px;
-      color: #000;
-      line-height: 1.2;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 210mm;
-      margin: 0 auto;
-      position: relative;
-    }
-
-    /* watermark behind */
-    .watermark {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-30deg);
-      opacity: 0.08;
-      z-index: 0;
-      width: 420px;
-      height: auto;
-      pointer-events: none;
-    }
-
-    .header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      z-index: 1;
-      position: relative;
-    }
-
-    .logo {
-      width: 120px;
-      height: auto;
-      object-fit: contain;
-    }
-
-    .invoice-title {
-      text-align: center;
-      font-weight: bold;
-      font-size: 18px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-      line-height: 1.05;
-    }
-
-    .meta {
-      text-align: center;
-      font-size: 12px;
-      margin-bottom: 8px;
-    }
-
-    .seller-buyer {
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
-      margin-bottom: 8px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .seller, .buyer {
-      width: 48%;
-      font-size: 12px;
-    }
-
-    .seller strong, .buyer strong { font-weight: 600; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 6px;
-      margin-bottom: 8px;
-      z-index: 1;
-      position: relative;
-    }
-
-    th, td {
-      border: 1px solid #000;
-      padding: 6px 4px;
-      vertical-align: middle;
-      font-size: 12px;
-    }
-
-    thead th {
-      font-weight: 700;
-      text-align: center;
-    }
-
-    /* make VAT column header spanning two rows */
-    .vat-percent { width: 6%; }
-    .col-stt { width: 4%; }
-    .col-desc { width: 40%; text-align: left; padding-left: 6px; }
-    .col-unit { width: 8%; }
-    .col-qty { width: 8%; }
-    .col-unitprice { width: 10%; }
-    .col-amount { width: 12%; }
-    .col-taxamt { width: 10%; }
-
-    /* footer totals row style */
-    tfoot td { font-weight: 700; }
-
-    /* summary table (right aligned inside page) */
-    .summary-table {
-      width: 48%;
-      margin-left: auto;
-      border-collapse: collapse;
-      margin-top: 8px;
-    }
-    .summary-table th, .summary-table td {
-      border: 1px solid #000;
-      padding: 6px 8px;
-      font-size: 12px;
-    }
-    .amount-in-words {
-      margin-top: 10px;
-      font-style: italic;
-    }
-
-    .signature {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 36px;
-    }
-    .signature div { text-align: center; width: 40%; font-size: 12px; }
-
-    /* small print */
-    .note { text-align: center; margin-top: 8px; font-style: italic; font-size: 11px; }
-
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hóa đơn giá trị gia tăng</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 0.5cm;
+        }
+        
+        body {
+            font-family: "Times New Roman", Times, serif;
+            margin: 0;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 210mm;
+            margin: 0 auto;
+            position: relative;
+            min-height: 297mm;
+            padding: 10px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .logo {
+            width: 150px;
+            height: auto;
+        }
+        
+        .invoice-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        
+        .invoice-info {
+            margin-bottom: 15px;
+        }
+        
+        .company-info {
+            margin-bottom: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        th, td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+        }
+        
+        th {
+            font-weight: bold;
+        }
+        
+        .summary-table {
+            width: 60%;
+            margin-left: auto;
+        }
+        
+        .amount-in-words {
+            margin: 15px 0;
+            font-style: italic;
+        }
+        
+        .signature {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+        }
+        
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            opacity: 0.1;
+            z-index: -1;
+            width: 400px;
+            height: auto;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            .container {
+                padding: 10px;
+                max-width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <!-- watermark (behind everything) -->
-    <% if (typeof watermarkBase64 === 'string' && watermarkBase64) { %>
-      <img class="watermark" src="<%= watermarkBase64 %>" alt="watermark" />
-    <% } %>
-
-    <!-- header -->
-    <div class="header">
-      <div style="width:130px;">
-        <% if (typeof logoBase64 === 'string' && logoBase64) { %>
-          <img class="logo" src="<%= logoBase64 %>" alt="logo" />
-        <% } else { %>
-          <div style="width:120px;height:60px;"></div>
+    <div class="container">
+        <!-- Watermark -->
+        <% if (watermarkBase64) { %>
+            <img src="<%= watermarkBase64 %>" alt="Watermark" class="watermark">
         <% } %>
-      </div>
-
-      <div style="flex:1; margin: 0 12px;">
-        <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br />(VAT INVOICE)</div>
-        <div class="meta">
-          Ngày <%= today.getDate() %> tháng <%= today.getMonth() + 1 %> năm <%= today.getFullYear() %><br />
-          Mã của Cơ quan thuế (Tax Authority Code):<br />
-          Số (Invoice No.): <strong><%= order && order.madh ? order.madh : "00000000" %></strong>
+        
+        <!-- Header với logo -->
+        <div class="header">
+            <% if (logoBase64) { %>
+                <img src="<%= logoBase64 %>" alt="Logo" class="logo">
+            <% } %>
+            <div style="flex-grow: 1; text-align: center;">
+                <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br>(VẬT INVOICE)</div>
+                <div>Ngày <%= today.getDate() %> tháng <%= today.getMonth() + 1 %> năm <%= today.getFullYear() %></div>
+                <div>Mã của Cơ quan thuế (Tax Authority Code):</div>
+                <div>Số (Invoice No.): 00000000</div>
+            </div>
         </div>
-      </div>
 
-      <div style="width:140px;"></div>
+        <!-- Thông tin đơn vị bán hàng -->
+        <div class="company-info">
+            <strong>Đơn vị bán hàng (Seller):</strong> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I<br>
+            <strong>Mã số thuế (Tax Code):</strong> 0 1 0 5 2 7 3 5 0 1<br>
+            <strong>Địa chỉ (Address):</strong> Số 164 đường Nguyễn Trãi, Phường Thanh Xuân, TP Hà Nội, Việt Nam<br>
+            <strong>Số điện thoại (Tel):</strong> 0902.227.007 - 0982.934.876<br>
+            <strong>Website:</strong> www.meci.vn<br>
+            <strong>Số tài khoản (Account No.):</strong> 22011686868 tại Ngân hàng TMCP Tiên Phong - Chi nhánh Hoài Đức
+        </div>
+
+        <!-- Thông tin người mua -->
+        <div class="company-info">
+            <strong>Họ tên người mua hàng (Buyer):</strong><br>
+            <strong>Tên đơn vị (Co. name):</strong> <%= order.companyName %><br>
+            <strong>Địa chỉ (Address):</strong> <%= order.address %><br>
+            <strong>Số tài khoản (Account No.):</strong><br>
+            <strong>Hình thức thanh toán (Pay. method):</strong> Tiền mặt/Chuyển khoản<br>
+            <strong>Mã số thuế (Tax Code):</strong> <%= order.taxCode %>
+        </div>
+
+        <!-- Bảng hàng hóa -->
+        <table id="productsTable">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Tên hàng hóa, dịch vụ (Description)</th>
+                    <th>ĐVT (Unit)</th>
+                    <th>SL (Quantity)</th>
+                    <th>Đơn giá (Unit price)</th>
+                    <th>Tiền chưa thuế (Amount)</th>
+                    <th colspan="2">Thuế GTGT (VAT)</th>
+                    <th>Thành tiền sau thuế (Total Amount)</th>
+                </tr>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th>%</th>
+                    <th>Tiền thuế (VAT Amount)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <% products.forEach((product, index) => { %>
+                    <tr>
+                        <td><%= index + 1 %></td>
+                        <td><%= product.description %></td>
+                        <td><%= product.unit %></td>
+                        <td><%= formatNumber(product.quantity) %></td>
+                        <td><%= formatNumber(product.unitPrice) %></td>
+                        <td><%= formatNumber(product.amount) %></td>
+                        <td><%= product.taxRate %>%</td>
+                        <td><%= formatNumber(product.taxAmount) %></td>
+                        <td><%= formatNumber(product.totalAmount) %></td>
+                    </tr>
+                <% }); %>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5"><strong>Tổng cộng (Amount):</strong></td>
+                    <td><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
+                    <td colspan="2"></td>
+                    <td><strong><%= formatNumber(totalAmount) %></strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Bảng tổng hợp -->
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>Tổng hợp (Total)</th>
+                    <th>Thuế suất (Tax rate)</th>
+                    <th>Thành tiền trước thuế (Amount)</th>
+                    <th>Tiền thuế GTGT (Tax Amount)</th>
+                    <th>Tổng tiền thanh toán (Total Amount)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Tổng tiền chịu thuế suất (Total):</td>
+                    <td>0%</td>
+                    <td><%= formatNumber(summary.totalAmount0) %></td>
+                    <td></td>
+                    <td><%= formatNumber(summary.totalAmount0) %></td>
+                </tr>
+                <tr>
+                    <td>Tổng tiền chịu thuế suất (Total):</td>
+                    <td>8%</td>
+                    <td><%= formatNumber(summary.totalAmount8) %></td>
+                    <td><%= formatNumber(summary.totalTax8) %></td>
+                    <td><%= formatNumber(summary.totalAmount8 + summary.totalTax8) %></td>
+                </tr>
+                <tr>
+                    <td>Tổng tiền chịu thuế suất (Total):</td>
+                    <td>10%</td>
+                    <td><%= formatNumber(summary.totalAmount10) %></td>
+                    <td><%= formatNumber(summary.totalTax10) %></td>
+                    <td><%= formatNumber(summary.totalAmount10 + summary.totalTax10) %></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><strong>Tổng cộng tiền thanh toán (Total):</strong></td>
+                    <td><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
+                    <td><strong><%= formatNumber(totalTax) %></strong></td>
+                    <td><strong><%= formatNumber(totalAmount) %></strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Số tiền bằng chữ -->
+        <div class="amount-in-words">
+            Tổng số tiền viết bằng chữ (Amount in words): <%= numberToWords(totalAmount) %>
+        </div>
+
+        <!-- Chữ ký -->
+        <div class="signature">
+            <div>
+                <strong>Người mua hàng (Buyer)</strong><br><br><br>
+                <em>(Ký, ghi rõ họ tên)</em>
+            </div>
+            <div>
+                <strong>Người bán hàng (Seller)</strong><br><br><br>
+                <em>(Ký, ghi rõ họ tên)</em>
+            </div>
+        </div>
+
+        <!-- Ghi chú -->
+        <div style="text-align: center; margin-top: 10px; font-style: italic;">
+            (Cần kiểm tra đối chiếu khi lập, giao, nhận hóa đơn)
+        </div>
     </div>
-
-    <!-- seller & buyer info -->
-    <div class="seller-buyer">
-      <div class="seller">
-        <strong>Đơn vị bán hàng (Seller):</strong> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I<br />
-        <strong>Mã số thuế (Tax Code):</strong> 0105273501<br />
-        <strong>Địa chỉ (Address):</strong> Số 164 đường Nguyễn Trãi, Phường Thanh Xuân, TP Hà Nội, Việt Nam<br />
-        <strong>Số điện thoại (Tel):</strong> 0902.227.007 - 0982.934.876<br />
-        <strong>Website:</strong> www.meci.vn<br />
-        <strong>Số tài khoản (Account No.):</strong> 22011686868 tại Ngân hàng TMCP Tiên Phong - Chi nhánh Hoài Đức
-      </div>
-
-      <div class="buyer">
-        <strong>Họ tên người mua hàng (Buyer):</strong> <span><%= order && order.buyerName ? order.buyerName : "...................................." %></span><br />
-        <strong>Tên đơn vị (Co. name):</strong> <span><%= order && order.companyName ? order.companyName : "" %></span><br />
-        <strong>Địa chỉ (Address):</strong> <span><%= order && order.address ? order.address : "" %></span><br />
-        <strong>Số tài khoản (Account No.):</strong> ........................................<br />
-        <strong>Hình thức thanh toán (Pay. method):</strong> Tiền mặt/Chuyển khoản<br />
-        <strong>Mã số thuế (Tax Code):</strong> <span><%= order && order.taxCode ? order.taxCode : "" %></span>
-      </div>
-    </div>
-
-    <!-- products table -->
-    <table id="productsTable" aria-describedby="Danh sách hàng hóa">
-      <thead>
-        <tr>
-          <th class="col-stt" rowspan="2">STT</th>
-          <th class="col-desc" rowspan="2">Tên hàng hóa, dịch vụ (Description)</th>
-          <th class="col-unit" rowspan="2">ĐVT (Unit)</th>
-          <th class="col-qty" rowspan="2">SL (Quantity)</th>
-          <th class="col-unitprice" rowspan="2">Đơn giá (Unit price)</th>
-          <th class="col-amount" rowspan="2">Tiền chưa thuế (Amount)</th>
-          <th class="vat-percent" colspan="2">Thuế GTGT (VAT)</th>
-          <th class="col-taxamt" rowspan="2">Thành tiền sau thuế (Total Amount)</th>
-        </tr>
-        <tr>
-          <th style="width:6%;">%</th>
-          <th style="width:10%;">Tiền thuế (VAT Amount)</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <% if (products && products.length > 0) { %>
-          <% products.forEach(function(p) { %>
-            <tr>
-              <td style="text-align:center;"><%= p.stt %></td>
-              <td style="text-align:left; padding-left:6px;"><%= p.description %></td>
-              <td><%= p.unit %></td>
-              <td><%= formatNumber(p.quantity) %></td>
-              <td style="text-align:right;"><%= formatNumber(p.unitPrice) %></td>
-              <td style="text-align:right;"><%= formatNumber(p.amount) %></td>
-              <td><%= p.taxRate %>%</td>
-              <td style="text-align:right;"><%= formatNumber(p.taxAmount) %></td>
-              <td style="text-align:right;"><%= formatNumber(p.totalAmount) %></td>
-            </tr>
-          <% }) %>
-        <% } else { %>
-          <tr>
-            <td colspan="9" style="text-align:center; padding:14px;">Không có dòng hàng hóa</td>
-          </tr>
-        <% } %>
-      </tbody>
-
-      <tfoot>
-        <tr>
-          <td colspan="5" style="text-align:center;"><strong>Tổng cộng (Amount):</strong></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
-          <td></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalTax) %></strong></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalAmount) %></strong></td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <!-- summary table (right aligned) -->
-    <table class="summary-table" aria-describedby="Bảng tổng hợp">
-      <thead>
-        <tr>
-          <th style="width:38%;">Tổng hợp (Total)</th>
-          <th style="width:12%;">Thuế suất</th>
-          <th style="width:16%;">Tiền trước thuế</th>
-          <th style="width:16%;">Tiền thuế GTGT</th>
-          <th style="width:18%;">Tổng thanh toán</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Thuế suất 0%</td>
-          <td>0%</td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalAmount0 || 0) %></td>
-          <td style="text-align:right;">0</td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalAmount0 || 0) %></td>
-        </tr>
-        <tr>
-          <td>Thuế suất 8%</td>
-          <td>8%</td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalAmount8 || 0) %></td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalTax8 || 0) %></td>
-          <td style="text-align:right;"><%= formatNumber((summary.totalAmount8 || 0) + (summary.totalTax8 || 0)) %></td>
-        </tr>
-        <tr>
-          <td>Thuế suất 10%</td>
-          <td>10%</td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalAmount10 || 0) %></td>
-          <td style="text-align:right;"><%= formatNumber(summary.totalTax10 || 0) %></td>
-          <td style="text-align:right;"><%= formatNumber((summary.totalAmount10 || 0) + (summary.totalTax10 || 0)) %></td>
-        </tr>
-        <tr>
-          <td colspan="2" style="text-align:center;"><strong>Tổng cộng</strong></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalTax) %></strong></td>
-          <td style="text-align:right;"><strong><%= formatNumber(totalAmount) %></strong></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- amount in words -->
-    <div class="amount-in-words">
-      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(totalAmount) %></strong>
-    </div>
-
-    <!-- signature -->
-    <div class="signature">
-      <div>
-        Người mua hàng (Buyer)<br><br><br>
-        (Ký, ghi rõ họ tên)
-      </div>
-      <div>
-        Người bán hàng (Seller)<br><br><br>
-        (Ký, ghi rõ họ tên)
-      </div>
-    </div>
-
-    <div class="note">
-      (Cần kiểm tra đối chiếu khi lập, giao, nhận hóa đơn)
-    </div>
-  </div>
 </body>
 </html>
