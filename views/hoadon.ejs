@@ -31,17 +31,20 @@
         }
 
         /* watermark (đặt trước nội dung, nhưng z-index thấp) */
-        .watermark {
+            .watermark {
             position: fixed;
-            top: 50%;
+            top: 35%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-30deg);
-            opacity: 0.28; /* đậm hơn để in thấy rõ */
-            z-index: 0;
-            width: 640px;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+            opacity: 0.1;
+            text-align: center;
+        }
+
+        .watermark img {
+            width: 100vw;
+            /* chiếm 80% chiều rộng trang */
             height: auto;
-            pointer-events: none;
-            mix-blend-mode: multiply;
         }
 
         /* Header chính */

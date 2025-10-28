@@ -2789,7 +2789,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
         console.log("📄 Đang lấy sheet Don_hang_PVC_ct...");
         const detailRes = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A1:Z",
+            range: "Don_hang_PVC_ct!A1:AB",
         });
 
         const detailData = detailRes.data.values;
