@@ -10,6 +10,12 @@ import { promisify } from "util";
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 const renderFileAsync = promisify(ejs.renderFile);
+import express from "express";
+import { google } from "googleapis";
+import dotenv from "dotenv";
+
+app.set("view engine", "ejs");
+app.set("views", "./views");
 
 
 dotenv.config();
@@ -2733,374 +2739,124 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-app.get('/taohoadon-:madh', async (req, res) => {
+
+// 🔥 Route chính
+app.get("/taohoadon-:madh", async (req, res) => {
     try {
-        const { madh } = req.query;
-        
+        const { madh } = req.params;
         if (!madh) {
-            return res.status(400).json({ error: 'Thiếu mã đơn hàng (madh)' });
+            return res.status(400).json({ error: "Thiếu mã đơn hàng (madh)" });
         }
 
-        // Lấy thông tin đơn hàng từ sheet Donhang
-        const donhangResponse = await sheets.spreadsheets.values.get({
+        // === 1. Lấy thông tin đơn hàng ===
+        const donhangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: 'Donhang!A:Z',
+            range: "Donhang!A:Z",
         });
 
-        const donhangData = donhangResponse.data.values;
-        const headerDonhang = donhangData[0];
-        
-        // Tìm mã đơn hàng trong cột G (index 6)
-        const madhIndex = headerDonhang.indexOf('G');
-        const companyNameIndex = headerDonhang.indexOf('J');
-        const addressIndex = headerDonhang.indexOf('L');
-        const taxCodeIndex = headerDonhang.indexOf('K');
+        const donhangData = donhangRes.data.values;
+        const header = donhangData[0];
 
-        const orderRow = donhangData.find(row => row[madhIndex] === madh);
-        
-        if (!orderRow) {
-            return res.status(404).json({ error: 'Không tìm thấy đơn hàng' });
-        }
+        const madhIndex = header.indexOf("G");
+        const companyNameIndex = header.indexOf("J");
+        const addressIndex = header.indexOf("L");
+        const taxCodeIndex = header.indexOf("K");
 
-        // Lấy chi tiết đơn hàng từ sheet Don_hang_PVC_ct
-        const detailResponse = await sheets.spreadsheets.values.get({
+        const orderRow = donhangData.find((r) => r[madhIndex] === madh);
+        if (!orderRow) return res.status(404).send("Không tìm thấy đơn hàng");
+
+        // === 2. Lấy chi tiết đơn hàng ===
+        const detailRes = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: 'Don_hang_PVC_ct!A:Z',
+            range: "Don_hang_PVC_ct!A:Z",
         });
 
-        const detailData = detailResponse.data.values;
+        const detailData = detailRes.data.values;
         const headerDetail = detailData[0];
-        
-        // Tìm các cột cần thiết
-        const madhDetailIndex = headerDetail.indexOf('B');
-        const descriptionIndex = headerDetail.indexOf('J');
-        const unitIndex = headerDetail.indexOf('W');
-        const quantityIndex = headerDetail.indexOf('V');
-        const totalAmountIndex = headerDetail.indexOf('Z');
-        const taxRateIndex = headerDetail.indexOf('AA');
 
-        const orderDetails = detailData.filter(row => row[madhDetailIndex] === madh);
+        const madhDetailIndex = headerDetail.indexOf("B");
+        const descriptionIndex = headerDetail.indexOf("J");
+        const unitIndex = headerDetail.indexOf("W");
+        const quantityIndex = headerDetail.indexOf("V");
+        const totalAmountIndex = headerDetail.indexOf("Z");
+        const taxRateIndex = headerDetail.indexOf("AA");
 
-        // Tính toán dữ liệu cho hóa đơn
-        const products = orderDetails.map((row, index) => {
+        const orderDetails = detailData.filter((r) => r[madhDetailIndex] === madh);
+
+        // === 3. Xử lý dữ liệu sản phẩm ===
+        const products = orderDetails.map((row, i) => {
             const quantity = parseFloat(row[quantityIndex]) || 0;
             const totalAmount = parseFloat(row[totalAmountIndex]) || 0;
             const taxRate = parseFloat(row[taxRateIndex]) || 0;
-            
-            const unitPrice = totalAmount / (1 + taxRate/100);
+
+            const unitPrice = totalAmount / (1 + taxRate / 100);
             const amount = quantity * unitPrice;
             const taxAmount = amount * (taxRate / 100);
 
             return {
-                stt: index + 1,
-                description: row[descriptionIndex] || '',
-                unit: row[unitIndex] || '',
-                quantity: quantity,
-                unitPrice: unitPrice,
-                amount: amount,
-                taxRate: taxRate,
-                taxAmount: taxAmount,
-                totalAmount: totalAmount
+                stt: i + 1,
+                description: row[descriptionIndex] || "",
+                unit: row[unitIndex] || "",
+                quantity,
+                unitPrice,
+                amount,
+                taxRate,
+                taxAmount,
+                totalAmount,
             };
         });
 
-        // Tính tổng các loại
+        // === 4. Tính tổng ===
         const summary = {
             totalAmount0: 0,
             totalAmount8: 0,
             totalTax8: 0,
             totalAmount10: 0,
-            totalTax10: 0
+            totalTax10: 0,
         };
 
-        products.forEach(product => {
-            if (product.taxRate === 8) {
-                summary.totalAmount8 += product.amount;
-                summary.totalTax8 += product.taxAmount;
-            } else if (product.taxRate === 10) {
-                summary.totalAmount10 += product.amount;
-                summary.totalTax10 += product.taxAmount;
+        products.forEach((p) => {
+            if (p.taxRate === 8) {
+                summary.totalAmount8 += p.amount;
+                summary.totalTax8 += p.taxAmount;
+            } else if (p.taxRate === 10) {
+                summary.totalAmount10 += p.amount;
+                summary.totalTax10 += p.taxAmount;
             } else {
-                summary.totalAmount0 += product.amount;
+                summary.totalAmount0 += p.amount;
             }
         });
 
-        const totalAmountBeforeTax = summary.totalAmount8 + summary.totalAmount10 + summary.totalAmount0;
+        const totalAmountBeforeTax =
+            summary.totalAmount8 + summary.totalAmount10 + summary.totalAmount0;
         const totalTax = summary.totalTax8 + summary.totalTax10;
         const totalAmount = totalAmountBeforeTax + totalTax;
 
-        // Render HTML với dữ liệu động
-        const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="vi">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Hóa đơn giá trị gia tăng</title>
-            <style>
-                /* CSS giống như file HTML trên */
-                ${getInvoiceCSS()}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <img src="${process.env.WATERMARK_FILEHOADON_ID}" alt="Watermark" class="watermark">
-                
-                <div class="header">
-                    <img src="${process.env.LOGO_FILE_ID}" alt="Logo" class="logo">
-                    <div style="flex-grow: 1; text-align: center;">
-                        <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br>(VẬT INVOICE)</div>
-                        <div>Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</div>
-                        <div>Mã của Cơ quan thuế (Tax Authority Code):</div>
-                        <div>Số (Invoice No.): 00000000</div>
-                    </div>
-                </div>
-
-                <div class="company-info">
-                    <strong>Đơn vị bán hàng (Seller):</strong> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I<br>
-                    <strong>Mã số thuế (Tax Code):</strong> 0 1 0 5 2 7 3 5 0 1<br>
-                    <strong>Địa chỉ (Address):</strong> Số 164 đường Nguyễn Trãi, Phường Thanh Xuân, TP Hà Nội, Việt Nam<br>
-                    <strong>Số điện thoại (Tel):</strong> 0902.227.007 - 0982.934.876<br>
-                    <strong>Website:</strong> www.meci.vn<br>
-                    <strong>Số tài khoản (Account No.):</strong> 22011686868 tại Ngân hàng TMCP Tiên Phong - Chi nhánh Hoài Đức
-                </div>
-
-                <div class="company-info">
-                    <strong>Họ tên người mua hàng (Buyer):</strong><br>
-                    <strong>Tên đơn vị (Co. name):</strong> ${orderRow[companyNameIndex] || ''}<br>
-                    <strong>Địa chỉ (Address):</strong> ${orderRow[addressIndex] || ''}<br>
-                    <strong>Số tài khoản (Account No.):</strong><br>
-                    <strong>Hình thức thanh toán (Pay. method):</strong> Tiền mặt/Chuyển khoản<br>
-                    <strong>Mã số thuế (Tax Code):</strong> ${orderRow[taxCodeIndex] || ''}
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Tên hàng hóa, dịch vụ (Description)</th>
-                            <th>ĐVT (Unit)</th>
-                            <th>SL (Quantity)</th>
-                            <th>Đơn giá (Unit price)</th>
-                            <th>Tiền chưa thuế (Amount)</th>
-                            <th colspan="2">Thuế GTGT (VAT)</th>
-                            <th>Thành tiền sau thuế (Total Amount)</th>
-                        </tr>
-                        <tr>
-                            <th></th>
-                            <th></th>
-                            <th></th>
-                            <th></th>
-                            <th></th>
-                            <th></th>
-                            <th>%</th>
-                            <th>Tiền thuế (VAT Amount)</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${products.map(product => `
-                            <tr>
-                                <td>${product.stt}</td>
-                                <td>${product.description}</td>
-                                <td>${product.unit}</td>
-                                <td>${formatNumber(product.quantity)}</td>
-                                <td>${formatNumber(product.unitPrice)}</td>
-                                <td>${formatNumber(product.amount)}</td>
-                                <td>${product.taxRate}%</td>
-                                <td>${formatNumber(product.taxAmount)}</td>
-                                <td>${formatNumber(product.totalAmount)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="5"><strong>Tổng cộng (Amount):</strong></td>
-                            <td><strong>${formatNumber(totalAmountBeforeTax)}</strong></td>
-                            <td colspan="2"></td>
-                            <td><strong>${formatNumber(totalAmount)}</strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
-
-                <table class="summary-table">
-                    <thead>
-                        <tr>
-                            <th>Tổng hợp (Total)</th>
-                            <th>Thuế suất (Tax rate)</th>
-                            <th>Thành tiền trước thuế (Amount)</th>
-                            <th>Tiền thuế GTGT (Tax Amount)</th>
-                            <th>Tổng tiền thanh toán (Total Amount)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Tổng tiền chịu thuế suất (Total):</td>
-                            <td>0%</td>
-                            <td>${formatNumber(summary.totalAmount0)}</td>
-                            <td></td>
-                            <td>${formatNumber(summary.totalAmount0)}</td>
-                        </tr>
-                        <tr>
-                            <td>Tổng tiền chịu thuế suất (Total):</td>
-                            <td>8%</td>
-                            <td>${formatNumber(summary.totalAmount8)}</td>
-                            <td>${formatNumber(summary.totalTax8)}</td>
-                            <td>${formatNumber(summary.totalAmount8 + summary.totalTax8)}</td>
-                        </tr>
-                        <tr>
-                            <td>Tổng tiền chịu thuế suất (Total):</td>
-                            <td>10%</td>
-                            <td>${formatNumber(summary.totalAmount10)}</td>
-                            <td>${formatNumber(summary.totalTax10)}</td>
-                            <td>${formatNumber(summary.totalAmount10 + summary.totalTax10)}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2"><strong>Tổng cộng tiền thanh toán (Total):</strong></td>
-                            <td><strong>${formatNumber(totalAmountBeforeTax)}</strong></td>
-                            <td><strong>${formatNumber(totalTax)}</strong></td>
-                            <td><strong>${formatNumber(totalAmount)}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="amount-in-words">
-                    Tổng số tiền viết bằng chữ (Amount in words): ${numberToWords(totalAmount)}
-                </div>
-
-                <div class="signature">
-                    <div>
-                        <strong>Người mua hàng (Buyer)</strong><br><br><br>
-                        <em>(Ký, ghi rõ họ tên)</em>
-                    </div>
-                    <div>
-                        <strong>Người bán hàng (Seller)</strong><br><br><br>
-                        <em>(Ký, ghi rõ họ tên)</em>
-                    </div>
-                </div>
-
-                <div style="text-align: center; margin-top: 10px; font-style: italic;">
-                    (Cần kiểm tra đối chiếu khi lập, giao, nhận hóa đơn)
-                </div>
-            </div>
-        </body>
-        </html>
-        `;
-
-        res.setHeader('Content-Type', 'text/html');
-        res.send(htmlContent);
-
-    } catch (error) {
-        console.error('Lỗi khi tạo hóa đơn:', error);
-        res.status(500).json({ error: 'Lỗi server khi tạo hóa đơn' });
+        // === 5. Render ra EJS ===
+        res.render("hoadon", {
+            products,
+            summary,
+            totalAmountBeforeTax,
+            totalTax,
+            totalAmount,
+            order: {
+                companyName: orderRow[companyNameIndex] || "",
+                address: orderRow[addressIndex] || "",
+                taxCode: orderRow[taxCodeIndex] || "",
+            },
+            today: new Date(),
+            formatNumber,
+            numberToWords,
+            LOGO_FILE_ID: process.env.LOGO_FILE_ID,
+            WATERMARK_FILEHOADON_ID: process.env.WATERMARK_FILEHOADON_ID,
+        });
+    } catch (err) {
+        console.error("Lỗi khi tạo hóa đơn:", err);
+        res.status(500).json({ error: "Lỗi server khi tạo hóa đơn" });
     }
 });
 
-
-
-// Hàm trả về CSS
-function getInvoiceCSS() {
-    return `
-        @page {
-            size: A4 portrait;
-            margin: 0;
-        }
-        
-        body {
-            font-family: "Times New Roman", Times, serif;
-            margin: 0;
-            padding: 20px;
-            font-size: 12px;
-            line-height: 1.2;
-        }
-        
-        .container {
-            width: 100%;
-            max-width: 210mm;
-            margin: 0 auto;
-            position: relative;
-        }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-        
-        .logo {
-            width: 150px;
-            height: auto;
-        }
-        
-        .invoice-title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
-        
-        .invoice-info {
-            margin-bottom: 15px;
-        }
-        
-        .company-info {
-            margin-bottom: 15px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-        }
-        
-        th, td {
-            border: 1px solid #000;
-            padding: 4px;
-            text-align: center;
-        }
-        
-        th {
-            font-weight: bold;
-        }
-        
-        .summary-table {
-            width: 60%;
-            margin-left: auto;
-        }
-        
-        .amount-in-words {
-            margin: 15px 0;
-            font-style: italic;
-        }
-        
-        .signature {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 50px;
-        }
-        
-        .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-45deg);
-            opacity: 0.1;
-            z-index: -1;
-            width: 400px;
-            height: auto;
-        }
-        
-        @media print {
-            body {
-                padding: 10px;
-            }
-        }
-    `;
-}
-
-module.exports = router;
+export default app;
 
 
 app.use(express.static(path.join(__dirname, 'public')));
