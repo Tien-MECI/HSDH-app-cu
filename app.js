@@ -2740,19 +2740,24 @@ app.get("/copy-:madh", async (req, res) => {
 app.get("/taohoadon-:madh", async (req, res) => {
     try {
         const { madh } = req.params;
+        console.log("➡️ Nhận yêu cầu tạo hóa đơn cho mã:", madh);
+
         if (!madh) return res.status(400).send("Thiếu mã đơn hàng (madh)");
 
         // === 1. Lấy dữ liệu đơn hàng ===
+        console.log("📄 Đang lấy sheet Don_hang...");
         const donhangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
             range: "Don_hang!A1:Z",
         });
 
         const donhangData = donhangRes.data.values;
-        if (!donhangData || donhangData.length < 2)
+        if (!donhangData || donhangData.length < 2) {
+            console.error("❌ Sheet Don_hang trống hoặc không có dữ liệu.");
             return res.status(404).send("Không có dữ liệu đơn hàng");
+        }
 
-        // === Xác định chỉ số cột theo ký tự Excel ===
+        // === Xác định chỉ số cột ===
         const colToIndex = (col) =>
             col
                 .toUpperCase()
@@ -2764,21 +2769,32 @@ app.get("/taohoadon-:madh", async (req, res) => {
         const taxCodeIndex = colToIndex("K"); // Mã số thuế
         const addressIndex = colToIndex("L"); // Địa chỉ
 
-        // === 2. Tìm dòng có mã đơn hàng trùng khớp ===
+        console.log("📊 Đang tìm đơn hàng có mã:", madh, "ở cột G (index =", madhIndex, ")");
+
         const orderRow = donhangData.find(
             (r) => (r[madhIndex] || "").trim() === madh.trim()
         );
-        if (!orderRow) return res.status(404).send("Không tìm thấy đơn hàng");
 
-        // === 3. Lấy chi tiết đơn hàng ===
+        if (!orderRow) {
+            console.error("❌ Không tìm thấy đơn hàng:", madh);
+            console.log("🧾 Một vài mã đang có trong sheet:", donhangData.slice(1, 6).map(r => r[madhIndex]));
+            return res.status(404).send("Không tìm thấy đơn hàng");
+        }
+
+        console.log("✅ Tìm thấy đơn hàng:", orderRow);
+
+        // === 2. Lấy chi tiết đơn hàng ===
+        console.log("📄 Đang lấy sheet Don_hang_PVC_ct...");
         const detailRes = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
             range: "Don_hang_PVC_ct!A1:Z",
         });
 
         const detailData = detailRes.data.values;
-        if (!detailData || detailData.length < 2)
+        if (!detailData || detailData.length < 2) {
+            console.error("❌ Sheet Don_hang_PVC_ct trống hoặc không có dữ liệu.");
             return res.status(404).send("Không có dữ liệu chi tiết đơn hàng");
+        }
 
         const madhDetailIndex = colToIndex("B"); // Mã đơn hàng
         const descriptionIndex = colToIndex("J"); // Diễn giải
@@ -2791,10 +2807,15 @@ app.get("/taohoadon-:madh", async (req, res) => {
             (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
         );
 
-        if (orderDetails.length === 0)
+        if (orderDetails.length === 0) {
+            console.error("⚠️ Không có chi tiết cho đơn hàng:", madh);
+            console.log("🧾 Một vài mã chi tiết đang có:", detailData.slice(1, 6).map(r => r[madhDetailIndex]));
             return res.status(404).send("Không có chi tiết cho đơn hàng này");
+        }
 
-        // === 4. Xử lý dữ liệu sản phẩm ===
+        console.log("✅ Có", orderDetails.length, "dòng chi tiết đơn hàng");
+
+        // === 3. Xử lý dữ liệu sản phẩm ===
         const products = orderDetails.map((row, i) => {
             const quantity = parseFloat(row[quantityIndex]) || 0;
             const totalAmount = parseFloat(row[totalAmountIndex]) || 0;
@@ -2816,7 +2837,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
             };
         });
 
-        // === 5. Tính tổng ===
+        // === 4. Tính tổng ===
         const summary = {
             totalAmount0: 0,
             totalAmount8: 0,
@@ -2842,7 +2863,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
         const totalTax = summary.totalTax8 + summary.totalTax10;
         const totalAmount = totalAmountBeforeTax + totalTax;
 
-        // === 6. Render EJS ===
+        // === 5. Render EJS ===
+        console.log("🧾 Đang render hóa đơn EJS...");
         res.render("hoadon", {
             products,
             summary,
@@ -2863,9 +2885,10 @@ app.get("/taohoadon-:madh", async (req, res) => {
         });
     } catch (err) {
         console.error("❌ Lỗi khi tạo hóa đơn:", err);
-        res.status(500).json({ error: "Lỗi server khi tạo hóa đơn" });
+        res.status(500).send("Internal Server Error");
     }
 });
+
 
 
 export default app;
