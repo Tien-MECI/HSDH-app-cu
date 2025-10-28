@@ -75,20 +75,51 @@ app.set("views", path.join(__dirname, "views"));
 
 
 
+// === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
 async function loadDriveImageBase64(fileId) {
-    try {
-        const meta = await drive.files.get({ fileId, fields: "mimeType" });
-        const bin = await drive.files.get(
-            { fileId, alt: "media" },
-            { responseType: "arraybuffer" }
-        );
-        const buffer = Buffer.from(bin.data, "binary");
-        return `data:${meta.data.mimeType};base64,${buffer.toString("base64")}`;
-    } catch (e) {
-        console.error(`⚠️ Không tải được file Drive ${fileId}:`, e.message);
-        return "";
+  try {
+    // 1️⃣ Lấy metadata để biết mimeType
+    const metaRes = await drive.files.get({
+      fileId,
+      fields: "id, name, mimeType",
+    });
+    const mimeType = metaRes.data.mimeType || "";
+    console.log(`📁 [Drive] File meta: ${metaRes.data.name} (${mimeType})`);
+
+    // 2️⃣ Nếu là file ảnh gốc (PNG, JPEG, ...), tải trực tiếp
+    if (mimeType.startsWith("image/")) {
+      const bin = await drive.files.get(
+        { fileId, alt: "media" },
+        { responseType: "arraybuffer" }
+      );
+      const buffer = Buffer.from(bin.data);
+      return `data:${mimeType};base64,${buffer.toString("base64")}`;
     }
+
+    // 3️⃣ Nếu là file Google Docs / Slides / Drawings → export sang PNG
+    if (mimeType.startsWith("application/vnd.google-apps")) {
+      console.log("ℹ️ File không phải ảnh gốc — thử export sang PNG...");
+      const exported = await drive.files.export(
+        { fileId, mimeType: "image/png" },
+        { responseType: "arraybuffer" }
+      );
+      const buffer = Buffer.from(exported.data);
+      return `data:image/png;base64,${buffer.toString("base64")}`;
+    }
+
+    // 4️⃣ Các loại khác (PDF, ...), cũng cho phép tải nếu Drive hỗ trợ alt:media
+    const bin = await drive.files.get(
+      { fileId, alt: "media" },
+      { responseType: "arraybuffer" }
+    );
+    const buffer = Buffer.from(bin.data);
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  } catch (err) {
+    console.error(`❌ Không tải được file Drive ${fileId}:`, err.message);
+    return "";
+  }
 }
+
 
 // --- Routes ---
 app.get("/", (_req, res) => res.send("🚀 Server chạy ổn! /bbgn để xuất BBGN."));
