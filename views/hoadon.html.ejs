@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hóa đơn giá trị gia tăng</title>
     <style>
-        @page {
-            size: A4 portrait;
-            margin: 0;
-        }
-        
+        @page { size: A4 portrait; margin: 0; }
         body {
             font-family: "Times New Roman", Times, serif;
             margin: 0;
@@ -17,109 +13,40 @@
             font-size: 12px;
             line-height: 1.2;
         }
-        
-        .container {
-            width: 100%;
-            max-width: 210mm;
-            margin: 0 auto;
-            position: relative;
-        }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-        
-        .logo {
-            width: 150px;
-            height: auto;
-        }
-        
-        .invoice-title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
-        
-        .invoice-info {
-            margin-bottom: 15px;
-        }
-        
-        .company-info {
-            margin-bottom: 15px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-        }
-        
-        th, td {
-            border: 1px solid #000;
-            padding: 4px;
-            text-align: center;
-        }
-        
-        th {
-            font-weight: bold;
-        }
-        
-        .summary-table {
-            width: 60%;
-            margin-left: auto;
-        }
-        
-        .amount-in-words {
-            margin: 15px 0;
-            font-style: italic;
-        }
-        
-        .signature {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 50px;
-        }
-        
+        .container { width: 100%; max-width: 210mm; margin: 0 auto; position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .logo { width: 150px; height: auto; }
+        .invoice-title { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 15px; text-transform: uppercase; }
+        .company-info { margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th, td { border: 1px solid #000; padding: 4px; text-align: center; }
+        .summary-table { width: 60%; margin-left: auto; }
+        .amount-in-words { margin: 15px 0; font-style: italic; }
+        .signature { display: flex; justify-content: space-between; margin-top: 50px; }
         .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
-            opacity: 0.1;
-            z-index: -1;
-            width: 400px;
-            height: auto;
-        }
-        
-        @media print {
-            body {
-                padding: 10px;
-            }
+            opacity: 0.1; z-index: -1; width: 400px; height: auto;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Watermark -->
-        <img src="WATERMARK_FILEHOADON_ID" alt="Watermark" class="watermark">
-        
-        <!-- Header với logo -->
+        <img src="<%= WATERMARK_FILEHOADON_ID %>" alt="Watermark" class="watermark">
+
+        <!-- Header -->
         <div class="header">
-            <img src="LOGO_FILE_ID" alt="Logo" class="logo">
+            <img src="<%= LOGO_FILE_ID %>" alt="Logo" class="logo">
             <div style="flex-grow: 1; text-align: center;">
-                <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br>(VẬT INVOICE)</div>
-                <div>Ngày <span id="currentDay"></span> tháng <span id="currentMonth"></span> năm <span id="currentYear"></span></div>
+                <div class="invoice-title">HÓA ĐƠN GIÁ TRỊ GIA TĂNG<br>(VAT INVOICE)</div>
+                <div>Ngày <%= today.getDate() %> tháng <%= today.getMonth() + 1 %> năm <%= today.getFullYear() %></div>
                 <div>Mã của Cơ quan thuế (Tax Authority Code):</div>
                 <div>Số (Invoice No.): 00000000</div>
             </div>
         </div>
 
-        <!-- Thông tin đơn vị bán hàng -->
+        <!-- Seller Info -->
         <div class="company-info">
             <strong>Đơn vị bán hàng (Seller):</strong> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I<br>
             <strong>Mã số thuế (Tax Code):</strong> 0 1 0 5 2 7 3 5 0 1<br>
@@ -129,206 +56,77 @@
             <strong>Số tài khoản (Account No.):</strong> 22011686868 tại Ngân hàng TMCP Tiên Phong - Chi nhánh Hoài Đức
         </div>
 
-        <!-- Thông tin người mua -->
+        <!-- Buyer Info -->
         <div class="company-info">
-            <strong>Họ tên người mua hàng (Buyer):</strong> <span id="buyerName"></span><br>
-            <strong>Tên đơn vị (Co. name):</strong> <span id="companyName"></span><br>
-            <strong>Địa chỉ (Address):</strong> <span id="companyAddress"></span><br>
-            <strong>Số tài khoản (Account No.):</strong> <span id="accountNumber"></span><br>
+            <strong>Tên đơn vị (Co. name):</strong> <%= order.companyName %><br>
+            <strong>Địa chỉ (Address):</strong> <%= order.address %><br>
             <strong>Hình thức thanh toán (Pay. method):</strong> Tiền mặt/Chuyển khoản<br>
-            <strong>Mã số thuế (Tax Code):</strong> <span id="taxCode"></span>
+            <strong>Mã số thuế (Tax Code):</strong> <%= order.taxCode %>
         </div>
 
-        <!-- Bảng hàng hóa -->
-        <table id="productsTable">
+        <!-- Product Table -->
+        <table>
             <thead>
                 <tr>
                     <th>STT</th>
-                    <th>Tên hàng hóa, dịch vụ (Description)</th>
-                    <th>ĐVT (Unit)</th>
-                    <th>SL (Quantity)</th>
-                    <th>Đơn giá (Unit price)</th>
-                    <th>Tiền chưa thuế (Amount)</th>
-                    <th colspan="2">Thuế GTGT (VAT)</th>
-                    <th>Thành tiền sau thuế (Total Amount)</th>
-                </tr>
-                <tr>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th></th>
+                    <th>Tên hàng hóa, dịch vụ</th>
+                    <th>ĐVT</th>
+                    <th>SL</th>
+                    <th>Đơn giá</th>
+                    <th>Tiền chưa thuế</th>
                     <th>%</th>
-                    <th>Tiền thuế (VAT Amount)</th>
-                    <th></th>
+                    <th>Tiền thuế</th>
+                    <th>Thành tiền sau thuế</th>
                 </tr>
             </thead>
-            <tbody id="productsBody">
-                <!-- Dữ liệu sẽ được điền bằng JavaScript -->
+            <tbody>
+                <% products.forEach(p => { %>
+                    <tr>
+                        <td><%= p.stt %></td>
+                        <td><%= p.description %></td>
+                        <td><%= p.unit %></td>
+                        <td><%= formatNumber(p.quantity) %></td>
+                        <td><%= formatNumber(p.unitPrice) %></td>
+                        <td><%= formatNumber(p.amount) %></td>
+                        <td><%= p.taxRate %>%</td>
+                        <td><%= formatNumber(p.taxAmount) %></td>
+                        <td><%= formatNumber(p.totalAmount) %></td>
+                    </tr>
+                <% }) %>
             </tbody>
-            <tfoot id="productsFooter">
-                <!-- Tổng cộng sẽ được tính toán -->
+            <tfoot>
+                <tr>
+                    <td colspan="5"><strong>Tổng cộng:</strong></td>
+                    <td><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td>
+                    <td colspan="2"></td>
+                    <td><strong><%= formatNumber(totalAmount) %></strong></td>
+                </tr>
             </tfoot>
         </table>
 
-        <!-- Bảng tổng hợp -->
+        <!-- Summary Table -->
         <table class="summary-table">
             <thead>
                 <tr>
-                    <th>Tổng hợp (Total)</th>
-                    <th>Thuế suất (Tax rate)</th>
-                    <th>Thành tiền trước thuế (Amount)</th>
-                    <th>Tiền thuế GTGT (Tax Amount)</th>
-                    <th>Tổng tiền thanh toán (Total Amount)</th>
+                    <th>Tổng hợp</th><th>Thuế suất</th><th>Trước thuế</th><th>Tiền thuế</th><th>Tổng</th>
                 </tr>
             </thead>
-            <tbody id="summaryBody">
-                <!-- Dữ liệu sẽ được điền bằng JavaScript -->
+            <tbody>
+                <tr><td>0%</td><td>0%</td><td><%= formatNumber(summary.totalAmount0) %></td><td></td><td><%= formatNumber(summary.totalAmount0) %></td></tr>
+                <tr><td>8%</td><td>8%</td><td><%= formatNumber(summary.totalAmount8) %></td><td><%= formatNumber(summary.totalTax8) %></td><td><%= formatNumber(summary.totalAmount8 + summary.totalTax8) %></td></tr>
+                <tr><td>10%</td><td>10%</td><td><%= formatNumber(summary.totalAmount10) %></td><td><%= formatNumber(summary.totalTax10) %></td><td><%= formatNumber(summary.totalAmount10 + summary.totalTax10) %></td></tr>
+                <tr><td colspan="2"><strong>Tổng cộng:</strong></td><td><strong><%= formatNumber(totalAmountBeforeTax) %></strong></td><td><strong><%= formatNumber(totalTax) %></strong></td><td><strong><%= formatNumber(totalAmount) %></strong></td></tr>
             </tbody>
         </table>
 
-        <!-- Số tiền bằng chữ -->
-        <div class="amount-in-words" id="amountInWords">
-            Tổng số tiền viết bằng chữ (Amount in words): 
+        <div class="amount-in-words">
+            Tổng số tiền viết bằng chữ: <%= numberToWords(totalAmount) %>
         </div>
 
-        <!-- Chữ ký -->
         <div class="signature">
-            <div>
-                <strong>Người mua hàng (Buyer)</strong><br><br><br>
-                <em>(Ký, ghi rõ họ tên)</em>
-            </div>
-            <div>
-                <strong>Người bán hàng (Seller)</strong><br><br><br>
-                <em>(Ký, ghi rõ họ tên)</em>
-            </div>
-        </div>
-
-        <!-- Ghi chú -->
-        <div style="text-align: center; margin-top: 10px; font-style: italic;">
-            (Cần kiểm tra đối chiếu khi lập, giao, nhận hóa đơn)
+            <div><strong>Người mua hàng</strong><br><br><em>(Ký, ghi rõ họ tên)</em></div>
+            <div><strong>Người bán hàng</strong><br><br><em>(Ký, ghi rõ họ tên)</em></div>
         </div>
     </div>
-
-    <script>
-        // Cập nhật ngày tháng năm hiện tại
-        const now = new Date();
-        document.getElementById('currentDay').textContent = now.getDate();
-        document.getElementById('currentMonth').textContent = now.getMonth() + 1;
-        document.getElementById('currentYear').textContent = now.getFullYear();
-
-        // Giả lập dữ liệu - trong thực tế sẽ lấy từ API
-        const products = [
-            {
-                description: "Màng PVC trắng trong trơn 2.0x200",
-                unit: "m",
-                quantity: 62.16,
-                unitPrice: 23611.11,
-                taxRate: 8
-            },
-            {
-                description: "Bát treo sơn tĩnh điện 200",
-                unit: "Cặp",
-                quantity: 28,
-                unitPrice: 4363.64,
-                taxRate: 10
-            }
-        ];
-
-        // Tính toán và hiển thị dữ liệu
-        function calculateInvoice() {
-            const productsBody = document.getElementById('productsBody');
-            let totalAmount = 0;
-            let totalTax8 = 0;
-            let totalAmount8 = 0;
-            let totalTax10 = 0;
-            let totalAmount10 = 0;
-
-            products.forEach((product, index) => {
-                const amount = product.quantity * product.unitPrice;
-                const taxAmount = amount * (product.taxRate / 100);
-                const total = amount + taxAmount;
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${product.description}</td>
-                    <td>${product.unit}</td>
-                    <td>${product.quantity.toLocaleString('vi-VN')}</td>
-                    <td>${product.unitPrice.toLocaleString('vi-VN')}</td>
-                    <td>${amount.toLocaleString('vi-VN')}</td>
-                    <td>${product.taxRate}%</td>
-                    <td>${taxAmount.toLocaleString('vi-VN')}</td>
-                    <td>${total.toLocaleString('vi-VN')}</td>
-                `;
-                productsBody.appendChild(row);
-
-                totalAmount += total;
-                
-                if (product.taxRate === 8) {
-                    totalAmount8 += amount;
-                    totalTax8 += taxAmount;
-                } else if (product.taxRate === 10) {
-                    totalAmount10 += amount;
-                    totalTax10 += taxAmount;
-                }
-            });
-
-            // Cập nhật tổng cộng
-            document.getElementById('productsFooter').innerHTML = `
-                <tr>
-                    <td colspan="5"><strong>Tổng cộng (Amount):</strong></td>
-                    <td><strong>${(totalAmount8 + totalAmount10).toLocaleString('vi-VN')}</strong></td>
-                    <td colspan="2"></td>
-                    <td><strong>${totalAmount.toLocaleString('vi-VN')}</strong></td>
-                </tr>
-            `;
-
-            // Cập nhật bảng tổng hợp
-            document.getElementById('summaryBody').innerHTML = `
-                <tr>
-                    <td>Tổng tiền chịu thuế suất (Total):</td>
-                    <td>0%</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>Tổng tiền chịu thuế suất (Total):</td>
-                    <td>8%</td>
-                    <td>${totalAmount8.toLocaleString('vi-VN')}</td>
-                    <td>${totalTax8.toLocaleString('vi-VN')}</td>
-                    <td>${(totalAmount8 + totalTax8).toLocaleString('vi-VN')}</td>
-                </tr>
-                <tr>
-                    <td>Tổng tiền chịu thuế suất (Total):</td>
-                    <td>10%</td>
-                    <td>${totalAmount10.toLocaleString('vi-VN')}</td>
-                    <td>${totalTax10.toLocaleString('vi-VN')}</td>
-                    <td>${(totalAmount10 + totalTax10).toLocaleString('vi-VN')}</td>
-                </tr>
-                <tr>
-                    <td colspan="2"><strong>Tổng cộng tiền thanh toán (Total):</strong></td>
-                    <td><strong>${(totalAmount8 + totalAmount10).toLocaleString('vi-VN')}</strong></td>
-                    <td><strong>${(totalTax8 + totalTax10).toLocaleString('vi-VN')}</strong></td>
-                    <td><strong>${totalAmount.toLocaleString('vi-VN')}</strong></td>
-                </tr>
-            `;
-
-            // Cập nhật số tiền bằng chữ
-            document.getElementById('amountInWords').textContent += convertNumberToWords(totalAmount);
-        }
-
-        // Hàm chuyển số thành chữ (đơn giản)
-        function convertNumberToWords(number) {
-            // Triển khai hàm chuyển số thành chữ ở đây
-            // Đây là phiên bản đơn giản, bạn có thể cần triển khai đầy đủ hơn
-            return "Một triệu bảy trăm mười chín nghìn bốn trăm tám mươi đồng chẵn./.";
-        }
-
-        // Gọi hàm tính toán khi trang được tải
-        document.addEventListener('DOMContentLoaded', calculateInvoice);
-    </script>
 </body>
 </html>

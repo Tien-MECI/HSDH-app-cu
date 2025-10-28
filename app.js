@@ -2733,7 +2733,7 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-router.get('/taohoadon-:madh', async (req, res) => {
+app.get('/taohoadon-:madh', async (req, res) => {
     try {
         const { madh } = req.query;
         
