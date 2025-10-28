@@ -25,7 +25,7 @@ const __dirname = dirname(__filename);
 // --- IDs file Drive ---
 const LOGO_FILE_ID = "1Rwo4pJt222dLTXN9W6knN3A5LwJ5TDIa";
 const WATERMARK_FILE_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
-const WATERMARK_FILEHOADON_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
+const WATERMARK_FILEHOADON_ID = "1xkM4vBdWGFHA1XtjvB5Nnc5Xm6N-HGuq";
 
 
 // --- ENV ---
@@ -2866,7 +2866,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
         const totalAmount = totalAmountBeforeTax + totalTax;
         // Logo & Watermark
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEHOADON_ID);
         // === 5. Render EJS ===
         console.log("🧾 Đang render hóa đơn EJS...");
         res.render("hoadon", {
