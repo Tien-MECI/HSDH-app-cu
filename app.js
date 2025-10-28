@@ -10,9 +10,6 @@ import { promisify } from "util";
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 const renderFileAsync = promisify(ejs.renderFile);
-import express from "express";
-import { google } from "googleapis";
-import dotenv from "dotenv";
 
 app.set("view engine", "ejs");
 app.set("views", "./views");
