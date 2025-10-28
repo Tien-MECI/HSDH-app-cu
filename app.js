@@ -2831,8 +2831,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
         description: row[descriptionIndex] || "",
         unit: row[unitIndex] || "",
         quantity,
-        unitPrice,
-        amount,             // Thành tiền chưa thuế
+        unitPrice,             // Thành tiền chưa thuế
+        amount,             // đơn giá
         taxRate,
         taxAmount,
         totalAmount: totalAfterTax, // Tổng sau thuế
@@ -2850,13 +2850,13 @@ app.get("/taohoadon-:madh", async (req, res) => {
 
     products.forEach((p) => {
       if (p.taxRate === 8) {
-        summary.totalAmount8 += p.amount;
+        summary.totalAmount8 += p.unitPrice;
         summary.totalTax8 += p.taxAmount;
       } else if (p.taxRate === 10) {
-        summary.totalAmount10 += p.amount;
+        summary.totalAmount10 += p.unitPrice;
         summary.totalTax10 += p.taxAmount;
       } else {
-        summary.totalAmount0 += p.amount;
+        summary.totalAmount0 += p.unitPrice;
       }
     });
 
