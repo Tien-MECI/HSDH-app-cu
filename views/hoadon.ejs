@@ -49,20 +49,18 @@
     - margin-top: 10mm để không chồng lên watermark viền trên (nếu watermark có họa tiết sát mép)
   */
     .container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: calc(210mm - 20mm);  /* trừ 10mm lề hai bên */
-    height: calc(297mm - 20mm); /* trừ 10mm lề trên dưới */
-    padding: 1mm;               /* cách nội dung và khung 1mm */
-    border: 1mm solid #000;     /* viền đen 1mm */
-    box-sizing: border-box;
-    background: transparent;
-    overflow: hidden;
+    position: relative;
     z-index: 1;
+    width: 190mm;
+    margin: 10mm auto;              /* cách mép trên và dưới 10mm */
+    padding: 1mm;                   /* <<< khoảng cách nội dung tới khung = 1mm */
+    box-sizing: border-box;
+    border: 1mm solid #000;         /* viền đen 1mm */
+    background: transparent;
+    /* đảm bảo không vượt quá trang in (297mm) trừ margin trên/dưới */
+    max-height: calc(297mm - 20mm); /* 20mm = margin-top + margin-bottom */
+    overflow: visible;              /* nếu bạn muốn nội dung tràn sang trang sau, để visible */
   }
-
 
   /* Header */
   .header {
@@ -141,7 +139,7 @@
     .watermark { opacity: 0.25 !important; }
     .container {
       border: 1mm solid #000;
-      margin: 10mm auto 10mm;
+      margin: 10mm auto;
       padding: 1mm;
       max-height: calc(297mm - 20mm);
     }
