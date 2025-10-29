@@ -21,7 +21,7 @@
     background: #fff;
   }
 
-  /* ====== WATERMARK full trang A4 căn giữa ====== */
+  /* WATERMARK full trang, căn giữa */
   .watermark {
     position: fixed;
     top: 0;
@@ -42,25 +42,30 @@
     object-fit: cover;
   }
 
-  /* ====== CONTAINER căn giữa trang ====== */
+  /*
+    CONTAINER:
+    - border: 1mm solid black
+    - padding (khoảng cách giữa nội dung và khung): 1mm theo yêu cầu
+    - margin-top: 10mm để không chồng lên watermark viền trên (nếu watermark có họa tiết sát mép)
+  */
   .container {
     position: relative;
     z-index: 1;
     width: 190mm;
     min-height: 277mm;
-    margin: 0mm auto;
-    padding: 10mm;
+    margin: 10mm auto 0;    /* căn giữa và cách mép trên 10mm */
+    padding: 1mm;           /* <-- CHÍNH: khoảng cách nội dung tới khung = 1mm */
     box-sizing: border-box;
-    border: 4px solid #2b6ea3;
+    border: 1mm solid #000; /* viền đen 1mm */
     background: transparent;
   }
 
-  /* ===== HEADER ===== */
+  /* Header */
   .header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    border-bottom: 2px solid #000;
+    border-bottom: 1px solid #000;
     padding-bottom: 6px;
   }
   .logo { width: 120px; height: auto; }
@@ -70,16 +75,16 @@
   .invoice-date { font-size: 12px; margin-top: 4px; }
   .header-right { text-align: right; font-size: 12px; line-height: 1.25; }
 
-  /* ===== SECTION (Seller / Buyer) ===== */
+  /* Seller/Buyer blocks */
   .section {
     border: 1px solid #000;
-    padding: 8px 10px;
+    padding: 6px;      /* keep small padding inside these inner boxes */
     margin-top: 8px;
     background: #fff;
-    line-height: 1.7; /* dãn dòng rộng hơn */
+    line-height: 1.6;
   }
 
-  /* ===== TABLE ===== */
+  /* Tables */
   table {
     width: 100%;
     border-collapse: collapse;
@@ -104,7 +109,6 @@
   }
   td.right { text-align: right; }
 
-  /* ===== SUMMARY ===== */
   .summary-table {
     width: 100%;
     border-collapse: collapse;
@@ -131,7 +135,7 @@
 
   @media print {
     .watermark { opacity: 0.3 !important; }
-    .container { border-width: 3px; }
+    .container { border: 1mm solid #000; margin-top: 10mm; padding: 1mm; }
   }
 </style>
 </head>
@@ -166,7 +170,7 @@
       </div>
     </div>
 
-     <div class="section">Mã CQT (Tax Authority Code): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
+    <div class="section">Mã CQT (Tax Authority Code): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
 
     <!-- SELLER -->
     <div class="section">
@@ -277,7 +281,7 @@
     </table>
 
     <div class="amount-in-words">
-      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(formatNumber1(totalAmount)) %></strong>
+      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(totalAmount) %></strong>
     </div>
 
     <div class="signature">
