@@ -162,10 +162,11 @@
       <div class="header-right">
         <div>Mẫu số (Form No.): <strong>1</strong></div>
         <div>Ký hiệu (Serial No.): <strong>C25TMC</strong></div>
-        <div>Mã CQT (Tax Authority Code): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
-        <div>Số (Invoice No.): <strong><%= order && order.madh ? order.madh : "00000000" %></strong></div>
+        <div>Số (Invoice No.): <strong>00000000</strong></div>
       </div>
     </div>
+
+     <div class="section">Mã CQT (Tax Authority Code): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
 
     <!-- SELLER -->
     <div class="section">
@@ -276,7 +277,7 @@
     </table>
 
     <div class="amount-in-words">
-      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(totalAmount) %></strong>
+      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(formatNumber1(totalAmount)) %></strong>
     </div>
 
     <div class="signature">
