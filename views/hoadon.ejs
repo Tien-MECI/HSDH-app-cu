@@ -4,127 +4,200 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hóa đơn giá trị gia tăng</title>
+
   <style>
-    @page { size: A4 portrait; margin: 0cm; }
-    html,body { height:100%; margin:0; padding:0; }
-    body{
+    @page { size: A4 portrait; margin: 0; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #fff;
       font-family: "Times New Roman", Times, serif;
-      font-size:12px;
-      line-height:1.2;
+      font-size: 12px;
+      line-height: 1.2;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      background: #fff;
     }
 
-    /* ngoài cùng */
-    .container{
-      width:210mm;
-      min-height:297mm;
-      margin:0 auto;
-      padding:12px;
-      box-sizing:border-box;
-      border:4px solid #2b6ea3;
-      position:relative;
-      background:#fff;
-    }
-
-    /* WATERMARK full A4 */
+    /* ========== WATERMARK full A4 ========== */
     .watermark {
-      position:absolute;
-      top:0;
-      left:0;
-      width:210mm;
-      height:297mm;
-      z-index:0;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      pointer-events:none;
-      opacity:0.6;
+      position: fixed; /* giữ watermark full trang khi in */
+      top: 0;
+      left: 0;
+      width: 210mm;
+      height: 297mm;
+      z-index: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      opacity: 0.5;
     }
-    .watermark img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
+    .watermark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* cover = phủ kín trang */
     }
-    /* ensure content above watermark */
-    .content { position:relative; z-index:1; }
 
-    /* header */
-    .header {
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:8px;
-      border-bottom:2px solid #000;
-      padding-bottom:6px;
+    /* ========== CONTAINER nội dung hóa đơn ========== */
+    .container {
+      position: relative;
+      z-index: 1; /* nằm trên watermark */
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 12mm;
+      box-sizing: border-box;
+      border: 4px solid #2b6ea3;
+      background: transparent; /* để thấy watermark phía sau */
     }
-    .logo { width:120px; height:auto; }
-    .header-center { flex:1; text-align:center; line-height:1; }
-    .invoice-title { font-weight:700; font-size:18px; text-transform:uppercase; }
-    .invoice-sub { font-style:italic; font-size:13px; margin-top:2px; }
-    .invoice-date { font-size:12px; margin-top:6px; }
+
+    .content { position: relative; z-index: 2; background: transparent; }
+
+    /* ========== HEADER ========== */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 6px;
+    }
+
+    .logo { width: 120px; height: auto; }
+
+    .header-center {
+      flex: 1;
+      text-align: center;
+      line-height: 1;
+    }
+
+    .invoice-title {
+      font-weight: 700;
+      font-size: 18px;
+      text-transform: uppercase;
+    }
+
+    .invoice-sub {
+      font-style: italic;
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .invoice-date {
+      font-size: 12px;
+      margin-top: 6px;
+    }
 
     .header-right {
-      width:240px;
-      text-align:right;
-      white-space:nowrap;
-      font-size:12px;
-      line-height:1.25;
+      width: 240px;
+      text-align: right;
+      white-space: nowrap;
+      font-size: 12px;
+      line-height: 1.25;
     }
-    .header-right div { margin-bottom:2px; }
 
-    /* seller / buyer */
+    .header-right div { margin-bottom: 2px; }
+
+    /* ========== SECTION (người bán / người mua) ========== */
     .section {
-      border:1px solid #000;
-      padding:8px;
-      margin-top:8px;
-      background:#fff;
+      border: 1px solid #000;
+      padding: 8px;
+      margin-top: 8px;
+      background: #fff;
+      line-height: 1.6; /* thêm dòng này */
     }
 
-    /* bảng products */
-    table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th, td { border:1px solid #000; padding:6px; vertical-align:middle; font-size:12px; }
-    thead th { font-weight:700; text-align:center; }
-    th em { display:block; font-style:italic; font-weight:400; font-size:11px; margin-top:4px; }
-    td.right { text-align:right; }
+    /* ========== BẢNG HÀNG HÓA ========== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
 
-    /* width columns similar to your sample */
-    .col-stt { width:4%; }
-    .col-desc { width:36%; text-align:left; padding-left:6px; }
-    .col-unit { width:7%; }
-    .col-qty { width:8%; }
-    .col-unitprice { width:10%; }
-    .col-amount { width:12%; }
-    .col-tax-percent { width:5%; }
-    .col-tax-amt { width:9%; }
-    .col-total { width:10%; }
+    th, td {
+      border: 1px solid #000;
+      padding: 6px;
+      vertical-align: middle;
+      font-size: 12px;
+    }
 
-    tfoot td { font-weight:700; }
+    thead th {
+      font-weight: 700;
+      text-align: center;
+    }
 
-    /* summary table */
-    .summary-table { width:100%; border-collapse:collapse; margin-top:8px; }
-    .summary-table th, .summary-table td { border:1px solid #000; padding:6px; font-size:12px; text-align:center; }
+    th em {
+      display: block;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 11px;
+      margin-top: 4px;
+    }
 
-    .amount-in-words { margin-top:12px; font-style:italic; }
+    td.right { text-align: right; }
 
-    .signature { display:flex; justify-content:space-between; margin-top:30px; }
-    .signature div { width:45%; text-align:center; }
+    .col-stt { width: 4%; }
+    .col-desc { width: 36%; text-align: left; padding-left: 6px; }
+    .col-unit { width: 7%; }
+    .col-qty { width: 8%; }
+    .col-unitprice { width: 10%; }
+    .col-amount { width: 12%; }
+    .col-tax-percent { width: 5%; }
+    .col-tax-amt { width: 9%; }
+    .col-total { width: 10%; }
 
+    tfoot td { font-weight: 700; }
+
+    /* ========== BẢNG TỔNG HỢP (SUMMARY) ========== */
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    .summary-table th,
+    .summary-table td {
+      border: 1px solid #000;
+      padding: 6px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .amount-in-words {
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    /* ========== CHỮ KÝ ========== */
+    .signature {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 30px;
+    }
+
+    .signature div {
+      width: 45%;
+      text-align: center;
+    }
+
+    /* ========== PRINT SETTINGS ========== */
     @media print {
-      .watermark { opacity:0.30 !important; } /* đậm hơn khi in */
-      .container { border-width:3px; }
+      .watermark { opacity: 0.3 !important; }
+      .container { border-width: 3px; }
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <% if (watermarkBase64) { %>
-      <div class="watermark">
-        <img src="<%= watermarkBase64 %>" alt="watermark">
-      </div>
-    <% } %>
 
+<body>
+  <% if (watermarkBase64) { %>
+    <div class="watermark">
+      <img src="<%= watermarkBase64 %>" alt="watermark">
+    </div>
+  <% } %>
+
+  <div class="container">
     <div class="content">
       <div class="header">
         <div style="width:140px;">
@@ -144,8 +217,12 @@
         <div class="header-right">
           <div>Mẫu số (<em>Form No.</em>): <strong>1</strong></div>
           <div>Ký hiệu (<em>Serial No.</em>): <strong>C25TMC</strong></div>
-          <div>Mã của Cơ quan thuế (<em>Tax Authority Code</em>): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
-          <div>Số (<em>Invoice No.</em>): <strong><%= order && order.madh ? order.madh : "00000000" %></strong></div>
+          <div>Mã của Cơ quan thuế (<em>Tax Authority Code</em>): 
+            <strong><%= order && order.taxCode ? order.taxCode : "" %></strong>
+          </div>
+          <div>Số (<em>Invoice No.</em>): 
+            <strong><%= order && order.madh ? order.madh : "00000000" %></strong>
+          </div>
         </div>
       </div>
 
@@ -168,25 +245,21 @@
         <strong>Mã số thuế (Tax Code):</strong> <%= order && order.taxCode ? order.taxCode : "" %>
       </div>
 
-      <!-- helper: ensure formatNumber1 exists (fallback) -->
+      <!-- fallback helpers -->
       <%
-        // fallback formatNumber1 nếu server không truyền
         if (typeof formatNumber1 !== 'function') {
           formatNumber1 = function(num){
             if (num == null || num === '' || isNaN(num)) return "0";
             num = Number(num);
-            // dùng 0 decimals nếu giá trị là số nguyên lớn; dùng 2 decimals otherwise
             const fixed = num.toFixed(2);
             const [intPart, dec] = fixed.split('.');
             const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             return dec === "00" ? formatted : formatted + ',' + dec;
           };
         }
-        // fallback numberToWords đơn giản nếu server không truyền (bản ngắn)
         if (typeof numberToWords !== 'function') {
           numberToWords = function(n){
             if (n == null || isNaN(n)) return "";
-            // rất ngắn gọn — bạn có thể thay bằng hàm đầy đủ trên server
             return n.toLocaleString('vi-VN') + ' đồng';
           };
         }
@@ -242,7 +315,7 @@
         </tfoot>
       </table>
 
-      <!-- summary small table like mẫu -->
+      <!-- summary table -->
       <table class="summary-table">
         <thead>
           <tr>
@@ -285,7 +358,8 @@
       </table>
 
       <div class="amount-in-words">
-        Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(totalAmount) %></strong>
+        Tổng số tiền viết bằng chữ (Amount in words): 
+        <strong><%= numberToWords(totalAmount) %></strong>
       </div>
 
       <div class="signature">
