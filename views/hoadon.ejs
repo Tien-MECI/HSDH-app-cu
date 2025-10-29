@@ -6,13 +6,12 @@
 <title>Hóa đơn giá trị gia tăng</title>
 
 <style>
-  /* In A4 portrait, không margin tự động ở @page vì ta quản lý lề bằng container */
   @page { size: A4 portrait; margin: 0; }
 
   html, body {
     width: 210mm;
     height: 297mm;
-    margin: 0;
+    margin: 0 auto;
     padding: 0;
     font-family: "Times New Roman", Times, serif;
     font-size: 12px;
@@ -22,7 +21,7 @@
     background: #fff;
   }
 
-  /* Watermark full trang, căn giữa */
+  /* WATERMARK full trang, căn giữa */
   .watermark {
     position: fixed;
     top: 0;
@@ -35,7 +34,7 @@
     justify-content: center;
     align-items: center;
     pointer-events: none;
-    opacity: 0.3;
+    opacity: 0.8; /* nhẹ hơn để không che nội dung */
   }
   .watermark img {
     width: 100%;
@@ -44,26 +43,26 @@
   }
 
   /*
-    FIXED CONTAINER (khung in):
-    - đặt cố định (fixed) theo trang in với lề mm chính xác
-    - top/left/right/bottom xác định diện tích khung bên trong A4,
-      đảm bảo khung không tràn ra ngoài watermark.
-    - padding: 1mm (khoảng cách giữa nội dung và khung = 1mm theo yêu cầu)
-    - border: 1mm solid #000 (viền đen 1mm)
+    CONTAINER:
+    - border: 1mm solid black
+    - padding (khoảng cách giữa nội dung và khung): 1mm theo yêu cầu
+    - margin-top: 10mm để không chồng lên watermark viền trên (nếu watermark có họa tiết sát mép)
   */
-  .container {
-    position: fixed;
-    top: 10mm;                 /* lề trên 10mm */
-    left: 10mm;                /* lề trái 10mm */
-    width: calc(210mm - 20mm); /* = 190mm (lề 10mm hai bên) */
-    height: calc(297mm - 20mm);/* = 277mm (lề 10mm trên/dưới) */
-    padding: 1mm;              /* **CHÍNH**: khoảng cách nội dung tới khung = 1mm */
+    .container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(210mm - 20mm);  /* trừ 10mm lề hai bên */
+    height: calc(297mm - 20mm); /* trừ 10mm lề trên dưới */
+    padding: 1mm;               /* cách nội dung và khung 1mm */
+    border: 1mm solid #000;     /* viền đen 1mm */
     box-sizing: border-box;
-    border: 1mm solid #000;    /* viền đen 1mm */
-    z-index: 1;
     background: transparent;
-    overflow: hidden;          /* tránh phần border bị đẩy tràn khi nội dung quá dài */
+    overflow: hidden;
+    z-index: 1;
   }
+
 
   /* Header */
   .header {
@@ -101,22 +100,51 @@
     font-size: 12px;
     vertical-align: middle;
   }
-  thead th { font-weight: bold; text-align: center; }
-  th em { display: block; font-style: italic; font-weight: 400; font-size: 11px; margin-top: 2px; }
+  thead th {
+    font-weight: bold;
+    text-align: center;
+  }
+  th em {
+    display: block;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 11px;
+    margin-top: 2px;
+  }
   td.right { text-align: right; }
 
-  .summary-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  .summary-table th, .summary-table td { border: 1px solid #000; padding: 6px; font-size: 12px; text-align: center; }
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .summary-table th, .summary-table td {
+    border: 1px solid #000;
+    padding: 6px;
+    font-size: 12px;
+    text-align: center;
+  }
 
-  .amount-in-words { margin-top: 6px; font-style: italic; font-size:12px; }
+  .amount-in-words { margin-top: 12px; font-style: italic; }
 
-  .signature { display: flex; justify-content: space-between; margin-top: 16px; }
-  .signature div { width: 45%; text-align: center; }
+  .signature {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 25px;
+  }
+  .signature div {
+    width: 45%;
+    text-align: center;
+  }
 
-  /* in: vẫn giữ kích thước cố định */
   @media print {
     .watermark { opacity: 0.25 !important; }
-    .container { /* giữ nguyên fixed kích thước khi in */ }
+    .container {
+      border: 1mm solid #000;
+      margin: 10mm auto 10mm;
+      padding: 1mm;
+      max-height: calc(297mm - 20mm);
+    }
   }
 </style>
 </head>
@@ -129,7 +157,6 @@
   <% } %>
 
   <div class="container">
-    <!-- === GIỮ NGUYÊN LOGIC VÀ NỘI DUNG CỦA BẠN === -->
     <div class="header">
       <div style="width:140px;">
         <% if (logoBase64) { %>
@@ -147,17 +174,17 @@
 
       <div class="header-right">
         <div>Mẫu số (Form No.): <strong>1</strong></div>
-        <div>Ký hiệu (Serial No.): <strong>C25TMC</strong></div>
-        <div>Số (Invoice No.): <strong><%= order && order.madh ? order.madh : "00000000" %></strong></div>
+        <div>Ký hiệu (Serial No.): <strong></strong></div>
+        <div>Số (Invoice No.): <strong>00000000</strong></div>
       </div>
     </div>
 
-    <div class="section">Mã CQT (Tax Authority Code): <strong><%= order && order.taxCode ? order.taxCode : "" %></strong></div>
+    <div class="section">Mã CQT (Tax Authority Code): <strong></strong></div>
 
     <!-- SELLER -->
     <div class="section">
       <strong>Đơn vị bán hàng (Seller):</strong> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I<br>
-      <strong>Mã số thuế (Tax Code):</strong> 0105273501<br>
+      <strong>Mã số thuế (Tax Code):</strong> 0 1 0 5 2 7 3 5 0 1<br>
       <strong>Địa chỉ (Address):</strong> Số 164 đường Nguyễn Trãi, Phường Thanh Xuân, TP Hà Nội, Việt Nam<br>
       <strong>Số điện thoại (Tel):</strong> 0902.227.007 - 0982.934.876 &nbsp; <strong>Website:</strong> www.meci.vn<br>
       <strong>Số tài khoản (Account No.):</strong> 22011686868 tại Ngân hàng TMCP Tiên Phong - Chi nhánh Hoài Đức
@@ -177,15 +204,15 @@
     <table>
       <thead>
         <tr>
-          <th class="col-stt">STT<br><em>(No.)</em></th>
-          <th class="col-desc">Tên hàng hóa, dịch vụ<br><em>(Description)</em></th>
-          <th class="col-unit">ĐVT<br><em>(Unit)</em></th>
-          <th class="col-qty">SL<br><em>(Qty)</em></th>
-          <th class="col-unitprice">Đơn giá<br><em>(Unit price)</em></th>
-          <th class="col-amount">Tiền chưa thuế<br><em>(Amount)</em></th>
-          <th class="col-tax-percent">%</th>
-          <th class="col-tax-amt">Tiền thuế<br><em>(VAT)</em></th>
-          <th class="col-total">Thành tiền<br><em>(Total)</em></th>
+          <th>STT<br><em>(No.)</em></th>
+          <th>Tên hàng hóa, dịch vụ<br><em>(Description)</em></th>
+          <th>ĐVT<br><em>(Unit)</em></th>
+          <th>SL<br><em>(Qty)</em></th>
+          <th>Đơn giá<br><em>(Unit price)</em></th>
+          <th>Tiền chưa thuế<br><em>(Amount)</em></th>
+          <th>%</th>
+          <th>Tiền thuế<br><em>(VAT)</em></th>
+          <th>Thành tiền<br><em>(Total)</em></th>
         </tr>
       </thead>
 
@@ -263,27 +290,26 @@
     </table>
 
     <div class="amount-in-words">
-      <% 
-        // Chuẩn hóa và làm tròn amount trước khi đọc bằng chữ để tránh lỗi float
-        let amountNum = totalAmount;
-        if (typeof amountNum === 'string') {
-          amountNum = Number(amountNum.replace(/[^\d\-]/g, '')) || 0;
+        <% 
+        let amountNum = Number(totalAmount);
+        if (!isNaN(amountNum)) {
+            amountNum = Math.round(amountNum);
         } else {
-          amountNum = Number(amountNum || 0);
+          amountNum = 0;
         }
-        // làm tròn thông thường (ví dụ 129999999.999 -> 130000000)
-        amountNum = Math.round(amountNum);
-        const toWordsFn = (typeof numberToWords1 === 'function') ? numberToWords1 : (typeof numberToWords === 'function' ? numberToWords : null);
-      %>
-      Tổng số tiền viết bằng chữ (Amount in words): 
-      <strong><%= toWordsFn ? toWordsFn(amountNum) : '' %></strong>
+        %>
+        Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords1(amountNum) %> đồng chẵn</strong>
     </div>
+
 
     <div class="signature">
       <div>Người mua hàng (Buyer)<br><br><br>(Ký, ghi rõ họ tên)</div>
       <div>Người bán hàng (Seller)<br><br><br>(Ký, ghi rõ họ tên)</div>
     </div>
 
+    <div style="text-align:center; margin-top:8px; font-style:italic;">
+      (Cần kiểm tra đối chiếu khi lập, giao, nhận hóa đơn)
+    </div>
   </div>
 </body>
 </html>
