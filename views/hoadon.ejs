@@ -44,23 +44,20 @@
 
   /*
     CONTAINER:
-    - viền 1mm đen
-    - padding giữa nội dung và viền = 1mm (theo yêu cầu)
-    - margin-top và margin-bottom = 10mm để không chồng watermark trên trên/dưới
-    - max-height để không chạm đáy (tránh đè watermark dưới khi nội dung dài)
+    - border: 1mm solid black
+    - padding (khoảng cách giữa nội dung và khung): 1mm theo yêu cầu
+    - margin-top: 10mm để không chồng lên watermark viền trên (nếu watermark có họa tiết sát mép)
   */
   .container {
     position: relative;
     z-index: 1;
     width: 190mm;
-    margin: 10mm auto 10mm;              /* cách mép trên và dưới 10mm */
-    padding: 1mm;                   /* <<< khoảng cách nội dung tới khung = 1mm */
+    min-height: 277mm;
+    margin: 10mm auto 10mm;    /* căn giữa và cách mép trên 10mm */
+    padding: 1mm;           /* <-- CHÍNH: khoảng cách nội dung tới khung = 1mm */
     box-sizing: border-box;
-    border: 1mm solid #000;         /* viền đen 1mm */
+    border: 1mm solid #000; /* viền đen 1mm */
     background: transparent;
-    /* đảm bảo không vượt quá trang in (297mm) trừ margin trên/dưới */
-    max-height: calc(297mm - 20mm); /* 20mm = margin-top + margin-bottom */
-    overflow: visible;              /* nếu bạn muốn nội dung tràn sang trang sau, để visible */
   }
 
   /* Header */
