@@ -281,8 +281,9 @@
     </table>
 
     <div class="amount-in-words">
-      Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords1(totalAmount) %></strong>
+        Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords(Number(String(totalAmount).replace(/[.,]/g, ''))) %></strong>
     </div>
+
 
     <div class="signature">
       <div>Người mua hàng (Buyer)<br><br><br>(Ký, ghi rõ họ tên)</div>
