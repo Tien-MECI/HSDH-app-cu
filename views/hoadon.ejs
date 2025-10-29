@@ -53,7 +53,7 @@
     position: relative;
     z-index: 1;
     width: 190mm;
-    margin: 10mm auto;              /* cách mép trên và dưới 10mm */
+    margin: 10mm auto 10mm;              /* cách mép trên và dưới 10mm */
     padding: 1mm;                   /* <<< khoảng cách nội dung tới khung = 1mm */
     box-sizing: border-box;
     border: 1mm solid #000;         /* viền đen 1mm */
@@ -289,22 +289,17 @@
     </table>
 
     <div class="amount-in-words">
-      <% 
-        // Chuẩn hóa totalAmount: loại bỏ dấu chấm/phẩy/khoảng trắng nếu là chuỗi,
-        // chuyển về Number và dùng hàm numberToWords1 nếu có, ngược lại numberToWords.
-        let _rawAmount = totalAmount;
-        if (typeof _rawAmount === 'string') {
-          // loại bỏ mọi ký tự không phải chữ số hoặc dấu trừ
-          const cleaned = _rawAmount.replace(/[^\d\-]/g, '');
-          _rawAmount = cleaned === '' ? 0 : Number(cleaned);
+        <% 
+        let amountNum = Number(totalAmount);
+        if (!isNaN(amountNum)) {
+            amountNum = Math.round(amountNum);
         } else {
-          _rawAmount = Number(_rawAmount || 0);
+          amountNum = 0;
         }
-        const _numToWordsFn = (typeof numberToWords1 === 'function') ? numberToWords1 : (typeof numberToWords === 'function' ? numberToWords : null);
-      %>
-      Tổng số tiền viết bằng chữ (Amount in words): 
-      <strong><%= _numToWordsFn ? _numToWordsFn(_rawAmount) : '' %></strong>
+        %>
+        Tổng số tiền viết bằng chữ (Amount in words): <strong><%= numberToWords1(amountNum) %> đồng chẵn</strong>
     </div>
+
 
     <div class="signature">
       <div>Người mua hàng (Buyer)<br><br><br>(Ký, ghi rõ họ tên)</div>
