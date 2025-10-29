@@ -2922,7 +2922,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
       },
       today: new Date(),
       formatNumber1,
-      numberToWords,
+      numberToWords1,
       logoBase64,
       watermarkBase64,
     });
@@ -3007,6 +3007,63 @@ function numberToWords(number) {
         return str;
     }
 }
+
+// Hàm đọc số thành chữ tiếng Việt (chuẩn hóa)
+function numberToWords1(number) {
+  if (number === null || number === undefined || isNaN(number)) return '';
+
+  number = Math.floor(Number(number)); // Đảm bảo là số nguyên
+  if (number === 0) return 'Không đồng';
+
+  const units = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+  const scales = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu tỷ'];
+
+  let words = '';
+  let scaleIndex = 0;
+
+  while (number > 0) {
+    const block = number % 1000;
+    if (block > 0) {
+      const blockWords = readBlock(block);
+      words = blockWords + (scales[scaleIndex] ? ' ' + scales[scaleIndex] + ' ' : ' ') + words;
+    }
+    number = Math.floor(number / 1000);
+    scaleIndex++;
+  }
+
+  return words.trim().replace(/\s+/g, ' ') + ' đồng chẵn';
+
+  // ---- HÀM PHỤ ----
+  function readBlock(num) {
+    let result = '';
+    const hundreds = Math.floor(num / 100);
+    const tens = Math.floor((num % 100) / 10);
+    const ones = num % 10;
+
+    if (hundreds > 0) {
+      result += units[hundreds] + ' trăm ';
+      if (tens === 0 && ones > 0) result += 'lẻ ';
+    }
+
+    if (tens > 1) {
+      result += units[tens] + ' mươi ';
+      if (ones === 1) result += 'mốt';
+      else if (ones === 5) result += 'lăm';
+      else if (ones > 0) result += units[ones];
+    } else if (tens === 1) {
+      result += 'mười ';
+      if (ones === 5) result += 'lăm';
+      else if (ones > 0) result += units[ones];
+    } else if (tens === 0 && hundreds === 0 && ones > 0) {
+      result += units[ones];
+    } else if (ones > 0) {
+      result += units[ones];
+    }
+
+    return result.trim();
+  }
+}
+
 
 
 
