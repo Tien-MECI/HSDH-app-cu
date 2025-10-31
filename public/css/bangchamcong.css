@@ -1,0 +1,41 @@
+body {
+  font-family: "Arial", sans-serif;
+  margin: 20px;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+form {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+table.bangchamcong {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bangchamcong th,
+.bangchamcong td {
+  border: 1px solid #555;
+  text-align: center;
+  padding: 2px;
+  min-width: 25px;
+}
+
+.bangchamcong thead th {
+  background: #eee;
+  font-weight: bold;
+}
+
+.bangchamcong .cn {
+  background-color: #fff799; /* Vàng nhạt cho Chủ nhật */
+}
+
+.bangchamcong td {
+  vertical-align: middle;
+}

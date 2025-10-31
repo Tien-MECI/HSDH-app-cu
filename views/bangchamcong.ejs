@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>BẢNG CHẤM CÔNG</title>
+  <link rel="stylesheet" href="/css/bangchamcong.css">
+</head>
+<body>
+  <h2>BẢNG CHẤM CÔNG</h2>
+
+  <form id="form-chamcong" method="get" action="/bangchamcong">
+    <label>Tháng:</label>
+    <input type="number" name="month" value="<%= month %>" min="1" max="12">
+    <label>Năm:</label>
+    <input type="number" name="year" value="<%= year %>">
+    <button type="submit">Lấy báo cáo</button>
+  </form>
+
+  <table class="bangchamcong">
+    <thead>
+      <tr>
+        <th rowspan="2">STT</th>
+        <th rowspan="2">Mã NV</th>
+        <th rowspan="2">Họ và tên</th>
+        <th rowspan="2">Chức vụ</th>
+        <% days.forEach(d => { %>
+          <th colspan="2" class="<%= d.weekday === 0 ? 'cn' : '' %>">
+            <%= d.day.toString().padStart(2,'0') %>
+          </th>
+        <% }) %>
+        <th rowspan="2">Số ngày công</th>
+        <th rowspan="2">Công tăng ca</th>
+      </tr>
+      <tr>
+        <% days.forEach(d => { %>
+          <th class="<%= d.weekday === 0 ? 'cn' : '' %>">S</th>
+          <th class="<%= d.weekday === 0 ? 'cn' : '' %>">C</th>
+        <% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% records.forEach((r, idx) => { %>
+        <tr>
+          <td><%= idx + 1 %></td>
+          <td><%= r.maNV %></td>
+          <td><%= r.hoTen %></td>
+          <td><%= r.chucVu %></td>
+          <% r.congNgay.forEach(c => { %>
+            <td class="<%= c.weekday === 0 ? 'cn' : '' %>"><%= c.codeS %></td>
+            <td class="<%= c.weekday === 0 ? 'cn' : '' %>"><%= c.codeC %></td>
+          <% }) %>
+          <td><%= r.tongCong.toFixed(2) %></td>
+          <td><%= r.tongTangCa.toFixed(2) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</body>
+</html>
