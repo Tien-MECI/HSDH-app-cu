@@ -2937,21 +2937,18 @@ app.get("/taohoadon-:madh", async (req, res) => {
 export default app;
 
 //// === TẠO BẢNG CHẤM CÔNG
-app.get("/bangchamcong", async (req, res) => {
-  const month = parseInt(req.query.month || new Date().getMonth() + 1);
-  const year = parseInt(req.query.year || new Date().getFullYear());
-
+app.get('/bangchamcong', async (req, res) => {
+  const month = Number(req.query.month || (new Date()).getMonth() + 1);
+  const year = Number(req.query.year || (new Date()).getFullYear());
   try {
-    const data = await buildAttendanceData(sheets, SPREADSHEET_HC_ID, month, year);
-    res.render("bangchamcong", {
-      month,
-      year,
-      days: data.days,
-      records: data.records,
+    const data = await buildAttendanceData(sheets, SPREADSHEET_HC_ID, month, year, { debug: true });
+    // render your view:
+    res.render('bangchamcong', {
+      month, year, days: data.days, records: data.records
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Lỗi khi tạo bảng chấm công");
+    console.error("Error building attendance:", err);
+    res.status(500).send("Lỗi khi tạo bảng chấm công: " + err.message);
   }
 });
 
