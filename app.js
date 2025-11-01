@@ -2937,20 +2937,146 @@ app.get("/taohoadon-:madh", async (req, res) => {
 export default app;
 
 //// === TẠO BẢNG CHẤM CÔNG
-app.get('/bangchamcong', async (req, res) => {
-  const month = Number(req.query.month || (new Date()).getMonth() + 1);
-  const year = Number(req.query.year || (new Date()).getFullYear());
+app.get("/bangchamcong", async (req, res) => {
   try {
-    const data = await buildAttendanceData(sheets, SPREADSHEET_HC_ID, month, year, { debug: true });
-    // render your view:
-    res.render('bangchamcong', {
-      month, year, days: data.days, records: data.records
+    console.log("=== 🔹 [BẮT ĐẦU] Lấy báo cáo bảng chấm công ===");
+
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    console.log(`🗓️ Tháng: ${month}, Năm: ${year}`);
+
+    // --- Lấy dữ liệu ---
+    const [chamCongRes, nhanVienRes] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Cham_cong!A:T",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Nhan_vien!A:AH",
+      }),
+    ]);
+
+    const chamCongRows = chamCongRes.data.values || [];
+    const nhanVienRows = nhanVienRes.data.values || [];
+
+    // --- Lọc nhân viên đang hoạt động ---
+    const activeStaff = nhanVienRows
+      .filter(r => r[33] === "Đang hoạt động") // cột AH (Tình_trạng)
+      .map(r => ({
+        maNV: r[0],
+        hoTen: r[1],
+        nhom: r[8],
+        chucVu: r[9],
+      }));
+
+    console.log("Active staff count:", activeStaff.length);
+
+    // --- Tạo map chấm công ---
+    const chamCongMap = new Map();
+    chamCongRows.slice(1).forEach(r => {
+      const ngayStr = r[1];
+      const trangThai = r[2];
+      const maNV = r[12];
+      const congNgay = parseFloat(r[16] || 0);
+      const tangCa = parseFloat(r[19] || 0);
+
+      if (!ngayStr || !maNV) return;
+
+      const [d, m, y] = ngayStr.split("/").map(Number);
+      if (m === month && y === year) {
+        const key = `${maNV}_${d}`;
+        chamCongMap.set(key, { trangThai, congNgay, tangCa });
+      }
     });
+
+    console.log("Cham_cong map size:", chamCongMap.size);
+
+    // --- Ngày trong tháng ---
+    const days = [];
+    const numDays = new Date(year, month, 0).getDate();
+    for (let i = 1; i <= numDays; i++) {
+      const date = new Date(year, month - 1, i);
+      days.push({ day: i, weekday: date.getDay(), date });
+    }
+
+    // --- Danh sách chức vụ đặc biệt ---
+    const specialRoles = [
+      "Chủ tịch hội đồng quản trị",
+      "Tổng giám đốc",
+      "Trưởng phòng kế hoạch tài chính",
+      "Trưởng phòng HCNS",
+      "Quản đốc",
+      "NV kế hoạch dịch vụ",
+      "Trưởng phòng kinh doanh",
+    ];
+
+    // --- Ngày lễ VN ---
+    const ngayLeVN = ["01-01", "04-30", "05-01", "09-02"];
+
+    // --- Tổng hợp dữ liệu ---
+    const records = activeStaff.map(nv => {
+      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
+      let tongTangCa = 0;
+
+      // Nếu là chức vụ đặc biệt → auto 26 công, không hiển thị tích gì
+      if (specialRoles.includes(nv.chucVu?.trim())) {
+        return {
+          ...nv,
+          ngayCong, // để trống
+          soNgayCong: "26.0",
+          tongTangCa: "0.0",
+        };
+      }
+
+      // Ngược lại, xử lý chấm công bình thường
+      days.forEach((d, idx) => {
+        const key = `${nv.maNV}_${d.day}`;
+        const item = chamCongMap.get(key);
+
+        if (item) {
+          const { trangThai, congNgay, tangCa } = item;
+          tongTangCa += tangCa;
+
+          if (trangThai === "Nghỉ việc riêng") ngayCong[idx] = ["X", "X"];
+          else if (trangThai === "Nghỉ phép") ngayCong[idx] = ["P", "P"];
+          else if (congNgay === 1) ngayCong[idx] = ["V", "V"];
+          else if (congNgay === 0.5) ngayCong[idx] = ["V", "X"];
+          else if (congNgay > 0 && congNgay < 0.5)
+            ngayCong[idx] = [`${(congNgay * 8).toFixed(1)}h`, ""];
+          else if (congNgay > 0.5 && congNgay < 1)
+            ngayCong[idx] = ["V", `${((congNgay - 0.5) * 8).toFixed(1)}h`];
+        } else {
+          // Không có dữ liệu chấm công
+          const dayStr = `${String(d.date.getMonth() + 1).padStart(2, "0")}-${String(d.date.getDate()).padStart(2, "0")}`;
+          if (ngayLeVN.includes(dayStr)) ngayCong[idx] = ["L", "L"];
+          else ngayCong[idx] = ["X", "X"];
+        }
+      });
+
+      const soNgayCong = ngayCong.flat().filter(v => v === "V").length / 2;
+
+      return {
+        ...nv,
+        ngayCong,
+        soNgayCong: soNgayCong.toFixed(1),
+        tongTangCa: tongTangCa.toFixed(1),
+      };
+    });
+
+    res.render("bangchamcong", { month, year, days, records });
+
   } catch (err) {
-    console.error("Error building attendance:", err);
-    res.status(500).send("Lỗi khi tạo bảng chấm công: " + err.message);
+    console.error("❌ Lỗi khi lấy dữ liệu bảng chấm công:", err);
+    res.status(500).send("Lỗi khi xử lý dữ liệu bảng chấm công!");
   }
 });
+
+
+
+
+
 
 
 app.use(express.static(path.join(__dirname, 'public')));

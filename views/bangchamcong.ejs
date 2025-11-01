@@ -2,58 +2,154 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>BẢNG CHẤM CÔNG</title>
-  <link rel="stylesheet" href="/css/bangchamcong.css">
+  <title>Bảng chấm công</title>
+    <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      padding: 20px;
+      background: #fff;
+    }
+
+    .header {
+      margin-bottom: 15px;
+    }
+
+    input, button {
+      margin: 4px;
+      padding: 4px 8px;
+    }
+
+    /* ✅ Gói bảng trong khung cuộn */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid #ccc;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed; /* ✅ Giúp cột chia đều, không co lệch */
+      text-align: center;
+      font-size: 12px;
+    }
+
+    th, td {
+      border: 1px solid #999;
+      padding: 4px;
+      text-align: center;
+      white-space: nowrap; /* ✅ Không xuống dòng */
+    }
+
+    /* ✅ Đặt chiều rộng hợp lý */
+    th:nth-child(1), td:nth-child(1) { width: 40px; }   /* STT */
+    th:nth-child(2), td:nth-child(2) { width: 60px; }   /* Mã NV */
+    th:nth-child(3), td:nth-child(3) { width: 160px; text-align: left; } /* Họ và tên */
+    th:nth-child(4), td:nth-child(4) { width: 140px; text-align: left; } /* Chức vụ */
+
+    /* ✅ Các cột ngày công */
+    th[colspan="2"], td[colspan="2"] { min-width: 36px; } 
+    td { min-width: 18px; }
+
+    /* ✅ Hai cột cuối cùng */
+    th:nth-last-child(2), td:nth-last-child(2) { width: 80px; }
+    th:last-child, td:last-child { width: 70px; }
+
+    /* ✅ Giữ chữ trong 2 cột này không wrap */
+    td:nth-child(3), td:nth-child(4),
+    th:nth-child(3), th:nth-child(4) {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ✅ Tô màu ký hiệu chấm công */
+    td.v-cell { background-color: white; }        /* V */
+    td.x-cell { background-color: #fff8b3; }      /* vàng nhạt */
+    td.l-cell { background-color: #ffc999; }      /* cam */
+    td.p-cell { background-color: #a3d2ff; }      /* xanh dương nhạt */
+
+    /* Chủ nhật */
+    th.cn, td.cn { background-color: #fff4c2; }
+
+    /* Header cố định khi cuộn dọc */
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: #f5f5f5;
+      z-index: 2;
+    }
+
+  </style>
+
 </head>
 <body>
-  <h2>BẢNG CHẤM CÔNG</h2>
+  <div class="header">
+    <form method="get" action="/bangchamcong">
+      <label>Tháng:</label>
+      <input type="number" name="month" value="<%= month %>" min="1" max="12">
+      <label>Năm:</label>
+      <input type="number" name="year" value="<%= year %>">
+      <button type="submit">Lấy báo cáo</button>
+    </form>
+  </div>
 
-  <form id="form-chamcong" method="get" action="/bangchamcong">
-    <label>Tháng:</label>
-    <input type="number" name="month" value="<%= month %>" min="1" max="12">
-    <label>Năm:</label>
-    <input type="number" name="year" value="<%= year %>">
-    <button type="submit">Lấy báo cáo</button>
-  </form>
+  <% if (records && records.length) { %>
+    <h3 style="text-align:center;">BẢNG CHẤM CÔNG - Tháng <%= month %> Năm <%= year %></h3>
 
-  <table class="bangchamcong">
-    <thead>
-      <tr>
-        <th rowspan="2">STT</th>
-        <th rowspan="2">Mã NV</th>
-        <th rowspan="2">Họ và tên</th>
-        <th rowspan="2">Chức vụ</th>
-        <% days.forEach(d => { %>
-          <th colspan="2" class="<%= d.weekday === 0 ? 'cn' : '' %>">
-            <%= d.day.toString().padStart(2,'0') %>
-          </th>
-        <% }) %>
-        <th rowspan="2">Số ngày công</th>
-        <th rowspan="2">Công tăng ca</th>
-      </tr>
-      <tr>
-        <% days.forEach(d => { %>
-          <th class="<%= d.weekday === 0 ? 'cn' : '' %>">S</th>
-          <th class="<%= d.weekday === 0 ? 'cn' : '' %>">C</th>
-        <% }) %>
-      </tr>
-    </thead>
-    <tbody>
-      <% records.forEach((r, idx) => { %>
-        <tr>
-          <td><%= idx + 1 %></td>
-          <td><%= r.maNV %></td>
-          <td><%= r.hoTen %></td>
-          <td><%= r.chucVu %></td>
-          <% r.congNgay.forEach(c => { %>
-            <td class="<%= c.weekday === 0 ? 'cn' : '' %>"><%= c.codeS %></td>
-            <td class="<%= c.weekday === 0 ? 'cn' : '' %>"><%= c.codeC %></td>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2">STT</th>
+            <th rowspan="2">Mã NV</th>
+            <th rowspan="2">Họ và tên</th>
+            <th rowspan="2">Chức vụ</th>
+            <% days.forEach(d => { %>
+              <th colspan="2" class="<%= d.weekday === 0 ? 'cn' : '' %>">
+                <%= d.day.toString().padStart(2,'0') %>
+              </th>
+            <% }) %>
+            <th rowspan="2">Số ngày công</th>
+            <th rowspan="2">Tăng ca</th>
+          </tr>
+          <tr>
+            <% days.forEach(d => { %>
+              <th class="<%= d.weekday === 0 ? 'cn' : '' %>">S</th>
+              <th class="<%= d.weekday === 0 ? 'cn' : '' %>">C</th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% records.forEach((r, idx) => { %>
+            <tr>
+              <td><%= idx + 1 %></td>
+              <td><%= r.maNV %></td>
+              <td><%= r.hoTen %></td>
+              <td><%= r.chucVu %></td>
+              <% r.ngayCong.forEach(ca => { %>
+                <% 
+                  const getClass = (val) => {
+                    if (val === "X") return "x-cell";
+                    if (val === "V") return "v-cell";
+                    if (val === "L") return "l-cell";
+                    if (val === "P") return "p-cell";
+                    return "";
+                  };
+                %>
+                <td class="<%= getClass(ca[0]) %>"><%= ca[0] %></td>
+                <td class="<%= getClass(ca[1]) %>"><%= ca[1] %></td>
+              <% }) %>
+              <td><%= r.soNgayCong %></td>
+              <td><%= r.tongTangCa %></td>
+            </tr>
           <% }) %>
-          <td><%= r.tongCong.toFixed(2) %></td>
-          <td><%= r.tongTangCa.toFixed(2) %></td>
-        </tr>
-      <% }) %>
-    </tbody>
-  </table>
+        </tbody>
+      </table>
+    </div>
+  <% } else { %>
+    <p style="text-align:center;">Chưa có dữ liệu chấm công cho tháng này.</p>
+  <% } %>
 </body>
 </html>
