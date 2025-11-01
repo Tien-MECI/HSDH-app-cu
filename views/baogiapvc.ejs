@@ -39,7 +39,7 @@
         }
         .watermark img { width: 80vw; height: auto; }
         @media print {
-            @page { size: A4 portrait; margin: 0; }
+            @page { size: A4 portrait; margin: 5mm; }
             body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
@@ -203,7 +203,7 @@
             <% } %>
 
             <tr>
-                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 || 10 %>">Tổng:</td>
+                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Tổng:</td>
                 <td style="text-align: center; font-weight: bold;" colspan="2">
                     <%= new Intl.NumberFormat('vi-VN').format(tongTien || 0) %>
                 </td>
@@ -211,7 +211,7 @@
 
             <% if (chietKhau !== 0) { %>
                 <tr>
-                    <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 || 10 %>">Chiết Khấu:</td>
+                    <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Chiết Khấu:</td>
                     <td style="text-align: center; font-weight: bold;" colspan="2">
                         <%= new Intl.NumberFormat('vi-VN').format(chietKhau) %>
                     </td>
