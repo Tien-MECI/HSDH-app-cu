@@ -18,6 +18,7 @@ app.set("views", "./views");
 
 dotenv.config();
 
+
 // --- __dirname trong ESM ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -581,6 +582,7 @@ app.get("/lenhpvc", async (req, res) => {
 app.get("/baogiapvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Báo Giá PVC ...");
+        console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
 
         // --- Lấy mã đơn hàng ---
         const baoGiaRes = await sheets.spreadsheets.values.get({
