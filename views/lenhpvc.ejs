@@ -1,31 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Báo Giá PVC</title>
+    <title>Lệnh Sản Xuất PVC</title>
     <meta charset="UTF-8">
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
+            font-size: 13px;
             margin: 0;
-            padding: 15px;
+            padding: 20px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         td, th {
             border: 1px solid black;
-            padding: 4px;
+            padding: 5px;
             text-align: left;
         }
 
         .header {
             text-align: center;
             font-weight: bold;
+            font-size: 18px;
         }
 
         .logo {
@@ -48,10 +49,6 @@
             border: none;
         }
 
-        .text-right {
-            text-align: right;
-        }
-
         /* Watermark */
         .watermark {
             position: fixed;
@@ -71,13 +68,13 @@
         /* CSS cho in ấn */
         @media print {
             @page {
-                size: A4 landscape;
-                margin: 1cm;
+                size: A4;
+                margin: 0;
             }
 
             body {
-                margin: 0;
-                padding: 15px;
+                margin: 1.5cm;
+                padding: 0;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
@@ -122,17 +119,17 @@
         </tr>
     </table>
 
-    <h2 class="center-text">BÁO GIÁ</h2>
+    <h2 class="center-text">LỆNH THỰC HIỆN (<%= lenhValue %>)</h2>
 
-    <!-- Thông tin khách hàng và báo giá -->
+    <!-- Thông tin khách hàng và lệnh sản xuất -->
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td colspan="2" style="font-weight: bold; text-align: center;" width="60%"><b>THÔNG TIN KHÁCH HÀNG</b></td>
-            <td width="15%" style="font-weight: bold; text-align: center;"><b>BÁO GIÁ SỐ</b></td>
+            <td width="15%" style="font-weight: bold; text-align: center;"><b>LỆNH SẢN XUẤT</b></td>
             <td width="25%" style="font-weight: bold; text-align: Left;"><b><%= maDonHang %></b></td>
         </tr>
         <tr>
-            <td width="15%" style="font-weight: bold;">Tên khách hàng:</td>
+            <td width="15%" style="font-weight: bold;">Người mua hàng:</td>
             <td style="text-align: left;" width="45%"><%= donHang[17] || donHang[20] || '' %></td>
             <td width="15%" style="font-weight: bold;">Ngày lập:</td>
             <td style="text-align: left;" width="25%">
@@ -146,74 +143,84 @@
             </td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" width="15%">Đơn vị:</td>
+            <td style="font-weight: bold;" width="15%">Tên công ty:</td>
             <td style="text-align: left;" width="45%"><%= donHang[9] || '' %></td>
             <td style="font-weight: bold;" width="15%">Người lập:</td>
             <td style="text-align: left;" width="25%"><%= donHang[2] || '' %></td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" width="15%">Địa chỉ:</td>
-            <td style="text-align: left;" width="45%"><%= donHang[11] || '' %></td>
-            <td style="font-weight: bold;" width="15%">Điện thoại:</td>
+            <td style="font-weight: bold;" width="15%">Địa chỉ TH:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[24] || donHang[26] || donHang[28] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Ngày YC TH:</td>
+            <td style="text-align: left;" width="25%">
+                <% 
+                var ngayYC = donHang[45];
+                if (ngayYC instanceof Date) {
+                    ngayYC = ngayYC.toLocaleDateString('vi-VN');
+                }
+                %>
+                <%= ngayYC %>
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">phone người nhận:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[25] || donHang[27] || donHang[29] || '' %></td>
+            <td style="font-weight: bold;" width="15%">phone/Zalo/Face:</td>
             <td style="text-align: left;" width="25%"><%= donHang[52] || '' %></td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" width="15%">Điện thoại:</td>
-            <td style="text-align: left;" width="45%"><%= donHang[18] || donHang[21] || '' %></td>
-            <td style="font-weight: bold;" width="15%">Zalo/Face:</td>
-            <td style="text-align: left;" width="25%"><%= donHang[52] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Loại yêu cầu:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[36] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Yêu cầu gửi nhà xe:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[38] || '' %></td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" width="15%">Mã số thuế:</td>
-            <td style="text-align: left;" width="45%"><%= donHang[10] || '' %></td>
-            <td style="font-weight: bold;" width="15%">Email:</td>
-            <td style="text-align: left;" width="25%"><%= donHang[53] || '' %></td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold;" width="15%">Email:</td>
-            <td style="text-align: left;" width="45%"><%= donHang[19] || '' %></td>
-            <td style="font-weight: bold;" width="15%">Sản phẩm:</td>
-            <td style="text-align: left;" width="25%"><%= donHang[34] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Nhóm SP YC:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[34] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Ghi chú thực hiện:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[37] || '' %></td>
         </tr>
     </table>
 
     <!-- Bảng chi tiết hàng hóa -->
     <h2>BẢNG CHI TIẾT HÀNG HÓA</h2>
-
+    
     <!-- Xác định các cột cần hiển thị -->
     <% 
     var columns = [
         { header: "Mã ĐH chi tiết", key: "maDonHangChiTiet" },
-        { header: "Tên hàng hóa, dịch vụ", key: "tenHangHoa" },
-        { header: "Quy cách", key: "quyCach" },
+        { header: "Tên thương mại sản phẩm", key: "tenThuongMai" },
         { header: "Dài (mm)", key: "dai" },
         { header: "Rộng (mm)", key: "rong" },
         { header: "Cao (mm)", key: "cao" },
+        { header: "SL - Sợi", key: "slSoi" },
         { header: "Số lượng", key: "soLuong" },
         { header: "Đơn vị tính", key: "donViTinh" },
         { header: "Tổng số lượng", key: "tongSoLuong" },
-        { header: "Đơn giá", key: "donGia" },
-        { header: "VAT", key: "vat" },
-        { header: "Thành tiền sau thuế", key: "thanhTien" }
+        { header: "Tổng SL-Sợi", key: "tongSLSoi" },
+        { header: "Ghi chú sản xuất", key: "ghiChuSanXuat" }
     ];
 
+    // Lọc các cột có dữ liệu
     var filteredColumns = [];
     for (var i = 0; i < columns.length; i++) {
         var col = columns[i];
         var hasData = false;
+        
         for (var j = 0; j < products.length; j++) {
             if (products[j][col.key]) {
                 hasData = true;
                 break;
             }
         }
+        
         if (hasData) {
             filteredColumns.push(col);
         }
     }
     %>
 
-    <table style="width: 100%; font-size: 11px;">
+    <table style="width: 100%; font-size: 12px;">
         <thead>
             <tr>
                 <% for (var i = 0; i < filteredColumns.length; i++) { %>
@@ -224,153 +231,14 @@
         <tbody>
             <% for (var i = 0; i < products.length; i++) { %>
                 <tr>
-                    <% for (var j = 0; j < filteredColumns.length; j++) { 
-                        var value = products[i][filteredColumns[j].key] || '';
-                        if (['donGia', 'thanhTien'].includes(filteredColumns[j].key) && value) {
-                            value = new Intl.NumberFormat('vi-VN').format(value);
-                        } else if (filteredColumns[j].key === 'vat' && value) {
-                            value = (value * 100) + '%';
-                        }
-                    %>
-                        <td style="text-align: center;"><%= value %></td>
+                    <% for (var j = 0; j < filteredColumns.length; j++) { %>
+                        <td style="text-align: center;">
+                            <%= products[i][filteredColumns[j].key] || '' %>
+                        </td>
                     <% } %>
                 </tr>
             <% } %>
-            
-            <!-- Dòng tổng -->
-            <tr>
-                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Tổng:</td>
-                <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(tongTien) %>
-                </td>
-            </tr>
-            
-            <% if (chietKhau !== 0) { %>
-            <tr>
-                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Chiết Khấu:</td>
-                <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(chietKhau) %>
-                </td>
-            </tr>
-            <% } %>
-            
-            <% if (tamUng !== 0) { %>
-            <tr>
-                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Đặt Cọc/Tạm ứng:</td>
-                <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(tamUng) %>
-                </td>
-            </tr>
-            <% } %>
-            
-            <tr>
-                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Tổng thành tiền:</td>
-                <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(tongThanhTien) %>
-                </td>
-            </tr>
-            
-            <!-- Dòng bằng chữ -->
-            <tr>
-                <td style="text-align: left; font-size: 11px;" colspan="2"><i>Bằng chữ:</i></td>
-                <td style="text-align: left;" colspan="<%= filteredColumns.length - 2 %>">
-                    <%= numberToWords(tongThanhTien) %> đồng chẵn .//.
-                </td>
-            </tr>
         </tbody>
     </table>
-
-    <!-- Phần ghi chú và chân trang -->
-    <div style="font-family: Arial; font-size: 11px;">
-        <p><b>Ghi chú:</b></p>
-        <ul>
-            <li>Thành tiền = "Tổng số lượng" x "đơn giá"</li>
-            <li>Thời gian giao hàng <%= donHang[60] || '' %> ngày kể từ ngày nhận được thanh toán lần 1 (<%= donHang[61] || '' %>).</li>
-            <li>Màn nhựa trong báo giá là màn tiêu chuẩn, độ dày dung sai cho phép -0.2mm.</li>
-            <li>Báo giá có hiệu lực trong vòng 30 ngày kể từ ngày lập báo giá.</li>
-        </ul>
-        <p>Trân trọng cảm ơn và rất mong được phục vụ khách hàng!</p>
-        <p>Mọi thông tin chi tiết xin vui lòng liên hệ: <b>Phòng kinh doanh - Cty CP Công Nghiệp M.E.C.I</b></p>
-        <p>Hotline: 0902.227.007</p>
-        <p>Địa chỉ trụ sở chính: Số 164, đường Nguyễn Trãi, phường Thanh Xuân, thành phố Hà Nội</p>
-        <p>Địa điểm sản xuất, kinh doanh: Số 162, đường 916, thôn La Gián, xã Đoài Phương, thành phố Hà Nội</p>
-        <p>Email: sale@meci.vn - Website: www.meci.vn</p>
-        <br>
-        <table style="border-collapse: collapse; width: 100%; border: 1px solid white;">
-            <thead>
-                <tr>
-                    <th style="text-align: center; border: 1px solid white;"><b>Khách hàng duyệt</b></th>
-                    <th style="text-align: center; border: 1px solid white;"><b>Sản xuất</b></th>
-                    <th style="text-align: center; border: 1px solid white;"><b>Kế toán</b></th>
-                    <th style="text-align: center; border: 1px solid white;"><b>Người lập</b></th>
-                </tr>
-            </thead>
-        </table>
-    </div>
 </body>
 </html>
-
-<script>
-// Hàm chuyển số thành chữ
-function numberToWords(number) {
-    var ones = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
-    var groups = ['', 'nghìn', 'triệu', 'tỷ'];
-
-    if (number === 0) return 'không';
-
-    var words = [];
-    var chunk = 0;
-
-    while (number > 0) {
-        var triplet = number % 1000;
-        if (triplet > 0) {
-            var hundreds = Math.floor(triplet / 100);
-            var tens = Math.floor((triplet % 100) / 10);
-            var onesDigit = triplet % 10;
-
-            var part = '';
-
-            // Trăm
-            if (hundreds > 0) {
-                part += ones[hundreds] + ' trăm ';
-            } else if (hundreds === 0 && chunk > 0 && triplet > 0) {
-                part += 'không trăm ';
-            }
-
-            // Chục
-            if (tens > 1) {
-                part += ones[tens] + ' mươi ';
-                if (onesDigit === 1) {
-                    part += 'mốt ';
-                } else if (onesDigit === 5) {
-                    part += 'lăm ';
-                } else if (onesDigit > 0) {
-                    part += ones[onesDigit] + ' ';
-                }
-            } else if (tens === 1) {
-                part += 'mười ';
-                if (onesDigit === 5) {
-                    part += 'lăm ';
-                } else if (onesDigit > 0) {
-                    part += ones[onesDigit] + ' ';
-                }
-            } else if (tens === 0 && onesDigit > 0) {
-                if (hundreds > 0) part += 'lẻ ';
-                if (onesDigit === 5 && triplet > 5) {
-                    part += 'lăm ';
-                } else {
-                    part += ones[onesDigit] + ' ';
-                }
-            }
-
-            part += groups[chunk];
-            words.unshift(part.trim());
-        }
-
-        number = Math.floor(number / 1000);
-        chunk++;
-    }
-
-    return words.join(' ').replace(/\s+/g, ' ').trim();
-}
-</script>
