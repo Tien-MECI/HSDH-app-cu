@@ -451,6 +451,7 @@ app.get("/ggh", async (req, res) => {
 app.get("/lenhpvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
+        await new Promise(resolve => setTimeout(resolve, 2500));
 
         // --- Lấy mã đơn hàng ---
         const lenhRes = await sheets.spreadsheets.values.get({
@@ -1804,7 +1805,7 @@ app.get("/dnc", async (req, res) => {
 app.get('/ycvt', async (req, res) => {
     try {
         console.log('▶️ Bắt đầu xuất YCVT ...');
-
+        await new Promise(resolve => setTimeout(resolve, 2500));
         // Lấy logo và watermark
         const [logoBase64, watermarkBase64] = await Promise.all([
             loadDriveImageBase64(LOGO_FILE_ID),
