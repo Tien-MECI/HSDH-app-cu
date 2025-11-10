@@ -3245,7 +3245,7 @@ function formatNumber1(num) {
 async function handleYCVT(auth, sheets) {
     try {
         console.log('▶️ Bắt đầu xuất YCVT ...');
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        await new Promise(resolve => setTimeout(resolve, 5000));
         // Lấy logo và watermark
         const [logoBase64, watermarkBase64] = await Promise.all([
             loadDriveImageBase64(LOGO_FILE_ID),
