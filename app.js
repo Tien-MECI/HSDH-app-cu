@@ -452,6 +452,10 @@ app.get("/lenhpvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
         await new Promise(resolve => setTimeout(resolve, 2500));
+         // ⚡ Gọi YCVT chạy song song ngầm (không await)
+        handleYCVT(auth, sheets)
+            .then(r => console.log(`✔️ YCVT (${r.d4Value}) chạy ngầm xong`))
+            .catch(err => console.error("❌ Lỗi chạy YCVT ngầm:", err));
 
         // --- Lấy mã đơn hàng ---
         const lenhRes = await sheets.spreadsheets.values.get({
@@ -3235,5 +3239,68 @@ function formatNumber1(num) {
   const [int, dec] = num.toFixed(2).split(".");
   const formattedInt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return dec === "00" ? formattedInt : `${formattedInt},${dec}`;
+}
+// HÀM CHẠY YCVT CÙNG LỆNH PVC
+// 🔹 Hàm xử lý xuất YCVT, giữ nguyên toàn bộ logic gốc
+async function handleYCVT(auth, sheets) {
+    try {
+        console.log('▶️ Bắt đầu xuất YCVT ...');
+
+        // Lấy logo và watermark
+        const [logoBase64, watermarkBase64] = await Promise.all([
+            loadDriveImageBase64(LOGO_FILE_ID),
+            loadDriveImageBase64(WATERMARK_FILE_ID)
+        ]);
+
+        // Chuẩn bị dữ liệu
+        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
+        const { d4Value, lastRowWithData } = data;
+
+        // Render cho client (tạo HTML cho AppScript)
+        const renderedHtml = await renderFileAsync(
+            path.join(__dirname, 'views', 'ycvt.ejs'),
+            {
+                ...data,
+                logoBase64,
+                watermarkBase64,
+                autoPrint: false,
+                maDonHang: d4Value,
+                pathToFile: ''
+            }
+        );
+
+        // --- Gọi Apps Script ---
+        const resp = await fetch(GAS_WEBAPP_URL_PYCVT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                orderCode: d4Value,
+                html: renderedHtml
+            })
+        });
+
+        const result = await resp.json();
+        console.log('✔️ AppScript trả về:', result);
+
+        if (!result.ok) {
+            throw new Error(result.error || 'Lỗi khi gọi Apps Script');
+        }
+
+        const pathToFile = result.pathToFile || `YCVT/${result.fileName}`;
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `File_BOM_ct!D${lastRowWithData}`,
+            valueInputOption: 'RAW',
+            requestBody: { values: [[pathToFile]] }
+        });
+        console.log('✔️ Đã ghi đường dẫn:', pathToFile);
+
+        // ✅ Trả về để route khác có thể dùng nếu cần
+        return { d4Value, pathToFile };
+
+    } catch (err) {
+        console.error('❌ Lỗi trong handleYCVT:', err);
+        throw err;
+    }
 }
 
