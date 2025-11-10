@@ -30,11 +30,6 @@
         @media print {
             body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
-
-        /* Ẩn các cột không có dữ liệu */
-        <% if (!hasDataF) { %> .col-f { display: none; } <% } %>
-        <% if (!hasDataI) { %> .col-i { display: none; } <% } %>
-        <% if (!hasDataJ) { %> .col-j { display: none; } <% } %>
     </style>
 
     <% if (autoPrint) { %>
@@ -57,6 +52,7 @@
         </div>
     <% } %>
 
+    <!-- Header -->
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td class="no-border">
@@ -75,6 +71,7 @@
 
     <h1 class="center-text bold" style="font-size: 18px;">YÊU CẦU VẬT TƯ</h1>
 
+    <!-- Thông tin chung -->
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
         <tr>
             <td width="15%" class="bold">Mã đơn hàng:</td>
@@ -102,7 +99,7 @@
         </tr>
     </table>
 
-    <!-- Tách dữ liệu thành hai bảng -->
+    <!-- Phân nhóm -->
     <%
         let sanPhamRows = [];
         let vatTuRows = [];
@@ -140,17 +137,20 @@
                         <td><%= item.row[1] %></td>
                         <td class="<%= isHeaderRow ? 'center-text' : 'text-left' %>"><%= item.row[3] %></td>
 
-                        <!-- Cột F -->
-                        <td class="center-text col-f"><%= item.row[4] %></td>
+                        <% if (hasDataF) { %>
+                            <td class="center-text"><%= item.row[4] %></td>
+                        <% } %>
 
                         <td class="center-text"><%= item.row[5] %></td>
                         <td class="center-text"><%= item.row[6] %></td>
 
-                        <!-- Cột I -->
-                        <td class="center-text col-i"><%= item.row[7] %></td>
+                        <% if (hasDataI) { %>
+                            <td class="center-text"><%= item.row[7] %></td>
+                        <% } %>
 
-                        <!-- Cột J -->
-                        <td class="center-text col-j"><%= item.row[8] %></td>
+                        <% if (hasDataJ) { %>
+                            <td class="center-text"><%= item.row[8] %></td>
+                        <% } %>
 
                         <td class="center-text"><%= item.row[9] %></td>
                         <td class="center-text"><%= item.row[10] %></td>
