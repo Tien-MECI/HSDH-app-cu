@@ -452,10 +452,6 @@ app.get("/lenhpvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
         await new Promise(resolve => setTimeout(resolve, 2500));
-         // ⚡ Gọi YCVT chạy song song ngầm (không await)
-        handleYCVT(auth, sheets)
-            .then(r => console.log(`✔️ YCVT (${r.d4Value}) chạy ngầm xong`))
-            .catch(err => console.error("❌ Lỗi chạy YCVT ngầm:", err));
 
         // --- Lấy mã đơn hàng ---
         const lenhRes = await sheets.spreadsheets.values.get({
