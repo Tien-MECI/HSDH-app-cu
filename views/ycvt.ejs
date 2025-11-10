@@ -11,11 +11,9 @@
         .center-text { text-align: center; }
         .bold { font-weight: bold; }
         .yellow { background: #FFFF00; }
-        .blue-light {background: #ADD8E6;}
+        .blue-light { background: #ADD8E6; }
         .no-border { border: none; }
         .text-left { text-align: left; }
-        .center-text { text-align: center; }
-        .bold { font-weight: bold; }
         .page-break { page-break-after: always; }
 
         .watermark {
@@ -28,13 +26,17 @@
             text-align: center;
         }
         .watermark img { width: 80vw; height: auto; }
+
         @media print {
             body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
+
+        /* Ẩn các cột không có dữ liệu */
         <% if (!hasDataF) { %> .col-f { display: none; } <% } %>
         <% if (!hasDataI) { %> .col-i { display: none; } <% } %>
         <% if (!hasDataJ) { %> .col-j { display: none; } <% } %>
     </style>
+
     <% if (autoPrint) { %>
         <script>
             window.onload = function () {
@@ -102,37 +104,24 @@
 
     <!-- Tách dữ liệu thành hai bảng -->
     <%
-        // Tạo mảng cho sản phẩm và vật tư
         let sanPhamRows = [];
         let vatTuRows = [];
         let currentGroup = null;
-        
+
         tableData.forEach(item => {
             const row1 = item.row[1] ? item.row[1].toString().trim() : '';
-            const isHeaderRow = ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(row1) || 
-                               ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
-            
-            // Nếu là hàng tiêu đề, xác định loại nhóm
+            const isHeaderRow = ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(row1) ||
+                                ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
             if (isHeaderRow) {
-                if (row1 === "Mã SP") {
-                    currentGroup = "sanPham";
-                } else {
-                    currentGroup = "vatTu";
-                }
+                if (row1 === "Mã SP") currentGroup = "sanPham";
+                else currentGroup = "vatTu";
             }
-            
-            // Thêm vào nhóm tương ứng
-            if (currentGroup === "sanPham") {
-                sanPhamRows.push(item);
-            } else if (currentGroup === "vatTu") {
-                vatTuRows.push(item);
-            } else {
-                // Nếu chưa xác định được nhóm, dựa vào giá trị row[1]
-                if (row1 && row1 !== "" && !isHeaderRow) {
-                    sanPhamRows.push(item);
-                } else {
-                    vatTuRows.push(item);
-                }
+
+            if (currentGroup === "sanPham") sanPhamRows.push(item);
+            else if (currentGroup === "vatTu") vatTuRows.push(item);
+            else {
+                if (row1 && !isHeaderRow) sanPhamRows.push(item);
+                else vatTuRows.push(item);
             }
         });
     %>
@@ -144,26 +133,24 @@
             <tbody>
                 <% sanPhamRows.forEach(item => { 
                     const isHeaderRow = ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[1]) || 
-                                      ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
+                                        ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
                 %>
                     <tr class="<%= isHeaderRow ? 'bold center-text blue-light' : '' %>">
                         <td class="<%= isHeaderRow ? 'center-text' : 'text-left' %>"><%= item.row[0] %></td>
                         <td><%= item.row[1] %></td>
                         <td class="<%= isHeaderRow ? 'center-text' : 'text-left' %>"><%= item.row[3] %></td>
 
-                        <% if (hasDataF) { %>
-                            <td class="center-text"><%= item.row[4] %></td>
-                        <% } %>
+                        <!-- Cột F -->
+                        <td class="center-text col-f"><%= item.row[4] %></td>
+
                         <td class="center-text"><%= item.row[5] %></td>
                         <td class="center-text"><%= item.row[6] %></td>
 
-                        <% if (hasDataI) { %>
-                            <td class="center-text"><%= item.row[7] %></td>
-                        <% } %>
+                        <!-- Cột I -->
+                        <td class="center-text col-i"><%= item.row[7] %></td>
 
-                        <% if (hasDataJ) { %>
-                            <td class="center-text"><%= item.row[8] %></td>
-                        <% } %>
+                        <!-- Cột J -->
+                        <td class="center-text col-j"><%= item.row[8] %></td>
 
                         <td class="center-text"><%= item.row[9] %></td>
                         <td class="center-text"><%= item.row[10] %></td>
@@ -175,7 +162,6 @@
         </table>
     <% } %>
 
-    <!-- Thêm khoảng cách giữa hai bảng -->
     <div style="margin-top: 20px;"></div>
 
     <!-- BẢNG VẬT TƯ CẤU THÀNH -->
@@ -185,7 +171,7 @@
             <tbody>
                 <% vatTuRows.forEach(item => { 
                     const isHeaderRow = ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[1]) || 
-                                      ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
+                                        ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[2]);
                 %>
                     <tr class="<%= isHeaderRow ? 'bold center-text blue-light' : '' %>">
                         <td class="<%= isHeaderRow ? 'center-text' : 'text-left' %>"><%= item.row[0] %></td>
