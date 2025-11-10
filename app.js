@@ -1964,7 +1964,7 @@ app.get('/ycxktp', async (req, res) => {
             const ngayTH_raw = row[1];    // cột B (index 1)
             const pxk = row[23];          // cột X (index 23) phải rỗng
             const phuongTien_kehoach = row[30]; // giữ index 35 giống AppScript gốc
-            const tenNSTH_kehoach = row[26];
+            const tenNSTH_kehoach = row[36];
 
             const ngayTHObj = parseSheetDate(ngayTH_raw);
             if (!ngayTHObj) continue;
