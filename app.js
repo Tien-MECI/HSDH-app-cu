@@ -583,7 +583,7 @@ app.get("/baogiapvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Báo Giá PVC ...");
         console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2500));
         // --- Lấy mã đơn hàng ---
         const baoGiaRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
