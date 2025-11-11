@@ -3236,67 +3236,155 @@ function formatNumber1(num) {
   const formattedInt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return dec === "00" ? formattedInt : `${formattedInt},${dec}`;
 }
-// HÀM CHẠY YCVT CÙNG LỆNH PVC
-// 🔹 Hàm xử lý xuất YCVT, giữ nguyên toàn bộ logic gốc
-async function handleYCVT(auth, sheets) {
+// HÀM CHẠY YCVT CÙNG LỆNH PVC ứng với mã đơn và số lần
+app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
     try {
-        console.log('▶️ Bắt đầu xuất YCVT ...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        // Lấy logo và watermark
-        const [logoBase64, watermarkBase64] = await Promise.all([
-            loadDriveImageBase64(LOGO_FILE_ID),
-            loadDriveImageBase64(WATERMARK_FILE_ID)
-        ]);
+        console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
+        await new Promise(resolve => setTimeout(resolve, 4000));
 
-        // Chuẩn bị dữ liệu
-        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
-        const { d4Value, lastRowWithData } = data;
-
-        // Render cho client (tạo HTML cho AppScript)
-        const renderedHtml = await renderFileAsync(
-            path.join(__dirname, 'views', 'ycvt.ejs'),
-            {
-                ...data,
-                logoBase64,
-                watermarkBase64,
-                autoPrint: false,
-                maDonHang: d4Value,
-                pathToFile: ''
-            }
-        );
-
-        // --- Gọi Apps Script ---
-        const resp = await fetch(GAS_WEBAPP_URL_PYCVT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                orderCode: d4Value,
-                html: renderedHtml
-            })
-        });
-
-        const result = await resp.json();
-        console.log('✔️ AppScript trả về:', result);
-
-        if (!result.ok) {
-            throw new Error(result.error || 'Lỗi khi gọi Apps Script');
+        // --- Nhận tham số từ URL ---
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
         }
 
-        const pathToFile = result.pathToFile || `YCVT/${result.fileName}`;
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `File_BOM_ct!D${lastRowWithData}`,
-            valueInputOption: 'RAW',
-            requestBody: { values: [[pathToFile]] }
-        });
-        console.log('✔️ Đã ghi đường dẫn:', pathToFile);
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-        // ✅ Trả về để route khác có thể dùng nếu cần
-        return { d4Value, pathToFile };
+        
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang)
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+        // --- Lấy chi tiết sản phẩm PVC ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_PVC_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+
+        // Lọc và map dữ liệu theo cấu trúc của lệnh sản xuất
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r, i) => ({
+                maDonHangChiTiet: r[2],
+                tenThuongMai: r[9],
+                dai: r[16],
+                rong: r[17],
+                cao: r[18],
+                slSoi: r[19],
+                soLuong: r[21],
+                donViTinh: r[22],
+                tongSoLuong: r[20],
+                tongSLSoi: r[23],
+                ghiChuSanXuat: r[28]
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Logo & Watermark ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Xác định loại lệnh từ cột S (index 36) ---
+        const lenhValue = donHang[36] || '';
+
+        // --- Render ra client ---
+        res.render("lenhpvc", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: false,
+            maDonHang,
+            lenhValue,
+            pathToFile: ""
+        });
+        // --- Lấy dữ liệu từ sheet File_lenh_ct ---
+        const lenhRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_lenh_ct!A:D",
+        });
+        const lenhRows = lenhRes.data.values || [];
+
+        // Tìm dòng có cột B = maDonHang và cột C = soLan
+        const targetRowIndex = lenhRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_lenh_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1; // vì sheet bắt đầu từ dòng 1
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+
+        // --- Gọi AppScript ngầm sau khi render ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "lenhpvc.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        lenhValue,
+                        pathToFile: ""
+                    }
+                );
+
+                const GAS_WEBAPP_URL_LENHPVC = process.env.GAS_WEBAPP_URL_LENHPVC;
+                if (GAS_WEBAPP_URL_LENHPVC) {
+                    const resp = await fetch(GAS_WEBAPP_URL_LENHPVC, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({
+                            orderCode: maDonHang,
+                            html: renderedHtml
+                        })
+                    });
+
+                    const data = await resp.json();
+                    console.log("✔️ AppScript trả về:", data);
+
+                    const pathToFile = data.pathToFile || `LENH_PVC/${data.fileName}`;
+
+                    // --- Ghi đường dẫn vào đúng dòng ---
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `File_lenh_ct!D${rowNumber}`,
+                        valueInputOption: "RAW",
+                        requestBody: { values: [[pathToFile]] },
+                    });
+
+                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+                } else {
+                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_LENHPVC");
+                }
+
+            } catch (err) {
+                console.error("❌ Lỗi gọi AppScript:", err);
+            }
+        })();
 
     } catch (err) {
-        console.error('❌ Lỗi trong handleYCVT:', err);
-        throw err;
+        console.error("❌ Lỗi khi xuất Lệnh PVC:", err.stack || err.message);
+        res.status(500).send("Lỗi server: " + (err.message || err));
     }
-}
+});
+
 
