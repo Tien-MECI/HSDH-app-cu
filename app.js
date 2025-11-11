@@ -4255,4 +4255,268 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+//HÀM BBNT PVC KÈM MÃ ĐƠN VÀ SỐ LẦN
+app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất Biên Bản Nghiệm Thu ...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
+        // --- Nhận tham số từ URL ---
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang) {
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+        }
+
+        // --- Lấy chi tiết sản phẩm từ Don_hang_PVC_ct ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_PVC_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r, i) => ({
+                stt: i + 1,
+                tenSanPham: r[9],
+                soLuong: r[23],
+                donVi: r[22],
+                tongSoLuong: r[21],
+                ghiChu: "",
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Logo & Watermark ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Render cho client ---
+        res.render("bbnt", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang,
+            pathToFile: "",
+        });
+       // --- Lấy dữ liệu từ sheet File_BBNT_ct ---
+        const bbntRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_BBNT_ct!A:D",
+        });
+        const bbntRows = bbntRes.data.values || [];
+
+        // --- Tìm dòng tương ứng với mã đơn hàng và số lần ---
+        const targetRowIndex = bbntRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BBNT_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1;
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+        // --- Sau khi render xong thì gọi AppScript ngầm ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "bbnt.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        pathToFile: "",
+                    }
+                );
+
+                const GAS_WEBAPP_URL_BBNT = process.env.GAS_WEBAPP_URL_BBNT;
+                if (GAS_WEBAPP_URL_BBNT) {
+                    const resp = await fetch(GAS_WEBAPP_URL_BBNT, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({
+                            orderCode: maDonHang,
+                            html: renderedHtml,
+                        }),
+                    });
+
+                    const data = await resp.json();
+                    console.log("✔️ AppScript trả về:", data);
+
+                    const pathToFile = data.pathToFile || `BBNT/${data.fileName}`;
+
+                    // --- Ghi đường dẫn vào đúng dòng ---
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `File_BBNT_ct!D${rowNumber}`,
+                        valueInputOption: "RAW",
+                        requestBody: { values: [[pathToFile]] },
+                    });
+
+                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+                } else {
+                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBNT");
+                }
+
+            } catch (err) {
+                console.error("❌ Lỗi gọi AppScript:", err);
+            }
+        })();
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất BBNT:", err.stack || err.message);
+        res.status(500).send("Lỗi server: " + (err.message || err));
+    }
+});
+
+//HÀM BBNT NK KÈM MÃ ĐƠN VÀ SỐ LẦN
+app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
+  try {
+    console.log("▶️ Bắt đầu xuất BBNTNK ...");
+     await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // --- Nhận tham số từ URL ---
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+    // 2. Lấy đơn hàng
+    const donHangRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Don_hang!A1:BJ",
+    });
+    const rows = donHangRes.data.values || [];
+    const data = rows.slice(1);
+    const donHang =
+      data.find((r) => r[5] === maDonHang) || data.find((r) => r[6] === maDonHang);
+    if (!donHang) return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+    // 3. Lấy chi tiết sản phẩm
+    const ctRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Don_hang_nk_ct!A1:AC",
+    });
+    const ctRows = (ctRes.data.values || []).slice(1);
+    const products = ctRows
+      .filter((r) => r[1] === maDonHang)
+      .map((r, i) => ({
+        stt: i + 1,
+        tenSanPham: r[8],
+        soLuong: r[14],
+        donVi: r[13],
+        tongSoLuong: r[15],
+        ghiChu: "",
+      }));
+
+    console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+    // 4. Logo & watermark
+    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+    // 5. Render ngay
+    res.render("bbntnk", {
+      donHang,
+      products,
+      logoBase64,
+      watermarkBase64,
+      autoPrint: true,
+      maDonHang,
+      pathToFile: "",
+    });
+    // --- Lấy dữ liệu từ sheet File_BBNT_ct ---
+        const bbntRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_BBNT_ct!A:D",
+        });
+        const bbntRows = bbntRes.data.values || [];
+
+        // --- Tìm dòng tương ứng với mã đơn hàng và số lần ---
+        const targetRowIndex = bbntRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BBNT_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1;
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+    // 6. Gọi AppScript lưu HTML
+    (async () => {
+      try {
+        const renderedHtml = await renderFileAsync(
+          path.join(__dirname, "views", "bbntnk.ejs"),
+          {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: false,
+            maDonHang,
+            pathToFile: "",
+          }
+        );
+
+        const GAS_WEBAPP_URL_BBNTNK = process.env.GAS_WEBAPP_URL_BBNTNK;
+        if (GAS_WEBAPP_URL_BBNTNK) {
+          const resp = await fetch(GAS_WEBAPP_URL_BBNTNK, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              orderCode: maDonHang,
+              html: renderedHtml,
+            }),
+          });
+
+          const data = await resp.json();
+          console.log("✔️ AppScript trả về:", data);
+
+          const pathToFile = data.pathToFile || `BBNTNK/${data.fileName}`;
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `file_BBNT_ct!D${lastRowWithData}`,
+            valueInputOption: "RAW",
+            requestBody: { values: [[pathToFile]] },
+          });
+          console.log("✔️ Đã ghi đường dẫn:", pathToFile);
+        }
+      } catch (err) {
+        console.error("❌ Lỗi gọi AppScript BBNTNK:", err);
+      }
+    })();
+  } catch (err) {
+    console.error("❌ Lỗi khi xuất BBNTNK:", err.stack || err.message);
+    res.status(500).send("Lỗi server: " + (err.message || err));
+  }
+});
