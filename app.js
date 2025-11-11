@@ -4520,3 +4520,116 @@ app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
     res.status(500).send("Lỗi server: " + (err.message || err));
   }
 });
+
+// HÀM GGH KÈM MÃ ĐƠN VÀ SỐ LẦN
+app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất Giấy Giao Hàng ...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // --- Lấy tham số từ URL ---
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        // --- Lấy dữ liệu đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang) {
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+        }
+
+        // --- Logo ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+
+        // --- Render ngay cho client ---
+        res.render("ggh", {
+            donHang,
+            logoBase64,
+            autoPrint: true,
+            maDonHang,
+            pathToFile: "",
+        });
+        // --- Lấy dữ liệu từ File_GGH_ct ---
+        const gghRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_GGH_ct!A:D",
+        });
+        const gghRows = gghRes.data.values || [];
+
+        // --- Tìm dòng có mã đơn hàng & số lần ---
+        const targetRowIndex = gghRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã "${maDonHang}" và số lần "${soLan}" trong sheet File_GGH_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1;
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+        // --- Sau khi render xong thì gọi AppScript ngầm ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "ggh.ejs"),
+                    {
+                        donHang,
+                        logoBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        pathToFile: "",
+                    }
+                );
+
+                const GAS_WEBAPP_URL_GGH = process.env.GAS_WEBAPP_URL_GGH;
+                if (GAS_WEBAPP_URL_GGH) {
+                    const resp = await fetch(GAS_WEBAPP_URL_GGH, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({
+                            orderCode: maDonHang,
+                            html: renderedHtml,
+                        }),
+                    });
+
+                    const data = await resp.json();
+                    console.log("✔️ AppScript trả về:", data);
+
+                    const pathToFile = data.pathToFile || `GGH/${data.fileName}`;
+
+                    // --- Ghi lại đường dẫn vào cột D dòng tương ứng ---
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `File_GGH_ct!D${rowNumber}`,
+                        valueInputOption: "RAW",
+                        requestBody: { values: [[pathToFile]] },
+                    });
+
+                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+                } else {
+                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_GGH");
+                }
+            } catch (err) {
+                console.error("❌ Lỗi gọi AppScript:", err);
+            }
+        })();
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất GGH:", err.stack || err.message);
+        res.status(500).send("Lỗi server: " + (err.message || err));
+    }
+});
