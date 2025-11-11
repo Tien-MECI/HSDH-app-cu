@@ -3387,4 +3387,174 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+// HÀM CHẠY BÁO GIÁ PVC ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
+app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất Báo Giá PVC ...");
+        console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
+        await new Promise(resolve => setTimeout(resolve, 2500));
+
+        // --- Nhận tham số từ URL ---
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+       
+
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang)
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+        // --- Lấy chi tiết sản phẩm PVC ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_PVC_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+
+        // --- Lọc và map dữ liệu ---
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r) => ({
+                maDonHangChiTiet: r[2],
+                tenHangHoa: r[9],
+                quyCach: r[10],
+                dai: r[16],
+                rong: r[17],
+                cao: r[18],
+                soLuong: r[21],
+                donViTinh: r[22],
+                tongSoLuong: r[20],
+                donGia: r[25],
+                vat: r[26] ? parseFloat(r[26]) : null,
+                thanhTien: r[27]
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Tính tổng các giá trị ---
+        let tongTien = 0;
+        let chietKhau = parseFloat(donHang[40]) || 0;
+        let tamUng = parseFloat(donHang[41]) || 0;
+
+        products.forEach(product => {
+            tongTien += parseFloat(product.thanhTien) || 0;
+        });
+
+        let tongThanhTien = tongTien - chietKhau - tamUng;
+
+        // --- Logo & Watermark ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Render cho client ---
+        res.render("baogiapvc", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: false,
+            maDonHang,
+            tongTien,
+            chietKhau,
+            tamUng,
+            tongThanhTien,
+            numberToWords,
+            pathToFile: ""
+        });
+       // --- Lấy dữ liệu từ sheet File_bao_gia_ct ---
+        const baoGiaRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_bao_gia_ct!A:D",
+        });
+        const baoGiaRows = baoGiaRes.data.values || [];
+
+        // --- Tìm dòng có cột B = maDonHang và cột C = soLan ---
+        const targetRowIndex = baoGiaRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_bao_gia_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1; // vì dòng đầu tiên là header
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+        // --- Sau khi render xong, gọi AppScript ngầm ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "baogiapvc.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        tongTien,
+                        chietKhau,
+                        tamUng,
+                        tongThanhTien,
+                        numberToWords,
+                        pathToFile: ""
+                    }
+                );
+
+                // Gọi GAS WebApp tương ứng
+                const GAS_WEBAPP_URL_BAOGIAPVC = process.env.GAS_WEBAPP_URL_BAOGIAPVC;
+                if (GAS_WEBAPP_URL_BAOGIAPVC) {
+                    const resp = await fetch(GAS_WEBAPP_URL_BAOGIAPVC, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: new URLSearchParams({
+                            orderCode: maDonHang,
+                            html: renderedHtml
+                        })
+                    });
+
+                    const data = await resp.json();
+                    console.log("✔️ AppScript trả về:", data);
+
+                    const pathToFile = data.pathToFile || `BAO_GIA_PVC/${data.fileName}`;
+
+                    // --- Ghi đường dẫn vào đúng dòng ---
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `File_bao_gia_ct!D${rowNumber}`,
+                        valueInputOption: "RAW",
+                        requestBody: { values: [[pathToFile]] },
+                    });
+
+                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+                } else {
+                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIAPVC");
+                }
+
+            } catch (err) {
+                console.error("❌ Lỗi gọi AppScript:", err);
+            }
+        })();
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất Báo Giá PVC:", err.stack || err.message);
+        res.status(500).send("Lỗi server: " + (err.message || err));
+    }
+});
+
 
