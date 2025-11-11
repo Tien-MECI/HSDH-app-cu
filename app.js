@@ -451,7 +451,7 @@ app.get("/ggh", async (req, res) => {
 app.get("/lenhpvc", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        await new Promise(resolve => setTimeout(resolve, 4000));
 
         // --- Lấy mã đơn hàng ---
         const lenhRes = await sheets.spreadsheets.values.get({
