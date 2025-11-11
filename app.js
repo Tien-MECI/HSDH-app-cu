@@ -3561,7 +3561,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
     try {
         console.log('▶️ Bắt đầu xuất YCVT ...');
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
