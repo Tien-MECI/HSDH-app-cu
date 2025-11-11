@@ -3228,7 +3228,7 @@ function formatVietnameseDate(dateStr) {
       } catch (e) {
         return dateStr;
       }
-    }
+}
 function formatNumber1(num) {
   if (num == null || isNaN(num)) return "0";
   num = Math.abs(Number(num));
@@ -3660,5 +3660,136 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
     } catch (err) {
         console.error('❌ Lỗi khi xuất YCVT:', err.stack || err.message);
         res.status(500).send('Lỗi server: ' + (err.message || err));
+    }
+});
+
+////HÀM BBGN PVC KÈM MÃ ĐƠN HÀNG VÀO SỐ LẦN
+
+app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất BBGN ...");
+
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang)
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+        // --- Chi tiết sản phẩm ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_PVC_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r, i) => ({
+                stt: i + 1,
+                tenSanPham: r[9],
+                soLuong: r[23],
+                donVi: r[22],
+                tongSoLuong: r[21],
+                ghiChu: "",
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Logo & Watermark ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Render ngay cho client ---
+        res.render("bbgn", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang,
+            pathToFile: ""
+        });
+        // --- Lấy dữ liệu từ file_BBGN_ct ---
+        const bbgnRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "file_BBGN_ct!A:D",
+        });
+        const bbgnRows = bbgnRes.data.values || [];
+
+        // --- Tìm dòng cần ghi ---
+        const targetRowIndex = bbgnRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet file_BBGN_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1;
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+        // --- Gọi AppScript ngầm ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "bbgn.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        pathToFile: ""
+                    }
+                );
+
+                const resp = await fetch(GAS_WEBAPP_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml
+                    })
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BBGN/${data.fileName}`;
+                
+                // --- Ghi đường dẫn vào đúng dòng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `file_BBGN_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
+            } catch (err) {
+                console.error("❌ Lỗi gọi AppScript:", err);
+            }
+        })();
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất BBGN:", err.stack || err.message);
+        res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
