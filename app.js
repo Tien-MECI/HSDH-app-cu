@@ -3446,7 +3446,9 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
         // --- Tính tổng các giá trị ---
         let tongTien = 0;
-        let chietKhau = parseFloat(donHang[40]) || 0;
+        let chietKhauValue = donHang[40] || "0";
+        let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
+        let chietKhau = (tongTien * chietKhauPercent) / 100;
         let tamUng = parseFloat(donHang[41]) || 0;
 
         products.forEach(product => {
