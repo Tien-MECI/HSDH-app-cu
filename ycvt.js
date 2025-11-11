@@ -33,7 +33,7 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId) {
     });
   }
 
-  try {
+   try {
     // 1) Lấy dữ liệu ban đầu
     const [data1Res, data2Res, data3Res, data5Res] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang_PVC_ct!A1:AE' }),
@@ -49,12 +49,19 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId) {
 
     console.log(`✔️ Lấy dữ liệu xong: Don_hang_PVC_ct=${data1.length}, Don_hang=${data2.length}, Data_bom=${data3.length}, File_BOM_ct=${data5.length}`);
 
-    // 2) Lấy mã đơn hàng d4Value
-    let d4Value = '';
+    // --- 2) Xác định d4Value ---
+    let d4Value = maDonHang || '';
     let lastRowWithData = 0;
-    for (let i = data5.length - 1; i >= 0; i--) {
-      const v = (data5[i] && data5[i][1]) ? String(data5[i][1]).trim() : '';
-      if (v !== '') { d4Value = v; lastRowWithData = i + 1; break; }
+
+    if (!maDonHang) {
+      for (let i = data5.length - 1; i >= 0; i--) {
+        const v = (data5[i] && data5[i][1]) ? String(data5[i][1]).trim() : '';
+        if (v !== '') { d4Value = v; lastRowWithData = i + 1; break; }
+      }
+    } else {
+      // Nếu có maDonHang truyền vào, tìm dòng tương ứng (để log)
+      const idx = data5.findIndex(r => r[1] === maDonHang);
+      lastRowWithData = idx !== -1 ? idx + 1 : 0;
     }
     if (!d4Value) throw new Error('Không tìm thấy mã đơn hàng trong File_BOM_ct cột B');
     console.log(`✔️ Mã đơn hàng: ${d4Value} (dòng ${lastRowWithData})`);

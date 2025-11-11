@@ -3557,4 +3557,108 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+////HÀM YCVT KÈM MÃ ĐƠN HÀNG VÀ SỐ LẦN
+app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
+    try {
+        console.log('▶️ Bắt đầu xuất YCVT ...');
+        await new Promise(resolve => setTimeout(resolve, 2500));
 
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        // --- Lấy logo và watermark ---
+        const [logoBase64, watermarkBase64] = await Promise.all([
+            loadDriveImageBase64(LOGO_FILE_ID),
+            loadDriveImageBase64(WATERMARK_FILE_ID)
+        ]);
+
+        // --- Tìm dòng cần ghi trong File_BOM_ct ---
+        const fileBomRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "File_BOM_ct!A:D",
+        });
+        const fileBomRows = fileBomRes.data.values || [];
+
+        const targetRowIndex = fileBomRows.findIndex(
+            (r) => r[1] === maDonHang && r[2] === soLan
+        );
+
+        if (targetRowIndex === -1) {
+            return res.send(
+                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BOM_ct.`
+            );
+        }
+
+        const rowNumber = targetRowIndex + 1;
+        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
+
+        // --- Chuẩn bị dữ liệu (truyền maDonHang thay vì để prepareYcvtData tự lấy) ---
+        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
+        const d4Value = maDonHang;
+
+        // --- Render cho client ---
+        res.render('ycvt', {
+            ...data,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang: d4Value,
+            pathToFile: ''
+        });
+
+        // --- Gọi Apps Script ngầm ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, 'views', 'ycvt.ejs'),
+                    {
+                        ...data,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang: d4Value,
+                        pathToFile: ''
+                    }
+                );
+
+                const resp = await fetch(GAS_WEBAPP_URL_PYCVT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        orderCode: d4Value,
+                        html: renderedHtml
+                    })
+                });
+
+                const result = await resp.json();
+                console.log('✔️ AppScript trả về:', result);
+
+                if (!result.ok) {
+                    throw new Error(result.error || 'Lỗi khi gọi Apps Script');
+                }
+
+                const pathToFile = result.pathToFile || `YCVT/${result.fileName}`;
+
+                // --- Ghi đường dẫn vào đúng dòng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_BOM_ct!D${rowNumber}`,
+                    valueInputOption: 'RAW',
+                    requestBody: { values: [[pathToFile]] }
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
+            } catch (err) {
+                console.error('❌ Lỗi gọi AppScript:', err);
+            }
+        })();
+
+    } catch (err) {
+        console.error('❌ Lỗi khi xuất YCVT:', err.stack || err.message);
+        res.status(500).send('Lỗi server: ' + (err.message || err));
+    }
+});
