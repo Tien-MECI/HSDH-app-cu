@@ -13,7 +13,7 @@ function sleep(ms) {
  * - spreadsheetId: id của workbook chính (chứa Don_hang_PVC_ct, Don_hang, File_BOM_ct)
  * - spreadsheetHcId: id workbook chứa Data_bom
  */
-async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId) {
+async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId,maDonHang = null) {
   console.log('▶️ Bắt đầu prepareYcvtData...');
   const sheets = google.sheets({ version: 'v4', auth });
 
