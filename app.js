@@ -4554,6 +4554,7 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
+
         if (!donHang) {
             return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
         }
@@ -4561,14 +4562,6 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
         // --- Logo ---
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
 
-        // --- Render ngay cho client ---
-        res.render("ggh", {
-            donHang,
-            logoBase64,
-            autoPrint: true,
-            maDonHang,
-            pathToFile: "",
-        });
         // --- Lấy dữ liệu từ File_GGH_ct ---
         const gghRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -4576,7 +4569,7 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
         });
         const gghRows = gghRes.data.values || [];
 
-        // --- Tìm dòng có mã đơn hàng & số lần ---
+        // --- Tìm dòng cần ghi ---
         const targetRowIndex = gghRows.findIndex(
             (r) => r[1] === maDonHang && r[2] === soLan
         );
@@ -4590,7 +4583,17 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
         const rowNumber = targetRowIndex + 1;
         console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
 
-        // --- Sau khi render xong thì gọi AppScript ngầm ---
+        // --- Render ra client trước ---
+        res.render("ggh", {
+            donHang,
+            logoBase64,
+            autoPrint: true,
+            maDonHang,
+            soLan,
+            pathToFile: "",
+        });
+
+        // --- Chạy nền: gọi GAS và ghi kết quả ---
         (async () => {
             try {
                 const renderedHtml = await renderFileAsync(
@@ -4600,45 +4603,50 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
                         logoBase64,
                         autoPrint: false,
                         maDonHang,
+                        soLan,
                         pathToFile: "",
                     }
                 );
 
                 const GAS_WEBAPP_URL_GGH = process.env.GAS_WEBAPP_URL_GGH;
-                if (GAS_WEBAPP_URL_GGH) {
-                    const resp = await fetch(GAS_WEBAPP_URL_GGH, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml,
-                        }),
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `GGH/${data.fileName}`;
-
-                    // --- Ghi lại đường dẫn vào cột D dòng tương ứng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_GGH_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_GGH");
+                if (!GAS_WEBAPP_URL_GGH) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_GGH");
+                    return;
                 }
+
+                const resp = await fetch(GAS_WEBAPP_URL_GGH, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml,
+                    }),
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `GGH/${data.fileName}`;
+
+                // --- Ghi lại đường dẫn vào cột D dòng tương ứng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_GGH_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi gọi AppScript (nền):", err);
             }
-        })();
+        })().catch((err) => console.error("❌ Async IIFE GGH lỗi:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất GGH:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent) {
+            res.status(500).send("Lỗi server: " + (err.message || err));
+        }
     }
 });
+
