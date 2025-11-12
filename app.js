@@ -4001,7 +4001,6 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
 
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-        
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -4012,8 +4011,10 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
-        if (!donHang)
+
+        if (!donHang) {
             return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+        }
 
         // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
@@ -4021,6 +4022,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
             range: "Don_hang_PVC_ct!A1:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
+
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
             .map((r, i) => ({
@@ -4038,16 +4040,6 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Render ngay cho client ---
-        res.render("bbgn", {
-            donHang,
-            products,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: true,
-            maDonHang,
-            pathToFile: ""
-        });
         // --- Lấy dữ liệu từ file_BBGN_ct ---
         const bbgnRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -4069,7 +4061,19 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         const rowNumber = targetRowIndex + 1;
         console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
 
-        // --- Gọi AppScript ngầm ---
+        // --- Render ra client trước ---
+        res.render("bbgn", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang,
+            soLan,
+            pathToFile: ""
+        });
+
+        // --- Phần chạy nền (không res.send hay return trong này) ---
         (async () => {
             try {
                 const renderedHtml = await renderFileAsync(
@@ -4081,10 +4085,12 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
                         watermarkBase64,
                         autoPrint: false,
                         maDonHang,
+                        soLan,
                         pathToFile: ""
                     }
                 );
 
+                // Gọi AppScript để tạo file PDF / lưu Google Drive
                 const resp = await fetch(GAS_WEBAPP_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -4098,7 +4104,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
                 console.log("✔️ AppScript trả về:", data);
 
                 const pathToFile = data.pathToFile || `BBGN/${data.fileName}`;
-                
+
                 // --- Ghi đường dẫn vào đúng dòng ---
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
@@ -4106,18 +4112,21 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
                     valueInputOption: "RAW",
                     requestBody: { values: [[pathToFile]] },
                 });
-                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
 
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi chạy nền khi gọi AppScript:", err);
             }
-        })();
+        })().catch(err => console.error("❌ Async IIFE BBGN lỗi:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất BBGN:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        // Chỉ gửi lỗi một lần duy nhất ở đây
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
+
 
 ///HÀM BBGN NK KÈM MÃ ĐƠN HÀNG VÀ SỐ LẦN
 app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
