@@ -3549,8 +3549,6 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-       
-
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -3591,39 +3589,24 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
 
-        // --- Tính tổng các giá trị ---
+        // --- Tính tổng ---
         let tongTien = 0;
         let chietKhauValue = donHang[40] || "0";
         let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
         let tamUng = parseFloat(donHang[41]) || 0;
 
-        products.forEach(product => {
-            tongTien += parseFloat(product.thanhTien) || 0;
+        products.forEach(p => {
+            tongTien += parseFloat(p.thanhTien) || 0;
         });
-        let chietKhau = (tongTien * chietKhauPercent) / 100;
 
+        let chietKhau = (tongTien * chietKhauPercent) / 100;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
         // --- Logo & Watermark ---
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Render cho client ---
-        res.render("baogiapvc", {
-            donHang,
-            products,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: false,
-            maDonHang,
-            tongTien,
-            chietKhau,
-            tamUng,
-            tongThanhTien,
-            numberToWords,
-            pathToFile: ""
-        });
-       // --- Lấy dữ liệu từ sheet File_bao_gia_ct ---
+        // --- Lấy dữ liệu từ sheet File_bao_gia_ct ---
         const baoGiaRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: "File_bao_gia_ct!A:D",
@@ -3641,10 +3624,26 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
             );
         }
 
-        const rowNumber = targetRowIndex + 1; // vì dòng đầu tiên là header
+        const rowNumber = targetRowIndex + 1;
         console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
 
-        // --- Sau khi render xong, gọi AppScript ngầm ---
+        // --- Render ngay cho client ---
+        res.render("baogiapvc", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang,
+            tongTien,
+            chietKhau,
+            tamUng,
+            tongThanhTien,
+            numberToWords,
+            pathToFile: ""
+        });
+
+        // --- Gọi AppScript chạy nền (không ảnh hưởng response) ---
         (async () => {
             try {
                 const renderedHtml = await renderFileAsync(
@@ -3665,46 +3664,48 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
                     }
                 );
 
-                // Gọi GAS WebApp tương ứng
                 const GAS_WEBAPP_URL_BAOGIAPVC = process.env.GAS_WEBAPP_URL_BAOGIAPVC;
-                if (GAS_WEBAPP_URL_BAOGIAPVC) {
-                    const resp = await fetch(GAS_WEBAPP_URL_BAOGIAPVC, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml
-                        })
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `BAO_GIA_PVC/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_bao_gia_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
+                if (!GAS_WEBAPP_URL_BAOGIAPVC) {
                     console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIAPVC");
+                    return;
                 }
 
+                const resp = await fetch(GAS_WEBAPP_URL_BAOGIAPVC, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml,
+                    }),
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BAO_GIA_PVC/${data.fileName}`;
+
+                // --- Ghi đường dẫn vào Google Sheet ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_bao_gia_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi gọi AppScript (nền):", err);
             }
-        })();
+        })().catch((err) => console.error("❌ Async IIFE lỗi:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất Báo Giá PVC:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent) {
+            res.status(500).send("Lỗi server: " + (err.message || err));
+        }
     }
 });
+
 /// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
     try {
