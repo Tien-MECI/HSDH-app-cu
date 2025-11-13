@@ -3276,7 +3276,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
             .filter((r) => r[1] === maDonHang)
             .map((r, i) => ({
                 maDonHangChiTiet: r[2],
-                tenThuongMai: r[9],
+                tenThuongMai: r[8],
                 dai: r[16],
                 rong: r[17],
                 cao: r[18],
