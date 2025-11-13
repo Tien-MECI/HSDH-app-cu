@@ -3546,7 +3546,6 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
         }
-
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
         // --- Lấy đơn hàng ---
@@ -3559,8 +3558,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
-        if (!donHang)
-            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+        if (!donHang) return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
 
         // --- Lấy chi tiết sản phẩm PVC ---
         const ctRes = await sheets.spreadsheets.values.get({
@@ -3569,7 +3567,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
-        // --- Lọc và map dữ liệu ---
+        // --- Lọc và map dữ liệu (giữ nguyên logic của bạn) ---
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
             .map((r) => ({
@@ -3589,16 +3587,15 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
 
-        // --- Tính tổng ---
+        // --- Tính tổng (GIỮ NGUYÊN LOGIC) ---
         let tongTien = 0;
         let chietKhauValue = donHang[40] || "0";
         let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
         let tamUng = parseFloat(donHang[41]) || 0;
 
-        products.forEach(p => {
-            tongTien += parseFloat(p.thanhTien) || 0;
+        products.forEach(product => {
+            tongTien += parseFloat(product.thanhTien) || 0;
         });
-
         let chietKhau = (tongTien * chietKhauPercent) / 100;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
@@ -3606,34 +3603,13 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Lấy dữ liệu từ sheet File_bao_gia_ct ---
-        const baoGiaRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_bao_gia_ct!A:D",
-        });
-        const baoGiaRows = baoGiaRes.data.values || [];
-
-        // --- Tìm dòng có cột B = maDonHang và cột C = soLan ---
-        const targetRowIndex = baoGiaRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_bao_gia_ct.`
-            );
-        }
-
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-        // --- Render ngay cho client ---
+        // --- Render cho client ngay (không chặn UI) ---
         res.render("baogiapvc", {
             donHang,
             products,
             logoBase64,
             watermarkBase64,
-            autoPrint: true,
+            autoPrint: false,
             maDonHang,
             tongTien,
             chietKhau,
@@ -3643,9 +3619,57 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
             pathToFile: ""
         });
 
-        // --- Gọi AppScript chạy nền (không ảnh hưởng response) ---
+        // ----- HÀM HỖ TRỢ: tìm dòng trong File_bao_gia_ct với retry/polling -----
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            // attemptLimit: số lần đọc tối đa
+            // initialDelayMs: delay ban đầu giữa các lần (sẽ tăng nhẹ nếu cần)
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_bao_gia_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) {
+                        return idx + 1; // trả về số dòng thực tế
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi khi đọc File_bao_gia_ct (attempt ${attempt}):`, e.message || e);
+                    // tiếp tục retry
+                }
+                // chờ rồi retry
+                await new Promise(r => setTimeout(r, delay));
+                // nhẹ tăng dần delay để giảm load
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null; // không tìm được sau attempts
+        }
+
+        // ----- Chạy phần nền: tìm dòng (poll) rồi gọi GAS và ghi đường dẫn -----
         (async () => {
             try {
+                // cấu hình: cho phép override bằng biến môi trường
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_bao_gia_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ... (max ${MAX_ATTEMPTS} attempts)`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+
+                if (!rowNumber) {
+                    // Không tìm thấy sau nhiều lần retry
+                    // KHÔNG gọi res.send() vì đã render rồi — chỉ log rõ để bạn xử lý thủ công
+                    console.error(`❌ Sau ${MAX_ATTEMPTS} lần, không tìm thấy dòng cho ${maDonHang} - ${soLan} trong File_bao_gia_ct. Bỏ qua ghi đường dẫn.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng để ghi: ${rowNumber} (sẽ gọi GAS và ghi đường dẫn)`);
+
+                // --- render html (same as before) ---
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "baogiapvc.ejs"),
                     {
@@ -3666,7 +3690,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
                 const GAS_WEBAPP_URL_BAOGIAPVC = process.env.GAS_WEBAPP_URL_BAOGIAPVC;
                 if (!GAS_WEBAPP_URL_BAOGIAPVC) {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIAPVC");
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIAPVC - bỏ qua bước gọi GAS");
                     return;
                 }
 
@@ -3675,16 +3699,15 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
                         orderCode: maDonHang,
-                        html: renderedHtml,
-                    }),
+                        html: renderedHtml
+                    })
                 });
 
                 const data = await resp.json();
                 console.log("✔️ AppScript trả về:", data);
-
                 const pathToFile = data.pathToFile || `BAO_GIA_PVC/${data.fileName}`;
 
-                // --- Ghi đường dẫn vào Google Sheet ---
+                // --- Ghi đường dẫn vào đúng dòng ---
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: `File_bao_gia_ct!D${rowNumber}`,
@@ -3696,7 +3719,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
             } catch (err) {
                 console.error("❌ Lỗi gọi AppScript (nền):", err);
             }
-        })().catch((err) => console.error("❌ Async IIFE lỗi:", err));
+        })().catch(err => console.error("❌ Async background error:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất Báo Giá PVC:", err.stack || err.message);
@@ -3705,6 +3728,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         }
     }
 });
+
 
 /// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
