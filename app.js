@@ -3539,7 +3539,6 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Báo Giá PVC ...");
         console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
-        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // --- Nhận tham số từ URL ---
         const { maDonHang, soLan } = req.params;
