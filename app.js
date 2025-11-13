@@ -3240,9 +3240,7 @@ function formatNumber1(num) {
 app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh PVC ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // --- Nhận tham số từ URL ---
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
@@ -3250,7 +3248,6 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
 
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-        
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -3274,7 +3271,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
         // Lọc và map dữ liệu theo cấu trúc của lệnh sản xuất
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
-            .map((r, i) => ({
+            .map((r) => ({
                 maDonHangChiTiet: r[2],
                 tenThuongMai: r[8],
                 dai: r[16],
@@ -3297,7 +3294,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
         // --- Xác định loại lệnh từ cột S (index 36) ---
         const lenhValue = donHang[36] || '';
 
-        // --- Render ra client ---
+        // --- Render ra client (ngay, không chặn UI) ---
         res.render("lenhpvc", {
             donHang,
             products,
@@ -3308,31 +3305,46 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
             lenhValue,
             pathToFile: ""
         });
-        // --- Lấy dữ liệu từ sheet File_lenh_ct ---
-        const lenhRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_lenh_ct!A:D",
-        });
-        const lenhRows = lenhRes.data.values || [];
 
-        // Tìm dòng có cột B = maDonHang và cột C = soLan
-        const targetRowIndex = lenhRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_lenh_ct.`
-            );
+        // ===== PHẦN MỚI: tìm dòng bằng retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_lenh_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_lenh_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
         }
 
-        const rowNumber = targetRowIndex + 1; // vì sheet bắt đầu từ dòng 1
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-
-        // --- Gọi AppScript ngầm sau khi render ---
+        // ===== PHẦN NỀN: Gọi AppScript và ghi đường dẫn =====
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_lenh_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "lenhpvc.ejs"),
                     {
@@ -3348,42 +3360,43 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
                 );
 
                 const GAS_WEBAPP_URL_LENHPVC = process.env.GAS_WEBAPP_URL_LENHPVC;
-                if (GAS_WEBAPP_URL_LENHPVC) {
-                    const resp = await fetch(GAS_WEBAPP_URL_LENHPVC, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml
-                        })
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `LENH_PVC/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_lenh_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_LENHPVC");
+                if (!GAS_WEBAPP_URL_LENHPVC) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_LENHPVC - bỏ qua bước gọi GAS");
+                    return;
                 }
 
+                const resp = await fetch(GAS_WEBAPP_URL_LENHPVC, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml
+                    })
+                });
+
+                const result = await resp.json();
+                console.log("✔️ AppScript trả về:", result);
+
+                const pathToFile = result.pathToFile || `LENH_PVC/${result.fileName}`;
+
+                // --- Ghi đường dẫn vào đúng dòng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_lenh_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi gọi AppScript hoặc ghi link:", err);
             }
-        })();
+        })().catch(err => console.error("❌ Async background error:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất Lệnh PVC:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
 
@@ -3391,16 +3404,13 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
 app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Lệnh Nhôm Kính ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // --- Lấy tham số từ URL ---
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
         }
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-       
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -3423,7 +3433,7 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
 
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
-            .map((r, i) => ({
+            .map((r) => ({
                 maDonHangChiTiet: r[2],
                 tenThuongMai: r[7],
                 dai: r[9],
@@ -3445,7 +3455,7 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
         // --- Xác định loại lệnh từ cột S (index 36) ---
         const lenhValue = donHang[36] || '';
 
-        // --- Render ngay cho client ---
+        // --- Render ra client (ngay lập tức) ---
         res.render("lenhnk", {
             donHang,
             products,
@@ -3457,29 +3467,45 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
             pathToFile: ""
         });
 
-         // --- Lấy dữ liệu từ File_lenh_ct ---
-        const lenhRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_lenh_ct!A:D",
-        });
-        const lenhRows = lenhRes.data.values || [];
-
-        // --- Tìm dòng cần ghi ---
-        const targetRowIndex = lenhRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_lenh_ct.`
-            );
+        // ===== HÀM MỚI: tìm dòng có retry =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_lenh_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_lenh_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
         }
-        const rowNumber = targetRowIndex + 1; // dòng thực tế trên sheet
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
 
-
-        // --- Gọi AppScript ngầm ---
+        // ===== Gọi Apps Script ngầm =====
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_lenh_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "lenhnk.ejs"),
                     {
@@ -3495,41 +3521,43 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
                 );
 
                 const GAS_WEBAPP_URL_LENHNK = process.env.GAS_WEBAPP_URL_LENHNK;
-                if (GAS_WEBAPP_URL_LENHNK) {
-                    const resp = await fetch(GAS_WEBAPP_URL_LENHNK, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml
-                        })
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `LENH_NK/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_lenh_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_LENHNK");
+                if (!GAS_WEBAPP_URL_LENHNK) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_LENHNK - bỏ qua bước gọi GAS");
+                    return;
                 }
 
+                const resp = await fetch(GAS_WEBAPP_URL_LENHNK, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml
+                    })
+                });
+
+                const result = await resp.json();
+                console.log("✔️ AppScript trả về:", result);
+
+                const pathToFile = result.pathToFile || `LENH_NK/${result.fileName}`;
+
+                // --- Ghi đường dẫn vào đúng dòng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_lenh_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi khi gọi Apps Script hoặc ghi đường dẫn:", err);
             }
-        })();
+        })().catch(err => console.error("❌ Async background error:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất Lệnh Nhôm Kính:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
 
@@ -3733,9 +3761,8 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Báo Giá Nhôm Kính ...");
-         await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // --- Nhận tham số từ URL ---
+        // --- Nhận tham số ---
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
@@ -3745,7 +3772,7 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A1:BW", // đủ tới cột BW
+            range: "Don_hang!A1:BW",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -3784,8 +3811,8 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         let tongTien = 0;
         products.forEach(p => tongTien += parseFloat(p.thanhTien) || 0);
 
-        // --- Xử lý chiết khấu: có thể là phần trăm ---
-        let chietKhauValue = donHang[40] || "0"; // có thể là 5% hoặc 3
+        // --- Xử lý chiết khấu ---
+        let chietKhauValue = donHang[40] || "0";
         let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
         let chietKhau = chietKhauValue.toString().includes('%')
             ? (tongTien * chietKhauPercent) / 100
@@ -3825,27 +3852,46 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
             numberToWords,
             pathToFile: ""
         });
-// --- Lấy dữ liệu từ File_bao_gia_ct ---
-        const baoGiaRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_bao_gia_ct!A:D",
-        });
-        const baoGiaRows = baoGiaRes.data.values || [];
 
-        // --- Tìm dòng cần ghi ---
-        const targetRowIndex = baoGiaRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_bao_gia_ct.`
-            );
+        // ===== PHẦN MỚI: tìm dòng bằng retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_bao_gia_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_bao_gia_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
         }
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-        // --- Sau khi render xong, gọi AppScript ngầm ---
+
+        // ===== Gọi AppScript & ghi đường dẫn (nền, không chặn UI) =====
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_bao_gia_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi GAS ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "baogiank.ejs"),
                     {
@@ -3867,49 +3913,50 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                 );
 
                 const GAS_WEBAPP_URL_BAOGIANK = process.env.GAS_WEBAPP_URL_BAOGIANK;
-                if (GAS_WEBAPP_URL_BAOGIANK) {
-                    const resp = await fetch(GAS_WEBAPP_URL_BAOGIANK, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml
-                        })
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `BAO_GIA_NK/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_bao_gia_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIANK");
+                if (!GAS_WEBAPP_URL_BAOGIANK) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIANK - bỏ qua bước gọi GAS");
+                    return;
                 }
 
+                const resp = await fetch(GAS_WEBAPP_URL_BAOGIANK, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml
+                    })
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BAO_GIA_NK/${data.fileName}`;
+
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_bao_gia_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi khi gọi AppScript hoặc ghi link:", err);
             }
-        })();
+        })().catch(err => console.error("❌ Async background error:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất Báo Giá Nhôm Kính:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
+
 
 ////HÀM YCVT KÈM MÃ ĐƠN HÀNG VÀ SỐ LẦN
 app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
     try {
         console.log('▶️ Bắt đầu xuất YCVT ...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
@@ -3924,31 +3971,11 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
             loadDriveImageBase64(WATERMARK_FILE_ID)
         ]);
 
-        // --- Tìm dòng cần ghi trong File_BOM_ct ---
-        const fileBomRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_BOM_ct!A:D",
-        });
-        const fileBomRows = fileBomRes.data.values || [];
-
-        const targetRowIndex = fileBomRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BOM_ct.`
-            );
-        }
-
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-        // --- Chuẩn bị dữ liệu (truyền maDonHang thay vì để prepareYcvtData tự lấy) ---
+        // --- Chuẩn bị dữ liệu (giữ nguyên logic cũ) ---
         const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
         const d4Value = maDonHang;
 
-        // --- Render cho client ---
+        // --- Render cho client (ngay, không chặn UI) ---
         res.render('ycvt', {
             ...data,
             logoBase64,
@@ -3958,9 +3985,46 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
             pathToFile: ''
         });
 
-        // --- Gọi Apps Script ngầm ---
+        // ===== PHẦN MỚI: hàm tìm dòng có retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_BOM_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_BOM_ct (attempt ${attempt}):`, e.message || e);
+                }
+                // chờ rồi thử lại
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
+        }
+
+        // ===== PHẦN NỀN: Gọi AppScript và ghi đường dẫn sau khi tìm thấy dòng =====
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_BOM_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, 'views', 'ycvt.ejs'),
                     {
@@ -3972,6 +4036,12 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
                         pathToFile: ''
                     }
                 );
+
+                const GAS_WEBAPP_URL_PYCVT = process.env.GAS_WEBAPP_URL_PYCVT;
+                if (!GAS_WEBAPP_URL_PYCVT) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_PYCVT - bỏ qua bước gọi GAS");
+                    return;
+                }
 
                 const resp = await fetch(GAS_WEBAPP_URL_PYCVT, {
                     method: 'POST',
@@ -4001,22 +4071,24 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
                 console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
 
             } catch (err) {
-                console.error('❌ Lỗi gọi AppScript:', err);
+                console.error('❌ Lỗi gọi AppScript hoặc ghi link:', err);
             }
-        })();
+        })().catch(err => console.error("❌ Async background error:", err));
 
     } catch (err) {
         console.error('❌ Lỗi khi xuất YCVT:', err.stack || err.message);
-        res.status(500).send('Lỗi server: ' + (err.message || err));
+        if (!res.headersSent) {
+            res.status(500).send('Lỗi server: ' + (err.message || err));
+        }
     }
 });
+
 
 ////HÀM BBGN PVC KÈM MÃ ĐƠN HÀNG VÀO SỐ LẦN
 
 app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất BBGN ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
@@ -4064,27 +4136,6 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Lấy dữ liệu từ file_BBGN_ct ---
-        const bbgnRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "file_BBGN_ct!A:D",
-        });
-        const bbgnRows = bbgnRes.data.values || [];
-
-        // --- Tìm dòng cần ghi ---
-        const targetRowIndex = bbgnRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet file_BBGN_ct.`
-            );
-        }
-
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
         // --- Render ra client trước ---
         res.render("bbgn", {
             donHang,
@@ -4097,9 +4148,45 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
             pathToFile: ""
         });
 
-        // --- Phần chạy nền (không res.send hay return trong này) ---
+        // ===== HÀM MỚI: tìm dòng có retry (polling) =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "file_BBGN_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc file_BBGN_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
+        }
+
+        // --- Phần chạy nền (không chặn client) ---
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling file_BBGN_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "bbgn.ejs"),
                     {
@@ -4114,7 +4201,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
                     }
                 );
 
-                // Gọi AppScript để tạo file PDF / lưu Google Drive
+                // --- Gọi AppScript để tạo file PDF / lưu Google Drive ---
                 const resp = await fetch(GAS_WEBAPP_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -4145,7 +4232,6 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất BBGN:", err.stack || err.message);
-        // Chỉ gửi lỗi một lần duy nhất ở đây
         if (!res.headersSent)
             res.status(500).send("Lỗi server: " + (err.message || err));
     }
@@ -4156,9 +4242,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
 app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất BBGN Nhôm Kính ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // --- Nhận tham số từ URL ---
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
@@ -4175,11 +4259,12 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
+
         if (!donHang) {
             return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
         }
 
-        // --- Lấy chi tiết sản phẩm ---
+        // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: "Don_hang_nk_ct!A1:AC",
@@ -4203,7 +4288,7 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Render cho client ---
+        // --- Render cho client ngay ---
         res.render("bbgnnk", {
             donHang,
             products,
@@ -4213,29 +4298,46 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
             maDonHang,
             pathToFile: "",
         });
-        // --- Lấy dữ liệu từ file_BBGN_ct ---
-        const bbgnRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "file_BBGN_ct!A:D",
-        });
-        const bbgnRows = bbgnRes.data.values || [];
 
-        // --- Tìm dòng cần ghi ---
-        const targetRowIndex = bbgnRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet file_BBGN_ct.`
-            );
+        // ===== Hàm tìm dòng với retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "file_BBGN_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => r[1] === orderCode && r[2] === soLan);
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc file_BBGN_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
         }
 
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-        // --- Sau khi render xong thì gọi AppScript ngầm ---
+        // --- Chạy nền, không chặn client ---
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling file_BBGN_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "bbgnnk.ejs"),
                     {
@@ -4250,41 +4352,43 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
                 );
 
                 const GAS_WEBAPP_URL_BBGNNK = process.env.GAS_WEBAPP_URL_BBGNNK;
-                if (GAS_WEBAPP_URL_BBGNNK) {
-                    const resp = await fetch(GAS_WEBAPP_URL_BBGNNK, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml,
-                        }),
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `BBGNNK/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `file_BBGN_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBGNNK");
+                if (!GAS_WEBAPP_URL_BBGNNK) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBGNNK");
+                    return;
                 }
 
+                const resp = await fetch(GAS_WEBAPP_URL_BBGNNK, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml,
+                    }),
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BBGNNK/${data.fileName}`;
+
+                // --- Ghi đường dẫn vào sheet ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `file_BBGN_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
+                console.error("❌ Lỗi chạy nền khi gọi AppScript:", err);
             }
-        })();
+        })().catch(err => console.error("❌ Async IIFE BBGNNK lỗi:", err));
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất BBGN Nhôm Kính:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
 
@@ -4292,14 +4396,11 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
 app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
     try {
         console.log("▶️ Bắt đầu xuất Biên Bản Nghiệm Thu ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
 
-        // --- Nhận tham số từ URL ---
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
         }
-
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
         // --- Lấy đơn hàng ---
@@ -4312,11 +4413,12 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
+
         if (!donHang) {
             return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
         }
 
-        // --- Lấy chi tiết sản phẩm từ Don_hang_PVC_ct ---
+        // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: "Don_hang_PVC_ct!A1:AC",
@@ -4340,7 +4442,7 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Render cho client ---
+        // --- Render ngay cho client ---
         res.render("bbnt", {
             donHang,
             products,
@@ -4350,29 +4452,46 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
             maDonHang,
             pathToFile: "",
         });
-       // --- Lấy dữ liệu từ sheet File_BBNT_ct ---
-        const bbntRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_BBNT_ct!A:D",
-        });
-        const bbntRows = bbntRes.data.values || [];
 
-        // --- Tìm dòng tương ứng với mã đơn hàng và số lần ---
-        const targetRowIndex = bbntRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BBNT_ct.`
-            );
+        // ===== Hàm tìm dòng với retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_BBNT_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => r[1] === orderCode && r[2] === soLan);
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_BBNT_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
         }
 
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-        // --- Sau khi render xong thì gọi AppScript ngầm ---
+        // --- Chạy nền (không chặn client) ---
         (async () => {
             try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_BBNT_ct để tìm dòng cho ${maDonHang} - ${soLan} ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
                 const renderedHtml = await renderFileAsync(
                     path.join(__dirname, "views", "bbnt.ejs"),
                     {
@@ -4387,258 +4506,12 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
                 );
 
                 const GAS_WEBAPP_URL_BBNT = process.env.GAS_WEBAPP_URL_BBNT;
-                if (GAS_WEBAPP_URL_BBNT) {
-                    const resp = await fetch(GAS_WEBAPP_URL_BBNT, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: new URLSearchParams({
-                            orderCode: maDonHang,
-                            html: renderedHtml,
-                        }),
-                    });
-
-                    const data = await resp.json();
-                    console.log("✔️ AppScript trả về:", data);
-
-                    const pathToFile = data.pathToFile || `BBNT/${data.fileName}`;
-
-                    // --- Ghi đường dẫn vào đúng dòng ---
-                    await sheets.spreadsheets.values.update({
-                        spreadsheetId: SPREADSHEET_ID,
-                        range: `File_BBNT_ct!D${rowNumber}`,
-                        valueInputOption: "RAW",
-                        requestBody: { values: [[pathToFile]] },
-                    });
-
-                    console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
-                } else {
-                    console.log("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBNT");
-                }
-
-            } catch (err) {
-                console.error("❌ Lỗi gọi AppScript:", err);
-            }
-        })();
-
-    } catch (err) {
-        console.error("❌ Lỗi khi xuất BBNT:", err.stack || err.message);
-        res.status(500).send("Lỗi server: " + (err.message || err));
-    }
-});
-
-//HÀM BBNT NK KÈM MÃ ĐƠN VÀ SỐ LẦN
-app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
-  try {
-    console.log("▶️ Bắt đầu xuất BBNTNK ...");
-     await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // --- Nhận tham số từ URL ---
-        const { maDonHang, soLan } = req.params;
-        if (!maDonHang || !soLan) {
-            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
-        }
-
-        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
-
-    // 2. Lấy đơn hàng
-    const donHangRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: "Don_hang!A1:BJ",
-    });
-    const rows = donHangRes.data.values || [];
-    const data = rows.slice(1);
-    const donHang =
-      data.find((r) => r[5] === maDonHang) || data.find((r) => r[6] === maDonHang);
-    if (!donHang) return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
-
-    // 3. Lấy chi tiết sản phẩm
-    const ctRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: "Don_hang_nk_ct!A1:AC",
-    });
-    const ctRows = (ctRes.data.values || []).slice(1);
-    const products = ctRows
-      .filter((r) => r[1] === maDonHang)
-      .map((r, i) => ({
-        stt: i + 1,
-        tenSanPham: r[8],
-        soLuong: r[14],
-        donVi: r[13],
-        tongSoLuong: r[15],
-        ghiChu: "",
-      }));
-
-    console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
-
-    // 4. Logo & watermark
-    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
-
-    // 5. Render ngay
-    res.render("bbntnk", {
-      donHang,
-      products,
-      logoBase64,
-      watermarkBase64,
-      autoPrint: true,
-      maDonHang,
-      pathToFile: "",
-    });
-    // --- Lấy dữ liệu từ sheet File_BBNT_ct ---
-        const bbntRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_BBNT_ct!A:D",
-        });
-        const bbntRows = bbntRes.data.values || [];
-
-        // --- Tìm dòng tương ứng với mã đơn hàng và số lần ---
-        const targetRowIndex = bbntRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã đơn hàng "${maDonHang}" và số lần "${soLan}" trong sheet File_BBNT_ct.`
-            );
-        }
-
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-    // 6. Gọi AppScript lưu HTML
-    (async () => {
-      try {
-        const renderedHtml = await renderFileAsync(
-          path.join(__dirname, "views", "bbntnk.ejs"),
-          {
-            donHang,
-            products,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: false,
-            maDonHang,
-            pathToFile: "",
-          }
-        );
-
-        const GAS_WEBAPP_URL_BBNTNK = process.env.GAS_WEBAPP_URL_BBNTNK;
-        if (GAS_WEBAPP_URL_BBNTNK) {
-          const resp = await fetch(GAS_WEBAPP_URL_BBNTNK, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              orderCode: maDonHang,
-              html: renderedHtml,
-            }),
-          });
-
-          const data = await resp.json();
-          console.log("✔️ AppScript trả về:", data);
-
-          const pathToFile = data.pathToFile || `BBNTNK/${data.fileName}`;
-          await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `file_BBNT_ct!D${lastRowWithData}`,
-            valueInputOption: "RAW",
-            requestBody: { values: [[pathToFile]] },
-          });
-          console.log("✔️ Đã ghi đường dẫn:", pathToFile);
-        }
-      } catch (err) {
-        console.error("❌ Lỗi gọi AppScript BBNTNK:", err);
-      }
-    })();
-  } catch (err) {
-    console.error("❌ Lỗi khi xuất BBNTNK:", err.stack || err.message);
-    res.status(500).send("Lỗi server: " + (err.message || err));
-  }
-});
-
-// HÀM GGH KÈM MÃ ĐƠN VÀ SỐ LẦN
-app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
-    try {
-        console.log("▶️ Bắt đầu xuất Giấy Giao Hàng ...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // --- Lấy tham số từ URL ---
-        const { maDonHang, soLan } = req.params;
-        if (!maDonHang || !soLan) {
-            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
-        }
-
-        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
-
-        // --- Lấy dữ liệu đơn hàng ---
-        const donHangRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A1:BJ",
-        });
-        const rows = donHangRes.data.values || [];
-        const data = rows.slice(1);
-        const donHang =
-            data.find((r) => r[5] === maDonHang) ||
-            data.find((r) => r[6] === maDonHang);
-
-        if (!donHang) {
-            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
-        }
-
-        // --- Logo ---
-        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-
-        // --- Lấy dữ liệu từ File_GGH_ct ---
-        const gghRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "File_GGH_ct!A:D",
-        });
-        const gghRows = gghRes.data.values || [];
-
-        // --- Tìm dòng cần ghi ---
-        const targetRowIndex = gghRows.findIndex(
-            (r) => r[1] === maDonHang && r[2] === soLan
-        );
-
-        if (targetRowIndex === -1) {
-            return res.send(
-                `⚠️ Không tìm thấy dòng có mã "${maDonHang}" và số lần "${soLan}" trong sheet File_GGH_ct.`
-            );
-        }
-
-        const rowNumber = targetRowIndex + 1;
-        console.log(`✔️ Tìm thấy dòng cần ghi: ${rowNumber}`);
-
-        // --- Render ra client trước ---
-        res.render("ggh", {
-            donHang,
-            logoBase64,
-            autoPrint: true,
-            maDonHang,
-            soLan,
-            pathToFile: "",
-        });
-
-        // --- Chạy nền: gọi GAS và ghi kết quả ---
-        (async () => {
-            try {
-                const renderedHtml = await renderFileAsync(
-                    path.join(__dirname, "views", "ggh.ejs"),
-                    {
-                        donHang,
-                        logoBase64,
-                        autoPrint: false,
-                        maDonHang,
-                        soLan,
-                        pathToFile: "",
-                    }
-                );
-
-                const GAS_WEBAPP_URL_GGH = process.env.GAS_WEBAPP_URL_GGH;
-                if (!GAS_WEBAPP_URL_GGH) {
-                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_GGH");
+                if (!GAS_WEBAPP_URL_BBNT) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBNT");
                     return;
                 }
 
-                const resp = await fetch(GAS_WEBAPP_URL_GGH, {
+                const resp = await fetch(GAS_WEBAPP_URL_BBNT, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
@@ -4650,9 +4523,260 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
                 const data = await resp.json();
                 console.log("✔️ AppScript trả về:", data);
 
+                const pathToFile = data.pathToFile || `BBNT/${data.fileName}`;
+
+                // --- Ghi đường dẫn vào sheet ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_BBNT_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+            } catch (err) {
+                console.error("❌ Lỗi chạy nền khi gọi AppScript:", err);
+            }
+        })().catch(err => console.error("❌ Async IIFE BBNT lỗi:", err));
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất BBNT:", err.stack || err.message);
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
+    }
+});
+
+
+//HÀM BBNT NK KÈM MÃ ĐƠN VÀ SỐ LẦN
+app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất BBNTNK ...");
+
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        }
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang) return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+        // --- Chi tiết sản phẩm ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_nk_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r, i) => ({
+                stt: i + 1,
+                tenSanPham: r[8],
+                soLuong: r[14],
+                donVi: r[13],
+                tongSoLuong: r[15],
+                ghiChu: "",
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Logo & Watermark ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Render ngay cho client ---
+        res.render("bbntnk", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: true,
+            maDonHang,
+            pathToFile: "",
+        });
+
+        // ===== Hàm tìm dòng với retry/polling =====
+        async function findRowWithRetry(sheetName, orderCode, soLan, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `${sheetName}!A:D`,
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => r[1] === orderCode && r[2] === soLan);
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc ${sheetName} (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
+        }
+
+        // --- Chạy nền gọi AppScript ---
+        (async () => {
+            try {
+                const rowNumber = await findRowWithRetry("File_BBNT_ct", maDonHang, soLan);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau polling.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
+
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "bbntnk.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        pathToFile: "",
+                    }
+                );
+
+                const GAS_WEBAPP_URL_BBNTNK = process.env.GAS_WEBAPP_URL_BBNTNK;
+                if (!GAS_WEBAPP_URL_BBNTNK) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BBNTNK");
+                    return;
+                }
+
+                const resp = await fetch(GAS_WEBAPP_URL_BBNTNK, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml,
+                    }),
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BBNTNK/${data.fileName}`;
+
+                // --- Ghi đường dẫn vào đúng dòng ---
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_BBNT_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+            } catch (err) {
+                console.error("❌ Lỗi chạy nền khi gọi AppScript BBNTNK:", err);
+            }
+        })().catch(err => console.error("❌ Async IIFE BBNTNK lỗi:", err));
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất BBNTNK:", err.stack || err.message);
+        if (!res.headersSent)
+            res.status(500).send("Lỗi server: " + (err.message || err));
+    }
+});
+
+
+// HÀM GGH KÈM MÃ ĐƠN VÀ SỐ LẦN
+app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất Giấy Giao Hàng ...");
+
+        const { maDonHang, soLan } = req.params;
+        if (!maDonHang || !soLan) return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
+
+        // --- Lấy đơn hàng ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BJ",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang = data.find(r => r[5] === maDonHang) || data.find(r => r[6] === maDonHang);
+        if (!donHang) return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+
+        // --- Logo ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+
+        // --- Render ngay cho client ---
+        res.render("ggh", {
+            donHang,
+            logoBase64,
+            autoPrint: true,
+            maDonHang,
+            soLan,
+            pathToFile: "",
+        });
+
+        // --- Hàm tìm dòng với retry/polling ---
+        async function findRowWithRetry(sheetName, orderCode, soLan, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `${sheetName}!A:D`,
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => r[1] === orderCode && r[2] === soLan);
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc ${sheetName} (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
+        }
+
+        // --- Chạy nền: gọi GAS và ghi đường dẫn ---
+        (async () => {
+            try {
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "ggh.ejs"),
+                    { donHang, logoBase64, autoPrint: false, maDonHang, soLan, pathToFile: "" }
+                );
+
+                const GAS_WEBAPP_URL_GGH = process.env.GAS_WEBAPP_URL_GGH;
+                if (!GAS_WEBAPP_URL_GGH) return console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_GGH");
+
+                const resp = await fetch(GAS_WEBAPP_URL_GGH, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({ orderCode: maDonHang, html: renderedHtml }),
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
                 const pathToFile = data.pathToFile || `GGH/${data.fileName}`;
 
-                // --- Ghi lại đường dẫn vào cột D dòng tương ứng ---
+                // --- Polling/retry để tìm dòng trước khi ghi ---
+                const rowNumber = await findRowWithRetry("File_GGH_ct", maDonHang, soLan);
+                if (!rowNumber) {
+                    return console.error(`❌ Không tìm thấy dòng File_GGH_ct cho ${maDonHang} - ${soLan} sau nhiều lần retry.`);
+                }
+
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: `File_GGH_ct!D${rowNumber}`,
@@ -4662,15 +4786,14 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
 
                 console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi gọi AppScript (nền):", err);
+                console.error("❌ Lỗi chạy nền GGH:", err);
             }
-        })().catch((err) => console.error("❌ Async IIFE GGH lỗi:", err));
+        })();
 
     } catch (err) {
         console.error("❌ Lỗi khi xuất GGH:", err.stack || err.message);
-        if (!res.headersSent) {
-            res.status(500).send("Lỗi server: " + (err.message || err));
-        }
+        if (!res.headersSent) res.status(500).send("Lỗi server: " + (err.message || err));
     }
 });
+
 
