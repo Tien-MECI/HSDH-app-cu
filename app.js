@@ -3088,6 +3088,207 @@ app.get("/bangchamcong", async (req, res) => {
   }
 });
 
+const ExcelJS = require("exceljs");
+
+app.get("/bangchamcong/export-excel", async (req, res) => {
+  try {
+    const month = parseInt(req.query.month);
+    const year = parseInt(req.query.year);
+    const phong = req.query.phong?.trim() || "Tất cả";
+
+    // LẤY LẠI DỮ LIỆU TỪ GOOGLE SHEETS GIỐNG ROUTE CHÍNH
+    const [chamCongRes, nhanVienRes] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Cham_cong!A:T",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Nhan_vien!A:AH",
+      }),
+    ]);
+
+    const chamCongRows = chamCongRes.data.values || [];
+    const nhanVienRows = nhanVienRes.data.values || [];
+
+    // Lấy danh sách phòng
+    let danhSachPhong = [...new Set(nhanVienRows.slice(1).map(r => r[6] || ""))];
+    danhSachPhong = danhSachPhong.filter(p => p.trim() !== "");
+    danhSachPhong.sort();
+    danhSachPhong.unshift("Tất cả");
+
+    // Lọc nhân viên
+    let activeStaff = nhanVienRows
+      .filter(r => r[33] === "Đang hoạt động")
+      .map(r => ({
+        maNV: r[0],
+        hoTen: r[1],
+        phong: r[6],
+        nhom: r[8],
+        chucVu: r[9],
+      }));
+
+    if (phong !== "Tất cả") {
+      activeStaff = activeStaff.filter(nv => nv.phong === phong);
+    }
+
+    // Map chấm công
+    const chamCongMap = new Map();
+    chamCongRows.slice(1).forEach(r => {
+      const ngayStr = r[1];
+      const trangThai = r[2];
+      const maNV = r[12];
+      const congNgay = parseFloat(r[16] || 0);
+      const tangCa = parseFloat(r[19] || 0);
+
+      if (!ngayStr || !maNV) return;
+      const [d, m, y] = ngayStr.split("/").map(Number);
+      if (m === month && y === year) {
+        chamCongMap.set(`${maNV}_${d}`, { trangThai, congNgay, tangCa });
+      }
+    });
+
+    // Ngày trong tháng
+    const days = [];
+    const numDays = new Date(year, month, 0).getDate();
+    for (let i = 1; i <= numDays; i++) {
+      days.push(i);
+    }
+
+    // Tính chấm công → TÁI DÙNG Y LOGIC GỐC
+    const ngayLeVN = ["01-01", "04-30", "05-01", "09-02"];
+    const specialRoles = [
+      "Chủ tịch hội đồng quản trị",
+      "Tổng giám đốc",
+      "Trưởng phòng kế hoạch tài chính",
+      "Trưởng phòng HCNS",
+      "Quản đốc",
+      "NV kế hoạch dịch vụ",
+      "Trưởng phòng kinh doanh",
+    ];
+
+    const records = activeStaff.map(nv => {
+      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
+      let tongTangCa = 0;
+
+      if (specialRoles.includes(nv.chucVu?.trim())) {
+        return {
+          ...nv,
+          ngayCong,
+          soNgayCong: 26,
+          tongTangCa: 0,
+        };
+      }
+
+      for (let d = 1; d <= numDays; d++) {
+        const key = `${nv.maNV}_${d}`;
+        const item = chamCongMap.get(key);
+
+        if (item) {
+          const { trangThai, congNgay, tangCa } = item;
+          tongTangCa += tangCa;
+
+          if (trangThai === "Nghỉ việc riêng") ngayCong[d-1] = ["X", "X"];
+          else if (trangThai === "Nghỉ phép") ngayCong[d-1] = ["P", "P"];
+          else if (congNgay === 1) ngayCong[d-1] = ["V", "V"];
+          else if (congNgay === 0.5) ngayCong[d-1] = ["V", "X"];
+          else if (congNgay > 0 && congNgay < 0.5)
+            ngayCong[d-1] = [`${(congNgay * 8).toFixed(1)}h`, ""];
+          else if (congNgay > 0.5 && congNgay < 1)
+            ngayCong[d-1] = ["V", `${((congNgay - 0.5) * 8).toFixed(1)}h`];
+        } else {
+          const dayStr = `${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          if (ngayLeVN.includes(dayStr)) ngayCong[d-1] = ["L", "L"];
+          else ngayCong[d-1] = ["X", "X"];
+        }
+      }
+
+      const soNgayCong = ngayCong.flat().filter(v => v === "V").length / 2;
+
+      return {
+        ...nv,
+        ngayCong,
+        soNgayCong,
+        tongTangCa
+      };
+    });
+
+    //-------------------------------
+    // TẠO FILE EXCEL
+    //-------------------------------
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Bang cham cong");
+
+    // Header dòng 1
+    const header1 = ["STT", "Mã NV", "Họ tên", "Chức vụ"];
+
+    days.forEach(d => {
+      header1.push(`${d}`, "");
+    });
+
+    header1.push("Số ngày công", "Tăng ca");
+
+    ws.addRow(header1);
+
+    // Header dòng 2
+    const header2 = ["", "", "", ""];
+
+    days.forEach(() => {
+      header2.push("S", "C");
+    });
+
+    header2.push("", "");
+
+    ws.addRow(header2);
+
+    // Gộp ô tiêu đề
+    ws.mergeCells(1, 1, 2, 1);
+    ws.mergeCells(1, 2, 2, 2);
+    ws.mergeCells(1, 3, 2, 3);
+    ws.mergeCells(1, 4, 2, 4);
+
+    let col = 5;
+    days.forEach(() => {
+      ws.mergeCells(1, col, 1, col + 1);
+      col += 2;
+    });
+
+    ws.mergeCells(1, col, 2, col);
+    ws.mergeCells(1, col + 1, 2, col + 1);
+
+    // Ghi dữ liệu
+    records.forEach((r, idx) => {
+      const row = [
+        idx + 1,
+        r.maNV,
+        r.hoTen,
+        r.chucVu
+      ];
+
+      r.ngayCong.forEach(ca => {
+        row.push(ca[0], ca[1]);
+      });
+
+      row.push(r.soNgayCong, r.tongTangCa);
+      ws.addRow(row);
+    });
+
+    // Xuất file
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bang_cham_cong_${month}_${year}.xlsx"`
+    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+    await wb.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error("EXPORT EXCEL ERROR:", err);
+    res.status(500).send("Lỗi khi xuất Excel!");
+  }
+});
+
 
 
 app.use(express.static(path.join(__dirname, 'public')));
