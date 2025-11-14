@@ -3088,7 +3088,7 @@ app.get("/bangchamcong", async (req, res) => {
   }
 });
 
-const ExcelJS = require("exceljs");
+import ExcelJS from "exceljs";
 
 app.get("/bangchamcong/export-excel", async (req, res) => {
   try {
