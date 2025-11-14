@@ -2683,7 +2683,9 @@ app.get("/copy-:madh", async (req, res) => {
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
         const newNum = maxNum + 1;
 
-        const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNum}`;
+        const newNumStr = String(newNum).padStart(4, "0");
+
+        const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
         console.log(`🔢 Mã đơn hàng mới: ${madhNew}`);
 
         // === 4️⃣ Tạo dữ liệu mới ===
