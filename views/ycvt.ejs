@@ -34,8 +34,11 @@
 
         /* Ẩn cột theo cờ truyền vào */
         <% if (!hasDataF) { %> .col-f { display: none; } <% } %>
+        <% if (!hasDataG) { %> .col-g { display: none; } <% } %>
+        <% if (!hasDataH) { %> .col-h { display: none; } <% } %>
         <% if (!hasDataI) { %> .col-i { display: none; } <% } %>
         <% if (!hasDataJ) { %> .col-j { display: none; } <% } %>
+        <% if (!hasDataM) { %> .col-m { display: none; } <% } %>
     </style>
 
     <% if (autoPrint) { %>
@@ -152,9 +155,12 @@
                             <!-- GÁN CLASS col-f -->
                             <td class="center-text col-f"><%= item.row[4] %></td>
                         <% } %>
-                        <td class="center-text"><%= item.row[5] %></td>
-                        <td class="center-text"><%= item.row[6] %></td>
-
+                        <% if (hasDataG) { %>
+                            <td class="center-text col-g"><%= item.row[5] %></td>
+                        <% } %>
+                        <% if (hasDataH) { %> 
+                            <td class="center-text col-h"><%= item.row[6] %></td>
+                        <% } %>
                         <% if (hasDataI) { %>
                             <!-- GÁN CLASS col-i -->
                             <td class="center-text col-i"><%= item.row[7] %></td>
@@ -167,7 +173,9 @@
 
                         <td class="center-text"><%= item.row[9] %></td>
                         <td class="center-text"><%= item.row[10] %></td>
-                        <td class="center-text"><%= item.row[11] %></td>
+                        <% if (hasDataM) { %>
+                            <td class="center-text col-m"><%= item.row[11] %></td>
+                        <% } %>
                         <td class="center-text"><%= item.row[12] %></td>
                     </tr>
                 <% }) %>
