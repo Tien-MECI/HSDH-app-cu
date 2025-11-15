@@ -180,11 +180,11 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId,maDonHang = 
 
     // 8) Flags kiểm tra dữ liệu
     const hasDataF = tableData.some(item => item.row[4] && item.row[4].toString().trim() !== '');
-    const hasDataG = tableData.some(item => item.row[5] && item.row[4].toString().trim() !== '');
-    const hasDataH = tableData.some(item => item.row[6] && item.row[4].toString().trim() !== '');
+    const hasDataG = tableData.some(item => item.row[5] && item.row[5].toString().trim() !== '');
+    const hasDataH = tableData.some(item => item.row[6] && item.row[6].toString().trim() !== '');
     const hasDataI = tableData.some(item => item.row[7] && item.row[7].toString().trim() !== '');
     const hasDataJ = tableData.some(item => item.row[8] && item.row[8].toString().trim() !== '');
-    const hasDataM = tableData.some(item => item.row[11] && item.row[8].toString().trim() !== '');
+    const hasDataM = tableData.some(item => item.row[11] && item.row[11].toString().trim() !== '');
 
     return {
       d4Value,
