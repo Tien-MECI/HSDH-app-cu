@@ -32,13 +32,13 @@
             body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
 
-        /* Ẩn cột theo cờ */
-        <% if (!showF) { %> .col-f { display: none; } <% } %>
-        <% if (!showG) { %> .col-g { display: none; } <% } %>
-        <% if (!showH) { %> .col-h { display: none; } <% } %>
-        <% if (!showI) { %> .col-i { display: none; } <% } %>
-        <% if (!showJ) { %> .col-j { display: none; } <% } %>
-        <% if (!showM) { %> .col-m { display: none; } <% } %>
+        /* Ẩn cột theo cờ truyền vào */
+        <% if (!hasDataF) { %> .col-f { display: none; } <% } %>
+        <% if (!hasDataG) { %> .col-g { display: none; } <% } %>
+        <% if (!hasDataH) { %> .col-h { display: none; } <% } %>
+        <% if (!hasDataI) { %> .col-i { display: none; } <% } %>
+        <% if (!hasDataJ) { %> .col-j { display: none; } <% } %>
+        <% if (!hasDataM) { %> .col-m { display: none; } <% } %>
     </style>
 
     <% if (autoPrint) { %>
@@ -151,29 +151,29 @@
                         <td><%= item.row[1] %></td>
                         <td class="<%= isHeaderRow ? 'center-text' : 'text-left' %>"><%= item.row[3] %></td>
 
-                        <% if (showF) { %>
+                        <% if (hasDataF) { %>
                             <!-- GÁN CLASS col-f -->
                             <td class="center-text col-f"><%= item.row[4] %></td>
                         <% } %>
-                        <% if (showG) { %>
+                        <% if (hasDataG) { %>
                             <td class="center-text col-g"><%= item.row[5] %></td>
                         <% } %>
-                        <% if (showH) { %>
+                        <% if (hasDataH) { %> 
                             <td class="center-text col-h"><%= item.row[6] %></td>
                         <% } %>
-                        <% if (showI) { %>
+                        <% if (hasDataI) { %>
                             <!-- GÁN CLASS col-i -->
                             <td class="center-text col-i"><%= item.row[7] %></td>
                         <% } %>
 
-                        <% if (showJ) { %>
+                        <% if (hasDataJ) { %>
                             <!-- GÁN CLASS col-j -->
                             <td class="center-text col-j"><%= item.row[8] %></td>
                         <% } %>
 
                         <td class="center-text"><%= item.row[9] %></td>
                         <td class="center-text"><%= item.row[10] %></td>
-                        <% if (showM) { %>
+                        <% if (hasDataM) { %>
                             <td class="center-text col-m"><%= item.row[11] %></td>
                         <% } %>
                         <td class="center-text"><%= item.row[12] %></td>

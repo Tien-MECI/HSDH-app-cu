@@ -178,34 +178,13 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId,maDonHang = 
       .map(r => r[48] ? new Date(r[48]).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '')
       .filter(v => v).join('<br>');
 
-    // Lấy dòng tiêu đề (dòng header trong sanPhamRows đầu tiên)
-const headerRow = tableData.find(item =>
-    ["Mã SP", "Mã vật tư sản xuất", "Mã vật tư xuất kèm"].includes(item.row[1])
-);
-
-// Lấy tiêu đề tương ứng từng cột
-const titleF = headerRow?.row[4]?.toString().trim() || "";
-const titleG = headerRow?.row[5]?.toString().trim() || "";
-const titleH = headerRow?.row[6]?.toString().trim() || "";
-const titleI = headerRow?.row[7]?.toString().trim() || "";
-const titleJ = headerRow?.row[8]?.toString().trim() || "";
-const titleM = headerRow?.row[11]?.toString().trim() || "";
-
-// Kiểm tra toàn cột có dữ liệu hay không
-const dataF = tableData.some(item => item.row[4] && item.row[4].toString().trim() !== "");
-const dataG = tableData.some(item => item.row[5] && item.row[5].toString().trim() !== "");
-const dataH = tableData.some(item => item.row[6] && item.row[6].toString().trim() !== "");
-const dataI = tableData.some(item => item.row[7] && item.row[7].toString().trim() !== "");
-const dataJ = tableData.some(item => item.row[8] && item.row[8].toString().trim() !== "");
-const dataM = tableData.some(item => item.row[11] && item.row[11].toString().trim() !== "");
-
-// Chỉ hiển thị cột khi có tiêu đề và có dữ liệu
-const showF = titleF !== "" && dataF;
-const showG = titleG !== "" && dataG;
-const showH = titleH !== "" && dataH;
-const showI = titleI !== "" && dataI;
-const showJ = titleJ !== "" && dataJ;
-const showM = titleM !== "" && dataM;
+    // 8) Flags kiểm tra dữ liệu
+    const hasDataF = tableData.some(item => item.row[4] && item.row[4].toString().trim() !== '');
+    const hasDataG = tableData.some(item => item.row[5] && item.row[5].toString().trim() !== '');
+    const hasDataH = tableData.some(item => item.row[6] && item.row[6].toString().trim() !== '');
+    const hasDataI = tableData.some(item => item.row[7] && item.row[7].toString().trim() !== '');
+    const hasDataJ = tableData.some(item => item.row[8] && item.row[8].toString().trim() !== '');
+    const hasDataM = tableData.some(item => item.row[11] && item.row[11].toString().trim() !== '');
 
     return {
       d4Value,
@@ -220,12 +199,12 @@ const showM = titleM !== "" && dataM;
       tableData,
       summaryDataB,
       summaryDataC,
-      showF,
-      showG,
-      showH,
-      showI,
-      showJ,
-      showM,
+      hasDataF,
+      hasDataG,
+      hasDataH,
+      hasDataI,
+      hasDataJ,
+      hasDataM,
       lastRowWithData
     };
 
