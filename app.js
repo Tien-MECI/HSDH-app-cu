@@ -2140,30 +2140,30 @@ app.get('/khns', async (req, res) => {
     const phuongTienValue = lastRow[3] || '';
     const giaTriE = lastRow[4] || '';
 
+    // 🔥 COPY CHUẨN HÀM parseSheetDate TỪ YCXKTP
     function parseSheetDate(val) {
-      if (!val) return null;
+      if (val === null || val === undefined || val === '') return null;
+
       if (typeof val === 'number') {
         const epoch = new Date(Date.UTC(1899, 11, 30));
-        return new Date(epoch.getTime() + val * 24 * 3600 * 1000);
+        return new Date(epoch.getTime() + Math.round(val * 24 * 60 * 60 * 1000));
       }
-      const d = new Date(val);
-      return isNaN(d) ? null : d;
-    }
 
-    // 🔥 HÀM MỚI — format ISO
-    function formatDateISO(dateObj) {
-      if (!dateObj) return '';
-      const yyyy = dateObj.getFullYear();
-      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const dd = String(dateObj.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      const s = String(val).trim();
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+
+      if (m) {
+        let [, dd, mm, yyyy, hh = '0', min = '0', ss = '0'] = m;
+        if (yyyy.length === 2) yyyy = '20' + yyyy;
+        return new Date(+yyyy, +mm - 1, +dd, +hh, +min, +ss);
+      }
+
+      const d = new Date(s);
+      return isNaN(d) ? null : d;
     }
 
     const ngayYCObj = parseSheetDate(ngayYC_raw);
     const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
-
-    // 🔥 ISO dùng để so sánh
-    const ngayYC_ISO = formatDateISO(ngayYCObj);
 
     // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien
     const filteredData = [];
@@ -2178,11 +2178,10 @@ app.get('/khns', async (req, res) => {
       const ngayTHObj = parseSheetDate(ngayTH_raw);
       if (!ngayTHObj) continue;
 
+      // 🔥 GIỐNG Y HỆT YCXKTP
       const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
-      const ngayTH_ISO = formatDateISO(ngayTHObj);
 
-      // 🔥 SỬA condDate — so sánh bằng ISO
-      const condDate = ngayTH_ISO === ngayYC_ISO;
+      const condDate = String(ngayTH_fmt) === String(ngayYC);
       const condTen = (row[26] || '') === tenNSTHValue;
       const condPT = (row[30] || '') === phuongTienValue;
 
@@ -2191,6 +2190,7 @@ app.get('/khns', async (req, res) => {
           row[29], row[5], row[11], row[9], row[10],
           row[8], row[13], row[14], row[15], row[49]
         ];
+
         filteredData.push(dataToCopy);
         tongTaiTrong += parseFloat(row[15]) || 0;
 
@@ -2203,7 +2203,6 @@ app.get('/khns', async (req, res) => {
 
     const tongDon = filteredData.length;
 
-    // Nhóm theo Loại YC (index 4)
     const groupedData = {};
     filteredData.forEach(r => {
       const loai = r[4] || 'Không xác định';
@@ -2211,7 +2210,6 @@ app.get('/khns', async (req, res) => {
       groupedData[loai].push(r);
     });
 
-    // Loại trùng NS hỗ trợ
     const NSHotroStr = [...new Set(NSHotroArr)].join(' , ');
 
     // 5) Render cho client
@@ -2233,7 +2231,7 @@ app.get('/khns', async (req, res) => {
 
     res.render('khns', renderForClientData);
 
-    // 6) Gọi GAS WebApp để lưu PDF + ghi đường dẫn
+    // 6) Gọi GAS WebApp để lưu PDF + cập nhật đường dẫn
     (async () => {
       try {
         const htmlToSend = await renderFileAsync(
@@ -2290,6 +2288,7 @@ app.get('/khns', async (req, res) => {
     res.status(500).send('Lỗi server: ' + (err.message || err));
   }
 });
+
 
 
 
