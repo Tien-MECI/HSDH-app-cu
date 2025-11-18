@@ -2188,7 +2188,7 @@ app.get('/khns', async (req, res) => {
       if (condDate && condTen && condPT) {
         const dataToCopy = [
           row[29], row[5], row[11], row[9], row[10],
-          row[8], row[13], row[14], row[15], row[49]
+          row[8], row[13], row[14], row[15], ""
         ];
 
         filteredData.push(dataToCopy);
