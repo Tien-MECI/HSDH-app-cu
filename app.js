@@ -2165,7 +2165,7 @@ app.get('/khns', async (req, res) => {
     const ngayYCObj = parseSheetDate(ngayYC_raw);
     const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
 
-    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien
+    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien - ĐẢM BẢO CỘT PHÍ BẾN BÃI RỖNG
     const filteredData = [];
     let tongTaiTrong = 0;
     let NSHotroArr = [];
@@ -2186,9 +2186,10 @@ app.get('/khns', async (req, res) => {
       const condPT = (row[30] || '') === phuongTienValue;
 
       if (condDate && condTen && condPT) {
+        // 🔥 ĐẢM BẢO CỘT CUỐI CÙNG (Phí bến bãi) LUÔN RỖNG
         const dataToCopy = [
           row[29], row[5], row[11], row[9], row[10],
-          row[8], row[13], row[14], row[15], ""
+          row[8], row[13], row[14], row[15], "" // Cột cuối luôn là rỗng
         ];
 
         filteredData.push(dataToCopy);
@@ -2234,9 +2235,17 @@ app.get('/khns', async (req, res) => {
     // 6) Gọi GAS WebApp để lưu PDF + cập nhật đường dẫn
     (async () => {
       try {
+        // 🔥 ĐẢM BẢO DỮ LIỆU GỬI CHO PDF CŨNG CÓ CỘT PHÍ BẾN BÃI RỖNG
         const htmlToSend = await renderFileAsync(
           path.join(__dirname, 'views', 'khns.ejs'),
-          { ...renderForClientData, autoPrint: false, pathToFile: '' }
+          { 
+            ...renderForClientData, 
+            autoPrint: false, 
+            pathToFile: '',
+            // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (với cột phí bến bãi rỗng)
+            tableData: filteredData,
+            groupedData: groupedData
+          }
         );
 
         const yyyy = ngayYCObj ? ngayYCObj.getFullYear() : 'na';
