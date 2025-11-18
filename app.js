@@ -2197,7 +2197,7 @@ app.get('/khns', async (req, res) => {
           row[13] || '', // Ghi chú TH
           row[14] || '', // TT nhà xe
           row[15] || '', // Tải trọng
-          row[37] || ''// 🔥 Cột Phí bến bãi LUÔN RỖNG - 
+          "" 
         ];
 
         filteredData.push(dataToCopy);
@@ -2250,8 +2250,7 @@ app.get('/khns', async (req, res) => {
             ...renderForClientData, 
             autoPrint: false, 
             pathToFile: '',
-            // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (KHÔNG CÓ CỘT 49)
-            filteredData,
+            tableData: filteredData,
             groupedData: groupedData
           }
         );

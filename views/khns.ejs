@@ -105,28 +105,35 @@
       </tr>
     </thead>
     <tbody>
-      <% 
-      const grouped = {};
-      tableData.forEach(row => {
-        const loai = row[4] || 'Không xác định';
-        if (!grouped[loai]) grouped[loai] = [];
-        grouped[loai].push(row);
-      });
+  <% 
+  const grouped = {};
+  tableData.forEach(row => {
+    const loai = row[4] || 'Không xác định';
+    if (!grouped[loai]) grouped[loai] = [];
+    grouped[loai].push(row);
+  });
 
-      Object.keys(grouped).forEach(loai => { 
-      %>
-        <tr class="group-header">
-          <td colspan="10">Loại yêu cầu: <%= loai %></td>
-        </tr>
-        <% grouped[loai].forEach(r => { %>
-          <tr>
-            <% r.forEach(c => { %>
-              <td><%= c || '' %></td>
-            <% }) %>
-          </tr>
-        <% }) %>
-      <% }) %>
-    </tbody>
+  Object.keys(grouped).sort().forEach(loai => { 
+  %>
+    <tr class="group-header">
+      <td colspan="10">Loại yêu cầu: <%= loai %></td>
+    </tr>
+    <% grouped[loai].forEach(r => { %>
+      <tr>
+        <td><%= r[0] || '' %></td> <!-- TG YC -->
+        <td><%= r[1] || '' %></td> <!-- Mã ĐH -->
+        <td><%= r[2] || '' %></td> <!-- Nhóm SX -->
+        <td><%= r[3] || '' %></td> <!-- Nhóm SP -->
+        <td><%= r[4] || '' %></td> <!-- Loại YC -->
+        <td><%= r[5] || '' %></td> <!-- TT liên hệ -->
+        <td><%= r[6] || '' %></td> <!-- Ghi chú TH -->
+        <td><%= r[7] || '' %></td> <!-- TT nhà xe -->
+        <td><%= r[8] || '' %></td> <!-- Tải trọng -->
+        <td><%= r[9] || '' %></td> <!-- Phí bến bãi → luôn rỗng vì r[9] = "" -->
+      </tr>
+    <% }) %>
+  <% }) %>
+</tbody>
   </table>
 
   <% if (autoPrint) { %>
