@@ -2167,7 +2167,7 @@ app.get('/khns', async (req, res) => {
       if (!ngayTHObj) continue;
       const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
 
-      const condDate = ngayTH_fmt === ngayYC;
+      const condDate = ngayYC;
       const condTen = (row[26] || '') === tenNSTHValue;
       const condPT = (row[30] || '') === phuongTienValue;
 
