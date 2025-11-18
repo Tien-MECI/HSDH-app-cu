@@ -2150,8 +2150,20 @@ app.get('/khns', async (req, res) => {
       return isNaN(d) ? null : d;
     }
 
+    // 🔥 HÀM MỚI — format ISO
+    function formatDateISO(dateObj) {
+      if (!dateObj) return '';
+      const yyyy = dateObj.getFullYear();
+      const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(dateObj.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
     const ngayYCObj = parseSheetDate(ngayYC_raw);
     const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
+
+    // 🔥 ISO dùng để so sánh
+    const ngayYC_ISO = formatDateISO(ngayYCObj);
 
     // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien
     const filteredData = [];
@@ -2165,9 +2177,12 @@ app.get('/khns', async (req, res) => {
       const ngayTH_raw = row[1];
       const ngayTHObj = parseSheetDate(ngayTH_raw);
       if (!ngayTHObj) continue;
-      const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
 
-      const condDate = ngayYC;
+      const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
+      const ngayTH_ISO = formatDateISO(ngayTHObj);
+
+      // 🔥 SỬA condDate — so sánh bằng ISO
+      const condDate = ngayTH_ISO === ngayYC_ISO;
       const condTen = (row[26] || '') === tenNSTHValue;
       const condPT = (row[30] || '') === phuongTienValue;
 
@@ -2180,7 +2195,6 @@ app.get('/khns', async (req, res) => {
         tongTaiTrong += parseFloat(row[15]) || 0;
 
         if (row[28]) {
-          // ✅ Tách từng tên, loại trùng từng người
           const names = row[28].split(/[,;]/).map(n => n.trim()).filter(Boolean);
           NSHotroArr.push(...names);
         }
@@ -2197,7 +2211,7 @@ app.get('/khns', async (req, res) => {
       groupedData[loai].push(r);
     });
 
-    // ✅ Loại trùng tên NS hỗ trợ
+    // Loại trùng NS hỗ trợ
     const NSHotroStr = [...new Set(NSHotroArr)].join(' , ');
 
     // 5) Render cho client
@@ -2276,6 +2290,7 @@ app.get('/khns', async (req, res) => {
     res.status(500).send('Lỗi server: ' + (err.message || err));
   }
 });
+
 
 
 // --- Route Dashboard ---
