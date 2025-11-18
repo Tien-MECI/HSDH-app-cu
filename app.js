@@ -2085,200 +2085,210 @@ app.get('/ycxktp', async (req, res) => {
 //---- KHNS ----
 
 app.get('/khns', async (req, res) => {
-    try {
-        console.log('▶️ Bắt đầu xuất KHNS ...');
+  try {
+    console.log('▶️ Bắt đầu xuất KHNS ...');
 
-        // 1) Lấy logo & watermark
-        const [logoBase64, watermarkBase64] = await Promise.all([
-            loadDriveImageBase64(LOGO_FILE_ID),
-            loadDriveImageBase64(WATERMARK_FILE_ID)
-        ]);
+    // 1) Lấy logo & watermark
+    const [logoBase64, watermarkBase64] = await Promise.all([
+      loadDriveImageBase64(LOGO_FILE_ID),
+      loadDriveImageBase64(WATERMARK_FILE_ID)
+    ]);
 
-        // 2) Đọc dữ liệu 2 sheet: File_KH_thuc_hien_NS (để lấy last row) và Ke_hoach_thuc_hien (để lọc)
-        const [khnsRes, keHoachRes] = await Promise.all([
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: 'File_KH_thuc_hien_NS',
-                valueRenderOption: 'FORMATTED_VALUE'
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: 'Ke_hoach_thuc_hien',
-                valueRenderOption: 'FORMATTED_VALUE'
-            })
-        ]);
+    // 2) Đọc 2 sheet: File_KH_thuc_hien_NS & Ke_hoach_thuc_hien
+    const [fileRes, keHoachRes] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'File_KH_thuc_hien_NS',
+        valueRenderOption: 'FORMATTED_VALUE'
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'Ke_hoach_thuc_hien',
+        valueRenderOption: 'FORMATTED_VALUE'
+      })
+    ]);
 
-        const khnsValues = khnsRes.data.values || [];
-        const keHoachValues = keHoachRes.data.values || [];
+    const fileValues = fileRes.data.values || [];
+    const keHoachValues = keHoachRes.data.values || [];
 
-        if (khnsValues.length <= 1) {
-            console.warn('⚠️ File_KH_thuc_hien_NS không có dữ liệu (chỉ header).');
-            return res.render('khns', {
-                ngayKH: '',
-                tenNSTHValue: '',
-                phuongTienValue: '',
-                NSHotro: '',
-                tableData: [],
-                tongDon: 0,
-                tongTaiTrong: 0,
-                logoBase64,
-                watermarkBase64,
-                autoPrint: false,
-                pathToFile: ''
-            });
-        }
-
-        // last row index (1-based)
-        const lastRowIndex = khnsValues.length;
-        const lastRow = khnsValues[lastRowIndex - 1];
-
-        // lấy giá trị từ File_KH_thuc_hien_NS (cột B, C, D, E tương ứng index 1..4)
-        const ngayKH_raw = lastRow[1];
-        const tenNSTHValue = lastRow[2] || '';
-        const phuongTienValue = lastRow[3] || '';
-        const NSHotro = lastRow[4] || '';
-
-        // helper parse date string/serial -> Date
-        function parseSheetDate(val) {
-            if (val === null || val === undefined || val === '') return null;
-            if (typeof val === 'number') {
-                const epoch = new Date(Date.UTC(1899, 11, 30));
-                return new Date(epoch.getTime() + Math.round(val * 24 * 60 * 60 * 1000));
-            }
-            const s = String(val).trim();
-            const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-            if (m) {
-                let [, dd, mm, yyyy, hh = '0', min = '0', ss = '0'] = m;
-                if (yyyy.length === 2) yyyy = '20' + yyyy;
-                return new Date(+yyyy, +mm - 1, +dd, +hh, +min, +ss);
-            }
-            const d = new Date(s);
-            return isNaN(d) ? null : d;
-        }
-
-        const ngayKHObj = parseSheetDate(ngayKH_raw);
-        const ngayKH = ngayKHObj ? ngayKHObj.toLocaleDateString('vi-VN') : String(ngayKH_raw || '');
-
-        // 3) Filter dữ liệu từ Ke_hoach_thuc_hien giống Apps Script gốc
-        const filteredData = [];
-        let tongTaiTrong = 0;
-
-        for (let i = 1; i < keHoachValues.length; i++) {
-            const row = keHoachValues[i];
-            if (!row) continue;
-
-            const ngayTH_raw = row[1]; // cột B
-            const pxk = row[23];       // cột X phải rỗng
-            const phuongTien_kehoach = row[30];
-            const tenNSTH_kehoach = row[36];
-
-            const ngayTHObj = parseSheetDate(ngayTH_raw);
-            if (!ngayTHObj) continue;
-            const formattedNgayTH = ngayTHObj.toLocaleDateString('vi-VN');
-
-            const condDate = formattedNgayTH === ngayKH;
-            const condTen = String(tenNSTH_kehoach || '') === String(tenNSTHValue || '');
-            const condPT = String(phuongTien_kehoach || '') === String(phuongTienValue || '');
-            const condPXKEmpty = (pxk === '' || pxk === undefined || pxk === null);
-
-            if (condDate && condTen && condPT && condPXKEmpty) {
-                const dataToCopy = [
-                    row[5],  // TG YC
-                    row[11], // Mã ĐH
-                    row[9],  // Nhóm SX
-                    row[10], // Nhóm SP
-                    row[8],  // Loại YC
-                    row[13], // TT liên hệ
-                    row[14], // Ghi chú TH
-                    row[15], // TT nhà xe
-                    row[15] || '', // Tải trọng
-                    '' // Phí bến bãi luôn trống
-                ];
-                filteredData.push(dataToCopy);
-
-                const t = parseFloat(row[15]) || 0;
-                tongTaiTrong += t;
-            }
-        }
-
-        const tongDon = filteredData.length;
-
-        // 4) Render cho client ngay (autoPrint: true)
-        const renderForClientData = {
-            ngayKH,
-            tenNSTHValue,
-            phuongTienValue,
-            NSHotro,
-            tableData: filteredData,
-            tongDon,
-            tongTaiTrong,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: true,
-            pathToFile: ''
-        };
-
-        res.render('khns', renderForClientData);
-
-        // 5) Gọi GAS WebApp ngầm để convert HTML -> PDF, ghi đường dẫn vào sheet
-        (async () => {
-            try {
-                const htmlToSend = await renderFileAsync(
-                    path.join(__dirname, 'views', 'khns.ejs'),
-                    { ...renderForClientData, autoPrint: false, pathToFile: '' }
-                );
-
-                const yyyy = ngayKHObj ? String(ngayKHObj.getFullYear()) : 'na';
-                const mm = ngayKHObj ? String(ngayKHObj.getMonth() + 1).padStart(2, '0') : '00';
-                const dd = ngayKHObj ? String(ngayKHObj.getDate()).padStart(2, '0') : '00';
-                const ngayKHTEN = `${yyyy}-${mm}-${dd}`;
-                const safeTen = String(tenNSTHValue || '').replace(/[\/\\:\*\?"<>\|]/g, '_').slice(0, 80);
-                const safePT = String(phuongTienValue || '').replace(/[\/\\:\*\?"<>\|]/g, '_').slice(0, 60);
-                const suggestedFileName = `${ngayKHTEN}_${safeTen}_${safePT}_KHNS.pdf`;
-
-                const gasUrl = process.env.GAS_WEBAPP_URL_KHNS;
-                if (!gasUrl) {
-                    console.warn('⚠️ GAS_WEBAPP_URL_KHNS chưa cấu hình - bỏ qua gửi Apps Script.');
-                    return;
-                }
-
-                console.log('➡️ Gửi HTML tới GAS WebApp:', gasUrl);
-                const resp = await fetch(gasUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        orderCode: suggestedFileName,
-                        html: htmlToSend
-                    })
-                });
-
-                const result = await resp.json();
-                console.log('✔️ AppScript trả về:', result);
-
-                if (!result || !result.ok) throw new Error(result?.error || 'Apps Script trả về lỗi hoặc không ok');
-
-                const pathToFile = result.pathToFile || (result.fileName ? `KHNS/${result.fileName}` : suggestedFileName);
-
-                // Ghi đường dẫn file vào cột F của last row
-                const updateRange = `File_KH_thuc_hien_NS!F${lastRowIndex}`;
-                await sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: updateRange,
-                    valueInputOption: 'RAW',
-                    requestBody: { values: [[pathToFile]] }
-                });
-
-                console.log('✔️ Đã ghi đường dẫn:', pathToFile, 'vào', updateRange);
-            } catch (err) {
-                console.error('❌ Lỗi gọi AppScript (KHNS):', err.stack || err.message || err);
-            }
-        })();
-
-    } catch (err) {
-        console.error('❌ Lỗi khi xuất KHNS:', err.stack || err.message || err);
-        res.status(500).send('Lỗi server: ' + (err.message || err));
+    // Nếu không có dữ liệu
+    if (fileValues.length <= 1) {
+      console.warn('⚠️ File_KH_thuc_hien_NS không có dữ liệu (chỉ header).');
+      return res.render('khns', {
+        ngayYC: '',
+        tenNSTHValue: '',
+        phuongTienValue: '',
+        giaTriE: '',
+        groupedData: {},
+        tableData: [],
+        tongDon: 0,
+        tongTaiTrong: 0,
+        NSHotro: '',
+        logoBase64,
+        watermarkBase64,
+        autoPrint: false,
+        pathToFile: ''
+      });
     }
+
+    // 3) Lấy last row từ File_KH_thuc_hien_NS
+    const lastRowIndex = fileValues.length;
+    const lastRow = fileValues[lastRowIndex - 1];
+
+    const ngayYC_raw = lastRow[1];
+    const tenNSTHValue = lastRow[2] || '';
+    const phuongTienValue = lastRow[3] || '';
+    const giaTriE = lastRow[4] || '';
+
+    // 🔥 COPY CHUẨN HÀM parseSheetDate TỪ YCXKTP
+    function parseSheetDate(val) {
+      if (val === null || val === undefined || val === '') return null;
+
+      if (typeof val === 'number') {
+        const epoch = new Date(Date.UTC(1899, 11, 30));
+        return new Date(epoch.getTime() + Math.round(val * 24 * 60 * 60 * 1000));
+      }
+
+      const s = String(val).trim();
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+
+      if (m) {
+        let [, dd, mm, yyyy, hh = '0', min = '0', ss = '0'] = m;
+        if (yyyy.length === 2) yyyy = '20' + yyyy;
+        return new Date(+yyyy, +mm - 1, +dd, +hh, +min, +ss);
+      }
+
+      const d = new Date(s);
+      return isNaN(d) ? null : d;
+    }
+
+    const ngayYCObj = parseSheetDate(ngayYC_raw);
+    const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
+
+    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien
+    const filteredData = [];
+    let tongTaiTrong = 0;
+    let NSHotroArr = [];
+
+    for (let i = 1; i < keHoachValues.length; i++) {
+      const row = keHoachValues[i];
+      if (!row) continue;
+
+      const ngayTH_raw = row[1];
+      const ngayTHObj = parseSheetDate(ngayTH_raw);
+      if (!ngayTHObj) continue;
+
+      // 🔥 GIỐNG Y HỆT YCXKTP
+      const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
+
+      const condDate = String(ngayTH_fmt) === String(ngayYC);
+      const condTen = (row[26] || '') === tenNSTHValue;
+      const condPT = (row[30] || '') === phuongTienValue;
+
+      if (condDate && condTen && condPT) {
+        const dataToCopy = [
+          row[29], row[5], row[11], row[9], row[10],
+          row[8], row[13], row[14], row[15], ""
+        ];
+
+        filteredData.push(dataToCopy);
+        tongTaiTrong += parseFloat(row[15]) || 0;
+
+        if (row[28]) {
+          const names = row[28].split(/[,;]/).map(n => n.trim()).filter(Boolean);
+          NSHotroArr.push(...names);
+        }
+      }
+    }
+
+    const tongDon = filteredData.length;
+
+    const groupedData = {};
+    filteredData.forEach(r => {
+      const loai = r[4] || 'Không xác định';
+      if (!groupedData[loai]) groupedData[loai] = [];
+      groupedData[loai].push(r);
+    });
+
+    const NSHotroStr = [...new Set(NSHotroArr)].join(' , ');
+
+    // 5) Render cho client
+    const renderForClientData = {
+      ngayYC,
+      tenNSTHValue,
+      phuongTienValue,
+      giaTriE,
+      groupedData,
+      tableData: filteredData,
+      tongDon,
+      tongTaiTrong,
+      logoBase64,
+      watermarkBase64,
+      NSHotro: NSHotroStr,
+      autoPrint: true,
+      pathToFile: ''
+    };
+
+    res.render('khns', renderForClientData);
+
+    // 6) Gọi GAS WebApp để lưu PDF + cập nhật đường dẫn
+    (async () => {
+      try {
+        const htmlToSend = await renderFileAsync(
+          path.join(__dirname, 'views', 'khns.ejs'),
+          { ...renderForClientData, autoPrint: false, pathToFile: '' }
+        );
+
+        const yyyy = ngayYCObj ? ngayYCObj.getFullYear() : 'na';
+        const mm = ngayYCObj ? String(ngayYCObj.getMonth() + 1).padStart(2, '0') : '00';
+        const dd = ngayYCObj ? String(ngayYCObj.getDate()).padStart(2, '0') : '00';
+        const ngayYCTEN = `${yyyy}-${mm}-${dd}`;
+
+        const gasUrl = process.env.GAS_WEBAPP_URL_KHNS;
+        if (!gasUrl) {
+          console.warn('⚠️ GAS_WEBAPP_URL_KHNS chưa cấu hình.');
+          return;
+        }
+
+        const resp = await fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            html: htmlToSend,
+            ngayYCTEN,
+            tenNSTHValue,
+            phuongtienvanchuyenValue: phuongTienValue,
+            giaTriE
+          })
+        });
+
+        const result = await resp.json();
+        console.log('✔️ GAS trả về:', result);
+
+        if (!result || !result.ok) throw new Error(result?.error || 'GAS trả về lỗi');
+
+        const pathToFile = result.pathToFile || `KHNS/${result.fileName}`;
+        const updateRange = `File_KH_thuc_hien_NS!F${lastRowIndex}`;
+
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: updateRange,
+          valueInputOption: 'RAW',
+          requestBody: { values: [[pathToFile]] }
+        });
+
+        console.log('✔️ Đã ghi đường dẫn vào', updateRange);
+      } catch (err) {
+        console.error('❌ Lỗi gọi GAS (KHNS):', err.stack || err.message || err);
+      }
+    })();
+
+  } catch (err) {
+    console.error('❌ Lỗi khi xuất KHNS:', err.stack || err.message || err);
+    res.status(500).send('Lỗi server: ' + (err.message || err));
+  }
 });
+
 
 
 
