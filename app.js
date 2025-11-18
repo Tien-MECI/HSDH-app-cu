@@ -2165,7 +2165,7 @@ app.get('/khns', async (req, res) => {
     const ngayYCObj = parseSheetDate(ngayYC_raw);
     const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
 
-    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien - ĐẢM BẢO LOẠI BỎ CỘT 49
+    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien - SỬA LẠI ĐỂ LOẠI BỎ CỘT 49
     const filteredData = [];
     let tongTaiTrong = 0;
     let NSHotroArr = [];
@@ -2186,7 +2186,7 @@ app.get('/khns', async (req, res) => {
       const condPT = (row[30] || '') === phuongTienValue;
 
       if (condDate && condTen && condPT) {
-        // 🔥 CHỈ LẤY 9 CỘT ĐẦU, CỘT CUỐI LUÔN RỖNG - KHÔNG LẤY CỘT 49
+        // 🔥 CHỈ LẤY 9 CỘT ĐẦU VÀ CỘT CUỐI LUÔN RỖNG
         const dataToCopy = [
           row[29] || '', // TG YC
           row[5] || '',  // Mã ĐH
@@ -2197,7 +2197,7 @@ app.get('/khns', async (req, res) => {
           row[13] || '', // Ghi chú TH
           row[14] || '', // TT nhà xe
           row[15] || '', // Tải trọng
-          "" // 🔥 Cột Phí bến bãi LUÔN RỖNG
+          row[37] || ''// 🔥 Cột Phí bến bãi LUÔN RỖNG - 
         ];
 
         filteredData.push(dataToCopy);
@@ -2221,7 +2221,7 @@ app.get('/khns', async (req, res) => {
 
     const NSHotroStr = [...new Set(NSHotroArr)].join(' , ');
 
-    // 5) Render cho client
+    // 5) Render cho client - ĐẢM BẢO DỮ LIỆU GỬI ĐI KHÔNG CÓ CỘT 49
     const renderForClientData = {
       ngayYC,
       tenNSTHValue,
@@ -2243,139 +2243,18 @@ app.get('/khns', async (req, res) => {
     // 6) Gọi GAS WebApp để lưu PDF + cập nhật đường dẫn
     (async () => {
       try {
-        // 🔥 TẠO HTML ĐẶC BIỆT CHO GAS - ĐẢM BẢO CỘT PHÍ BẾN BÃI RỖNG
-        const gasHtml = `
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <title>Kế Hoạch Thực Hiện Nhân Sự</title>
-  <style>
-    @page {
-      size: A4 landscape;
-      margin: 10mm;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      margin: 0;
-      padding: 0;
-      position: relative;
-    }
-    .watermark {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.08;
-      z-index: 0;
-      pointer-events: none;
-      width: 70%;
-      text-align: center;
-    }
-    .watermark img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-    h1 {
-      text-align: center;
-      color: red;
-      font-weight: bold;
-      margin: 5px 0;
-      position: relative;
-      z-index: 1;
-    }
-    p {
-      margin: 4px 0;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-    .summary {
-      text-align: right;
-      margin-bottom: 4px;
-      font-size: 12px;
-      font-weight: bold;
-      position: relative;
-      z-index: 1;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 6px;
-      position: relative;
-      z-index: 1;
-    }
-    th, td {
-      border: 1px solid black;
-      padding: 5px;
-      text-align: left;
-      font-size: 12px;
-    }
-    th {
-      background-color: #f2f2f2;
-      text-align: center;
-    }
-    .group-header {
-      background-color: #d9ead3;
-      font-weight: bold;
-      font-size: 12px;
-    }
-  </style>
-</head>
-<body>
-
-  ${watermarkBase64 ? `
-    <div class="watermark">
-      <img src="${watermarkBase64}" alt="Watermark">
-    </div>
-  ` : ''}
-
-  <h1>PHIẾU YÊU CẦU THỰC HIỆN CÔNG VIỆC - ${ngayYC}</h1>
-  <p>Nhân sự phụ trách: ${tenNSTHValue} | Phương tiện: ${phuongTienValue} | Nhân sự hỗ trợ: ${NSHotroStr}</p>
-  <p class="summary">Tổng đơn: ${tongDon} | Tổng tải trọng: ${tongTaiTrong.toLocaleString('vi-VN')} kg</p>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 80px;">TG YC</th>
-        <th style="width: 90px;">Mã ĐH</th>
-        <th>Nhóm SX</th>
-        <th>Nhóm SP</th>
-        <th>Loại YC</th>
-        <th>TT liên hệ</th>
-        <th>Ghi chú TH</th>
-        <th>TT nhà xe</th>
-        <th>Tải trọng</th>
-        <th style="width: 80px;">Phí bến bãi</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${Object.keys(groupedData).map(loai => `
-        <tr class="group-header">
-          <td colspan="10">Loại yêu cầu: ${loai}</td>
-        </tr>
-        ${groupedData[loai].map(r => `
-          <tr>
-            <td>${r[0] || ''}</td>
-            <td>${r[1] || ''}</td>
-            <td>${r[2] || ''}</td>
-            <td>${r[3] || ''}</td>
-            <td>${r[4] || ''}</td>
-            <td>${r[5] || ''}</td>
-            <td>${r[6] || ''}</td>
-            <td>${r[7] || ''}</td>
-            <td>${r[8] || ''}</td>
-            <td></td> <!-- 🔥 CỘT PHÍ BẾN BÃI LUÔN RỖNG -->
-          </tr>
-        `).join('')}
-      `).join('')}
-    </tbody>
-  </table>
-
-</body>
-</html>`;
+        // 🔥 ĐẢM BẢO HTML GỬI CHO GAS CŨNG DÙNG CÙNG DỮ LIỆU ĐÃ LỌC
+        const htmlToSend = await renderFileAsync(
+          path.join(__dirname, 'views', 'khns.ejs'),
+          { 
+            ...renderForClientData, 
+            autoPrint: false, 
+            pathToFile: '',
+            // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (KHÔNG CÓ CỘT 49)
+            tableData: filteredData,
+            groupedData: groupedData
+          }
+        );
 
         const yyyy = ngayYCObj ? ngayYCObj.getFullYear() : 'na';
         const mm = ngayYCObj ? String(ngayYCObj.getMonth() + 1).padStart(2, '0') : '00';
@@ -2392,7 +2271,7 @@ app.get('/khns', async (req, res) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
-            html: gasHtml, // 🔥 GỬI HTML ĐÃ ĐƯỢC XỬ LÝ ĐẶC BIỆT
+            html: htmlToSend,
             ngayYCTEN,
             tenNSTHValue,
             phuongtienvanchuyenValue: phuongTienValue,
