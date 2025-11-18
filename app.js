@@ -2165,7 +2165,7 @@ app.get('/khns', async (req, res) => {
     const ngayYCObj = parseSheetDate(ngayYC_raw);
     const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
 
-    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien - ĐẢM BẢO CỘT PHÍ BẾN BÃI RỖNG
+    // 4) Lọc dữ liệu từ Ke_hoach_thuc_hien - SỬA LẠI ĐỂ LOẠI BỎ CỘT 49
     const filteredData = [];
     let tongTaiTrong = 0;
     let NSHotroArr = [];
@@ -2186,10 +2186,19 @@ app.get('/khns', async (req, res) => {
       const condPT = (row[30] || '') === phuongTienValue;
 
       if (condDate && condTen && condPT) {
-        // 🔥 ĐẢM BẢO CỘT CUỐI CÙNG (Phí bến bãi) LUÔN RỖNG
+        // 🔥 CHỈ LẤY 9 CỘT ĐẦU VÀ CỘT CUỐI LUÔN RỖNG
+        // KHÔNG BAO GIỜ LẤY CỘT 49 (row[48])
         const dataToCopy = [
-          row[29], row[5], row[11], row[9], row[10],
-          row[8], row[13], row[14], row[15] // Cột cuối luôn là rỗng
+          row[29] || '', // TG YC
+          row[5] || '',  // Mã ĐH
+          row[11] || '', // Nhóm SX
+          row[9] || '',  // Nhóm SP
+          row[10] || '', // Loại YC
+          row[8] || '',  // TT liên hệ
+          row[13] || '', // Ghi chú TH
+          row[14] || '', // TT nhà xe
+          row[15] || '', // Tải trọng
+          "" // 🔥 Cột Phí bến bãi LUÔN RỖNG - KHÔNG DÙNG row[48]
         ];
 
         filteredData.push(dataToCopy);
@@ -2213,7 +2222,7 @@ app.get('/khns', async (req, res) => {
 
     const NSHotroStr = [...new Set(NSHotroArr)].join(' , ');
 
-    // 5) Render cho client
+    // 5) Render cho client - ĐẢM BẢO DỮ LIỆU GỬI ĐI KHÔNG CÓ CỘT 49
     const renderForClientData = {
       ngayYC,
       tenNSTHValue,
@@ -2235,14 +2244,14 @@ app.get('/khns', async (req, res) => {
     // 6) Gọi GAS WebApp để lưu PDF + cập nhật đường dẫn
     (async () => {
       try {
-        // 🔥 ĐẢM BẢO DỮ LIỆU GỬI CHO PDF CŨNG CÓ CỘT PHÍ BẾN BÃI RỖNG
+        // 🔥 ĐẢM BẢO HTML GỬI CHO GAS CŨNG DÙNG CÙNG DỮ LIỆU ĐÃ LỌC
         const htmlToSend = await renderFileAsync(
           path.join(__dirname, 'views', 'khns.ejs'),
           { 
             ...renderForClientData, 
             autoPrint: false, 
             pathToFile: '',
-            // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (với cột phí bến bãi rỗng)
+            // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (KHÔNG CÓ CỘT 49)
             tableData: filteredData,
             groupedData: groupedData
           }
