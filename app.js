@@ -2086,7 +2086,7 @@ app.get('/ycxktp', async (req, res) => {
 
 app.get('/khns', async (req, res) => {
     try {
-        console.log('▶️ Bắt đầu xuất Kế Hoạch Nhân Sự ...');
+        console.log('▶️ Bắt đầu xuất KHNS ...');
 
         // 1) Lấy logo & watermark
         const [logoBase64, watermarkBase64] = await Promise.all([
@@ -2094,11 +2094,11 @@ app.get('/khns', async (req, res) => {
             loadDriveImageBase64(WATERMARK_FILE_ID)
         ]);
 
-        // 2) Đọc dữ liệu 2 sheet: File_KHNS (lấy last row) và Ke_hoach_thuc_hien (lọc)
+        // 2) Đọc dữ liệu 2 sheet: File_KH_thuc_hien_NS (để lấy last row) và Ke_hoach_thuc_hien (để lọc)
         const [khnsRes, keHoachRes] = await Promise.all([
             sheets.spreadsheets.values.get({
                 spreadsheetId: SPREADSHEET_ID,
-                range: 'File_KHNS',
+                range: 'File_KH_thuc_hien_NS',
                 valueRenderOption: 'FORMATTED_VALUE'
             }),
             sheets.spreadsheets.values.get({
@@ -2112,9 +2112,9 @@ app.get('/khns', async (req, res) => {
         const keHoachValues = keHoachRes.data.values || [];
 
         if (khnsValues.length <= 1) {
-            console.warn('⚠️ File_KHNS không có dữ liệu (chỉ header).');
+            console.warn('⚠️ File_KH_thuc_hien_NS không có dữ liệu (chỉ header).');
             return res.render('khns', {
-                ngayYC: '',
+                ngayKH: '',
                 tenNSTHValue: '',
                 phuongTienValue: '',
                 NSHotro: '',
@@ -2128,18 +2128,19 @@ app.get('/khns', async (req, res) => {
             });
         }
 
-        // last row index
+        // last row index (1-based)
         const lastRowIndex = khnsValues.length;
         const lastRow = khnsValues[lastRowIndex - 1];
 
-        const ngayYC_raw = lastRow[1];
+        // lấy giá trị từ File_KH_thuc_hien_NS (cột B, C, D, E tương ứng index 1..4)
+        const ngayKH_raw = lastRow[1];
         const tenNSTHValue = lastRow[2] || '';
         const phuongTienValue = lastRow[3] || '';
         const NSHotro = lastRow[4] || '';
 
-        // helper parse date
+        // helper parse date string/serial -> Date
         function parseSheetDate(val) {
-            if (!val) return null;
+            if (val === null || val === undefined || val === '') return null;
             if (typeof val === 'number') {
                 const epoch = new Date(Date.UTC(1899, 11, 30));
                 return new Date(epoch.getTime() + Math.round(val * 24 * 60 * 60 * 1000));
@@ -2147,18 +2148,18 @@ app.get('/khns', async (req, res) => {
             const s = String(val).trim();
             const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
             if (m) {
-                let [, dd, mm, yyyy, hh='0', min='0', ss='0'] = m;
-                if (yyyy.length === 2) yyyy = '20'+yyyy;
-                return new Date(+yyyy, +mm-1, +dd, +hh, +min, +ss);
+                let [, dd, mm, yyyy, hh = '0', min = '0', ss = '0'] = m;
+                if (yyyy.length === 2) yyyy = '20' + yyyy;
+                return new Date(+yyyy, +mm - 1, +dd, +hh, +min, +ss);
             }
             const d = new Date(s);
             return isNaN(d) ? null : d;
         }
 
-        const ngayYCObj = parseSheetDate(ngayYC_raw);
-        const ngayYC = ngayYCObj ? ngayYCObj.toLocaleDateString('vi-VN') : String(ngayYC_raw || '');
+        const ngayKHObj = parseSheetDate(ngayKH_raw);
+        const ngayKH = ngayKHObj ? ngayKHObj.toLocaleDateString('vi-VN') : String(ngayKH_raw || '');
 
-        // 3) Filter dữ liệu từ Ke_hoach_thuc_hien
+        // 3) Filter dữ liệu từ Ke_hoach_thuc_hien giống Apps Script gốc
         const filteredData = [];
         let tongTaiTrong = 0;
 
@@ -2166,8 +2167,8 @@ app.get('/khns', async (req, res) => {
             const row = keHoachValues[i];
             if (!row) continue;
 
-            const ngayTH_raw = row[1];
-            const pxk = row[23];
+            const ngayTH_raw = row[1]; // cột B
+            const pxk = row[23];       // cột X phải rỗng
             const phuongTien_kehoach = row[30];
             const tenNSTH_kehoach = row[36];
 
@@ -2175,23 +2176,23 @@ app.get('/khns', async (req, res) => {
             if (!ngayTHObj) continue;
             const formattedNgayTH = ngayTHObj.toLocaleDateString('vi-VN');
 
-            const condDate = formattedNgayTH === ngayYC;
+            const condDate = formattedNgayTH === ngayKH;
             const condTen = String(tenNSTH_kehoach || '') === String(tenNSTHValue || '');
             const condPT = String(phuongTien_kehoach || '') === String(phuongTienValue || '');
             const condPXKEmpty = (pxk === '' || pxk === undefined || pxk === null);
 
             if (condDate && condTen && condPT && condPXKEmpty) {
                 const dataToCopy = [
-                    row[5],   // TG YC
-                    row[11],  // Mã ĐH
-                    row[9],   // Nhóm SX
-                    row[10],  // Nhóm SP
-                    row[8],   // Loại YC
-                    row[13],  // TT liên hệ
-                    row[14],  // Ghi chú TH
-                    row[15],  // TT nhà xe
-                    row[15],  // Tải trọng
-                    ''        // Phí bến bãi luôn để trống
+                    row[5],  // TG YC
+                    row[11], // Mã ĐH
+                    row[9],  // Nhóm SX
+                    row[10], // Nhóm SP
+                    row[8],  // Loại YC
+                    row[13], // TT liên hệ
+                    row[14], // Ghi chú TH
+                    row[15], // TT nhà xe
+                    row[15] || '', // Tải trọng
+                    '' // Phí bến bãi luôn trống
                 ];
                 filteredData.push(dataToCopy);
 
@@ -2202,9 +2203,9 @@ app.get('/khns', async (req, res) => {
 
         const tongDon = filteredData.length;
 
-        // 4) Render cho client ngay
+        // 4) Render cho client ngay (autoPrint: true)
         const renderForClientData = {
-            ngayYC,
+            ngayKH,
             tenNSTHValue,
             phuongTienValue,
             NSHotro,
@@ -2219,28 +2220,21 @@ app.get('/khns', async (req, res) => {
 
         res.render('khns', renderForClientData);
 
-        // 5) Gọi GAS WebApp ngầm để convert HTML -> PDF
+        // 5) Gọi GAS WebApp ngầm để convert HTML -> PDF, ghi đường dẫn vào sheet
         (async () => {
             try {
-                // patch cột phí bến bãi trước khi gửi PDF
-                const pdfTableData = renderForClientData.tableData.map(r => {
-                    const clone = [...r];
-                    clone[9] = ''; // cột 10 luôn rỗng
-                    return clone;
-                });
-
                 const htmlToSend = await renderFileAsync(
                     path.join(__dirname, 'views', 'khns.ejs'),
-                    { ...renderForClientData, autoPrint: false, tableData: pdfTableData }
+                    { ...renderForClientData, autoPrint: false, pathToFile: '' }
                 );
 
-                const yyyy = ngayYCObj ? String(ngayYCObj.getFullYear()) : 'na';
-                const mm = ngayYCObj ? String(ngayYCObj.getMonth()+1).padStart(2,'0') : '00';
-                const dd = ngayYCObj ? String(ngayYCObj.getDate()).padStart(2,'0') : '00';
-                const ngayYCTEN = `${yyyy}-${mm}-${dd}`;
-                const safeTen = String(tenNSTHValue || '').replace(/[\/\\:\*\?"<>\|]/g,'_').slice(0,80);
-                const safePT = String(phuongTienValue || '').replace(/[\/\\:\*\?"<>\|]/g,'_').slice(0,60);
-                const suggestedFileName = `${ngayYCTEN}_${safeTen}_${safePT}_Lần.pdf`;
+                const yyyy = ngayKHObj ? String(ngayKHObj.getFullYear()) : 'na';
+                const mm = ngayKHObj ? String(ngayKHObj.getMonth() + 1).padStart(2, '0') : '00';
+                const dd = ngayKHObj ? String(ngayKHObj.getDate()).padStart(2, '0') : '00';
+                const ngayKHTEN = `${yyyy}-${mm}-${dd}`;
+                const safeTen = String(tenNSTHValue || '').replace(/[\/\\:\*\?"<>\|]/g, '_').slice(0, 80);
+                const safePT = String(phuongTienValue || '').replace(/[\/\\:\*\?"<>\|]/g, '_').slice(0, 60);
+                const suggestedFileName = `${ngayKHTEN}_${safeTen}_${safePT}_KHNS.pdf`;
 
                 const gasUrl = process.env.GAS_WEBAPP_URL_KHNS;
                 if (!gasUrl) {
@@ -2261,11 +2255,12 @@ app.get('/khns', async (req, res) => {
                 const result = await resp.json();
                 console.log('✔️ AppScript trả về:', result);
 
-                if (!result || !result.ok) throw new Error(result?.error || 'Apps Script trả về lỗi');
+                if (!result || !result.ok) throw new Error(result?.error || 'Apps Script trả về lỗi hoặc không ok');
 
                 const pathToFile = result.pathToFile || (result.fileName ? `KHNS/${result.fileName}` : suggestedFileName);
 
-                const updateRange = `File_KHNS!F${lastRowIndex}`;
+                // Ghi đường dẫn file vào cột F của last row
+                const updateRange = `File_KH_thuc_hien_NS!F${lastRowIndex}`;
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
                     range: updateRange,
@@ -2274,7 +2269,6 @@ app.get('/khns', async (req, res) => {
                 });
 
                 console.log('✔️ Đã ghi đường dẫn:', pathToFile, 'vào', updateRange);
-
             } catch (err) {
                 console.error('❌ Lỗi gọi AppScript (KHNS):', err.stack || err.message || err);
             }
@@ -2285,8 +2279,6 @@ app.get('/khns', async (req, res) => {
         res.status(500).send('Lỗi server: ' + (err.message || err));
     }
 });
-
-
 
 
 
