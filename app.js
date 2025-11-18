@@ -2251,7 +2251,7 @@ app.get('/khns', async (req, res) => {
             autoPrint: false, 
             pathToFile: '',
             // 🔥 GỬI CHÍNH XÁC tableData ĐÃ ĐƯỢC XỬ LÝ (KHÔNG CÓ CỘT 49)
-            tableData: filteredData,
+            filteredData,
             groupedData: groupedData
           }
         );
