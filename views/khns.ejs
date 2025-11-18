@@ -106,23 +106,25 @@
     </thead>
     <tbody>
       <% 
-      const grouped = {};
-      tableData.forEach(row => {
-        const loai = row[4] || 'Không xác định';
-        if (!grouped[loai]) grouped[loai] = [];
-        grouped[loai].push(row);
-      });
-
-      Object.keys(grouped).forEach(loai => { 
+      // 🔥 SỬ DỤNG groupedData ĐÃ ĐƯỢC TÍNH SẴN TỪ SERVER
+      Object.keys(groupedData).forEach(loai => { 
       %>
         <tr class="group-header">
           <td colspan="10">Loại yêu cầu: <%= loai %></td>
         </tr>
-        <% grouped[loai].forEach(r => { %>
+        <% groupedData[loai].forEach(r => { %>
           <tr>
-            <% r.forEach(c => { %>
-              <td><%= c || '' %></td>
-            <% }) %>
+            <!-- 🔥 HIỂN THỊ CỐ ĐỊNH 10 CỘT - CỘT CUỐI LUÔN RỖNG -->
+            <td><%= r[0] || '' %></td>
+            <td><%= r[1] || '' %></td>
+            <td><%= r[2] || '' %></td>
+            <td><%= r[3] || '' %></td>
+            <td><%= r[4] || '' %></td>
+            <td><%= r[5] || '' %></td>
+            <td><%= r[6] || '' %></td>
+            <td><%= r[7] || '' %></td>
+            <td><%= r[8] || '' %></td>
+            <td></td> <!-- 🔥 CỘT PHÍ BẾN BÃI LUÔN RỖNG -->
           </tr>
         <% }) %>
       <% }) %>
