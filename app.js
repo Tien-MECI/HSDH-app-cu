@@ -2189,7 +2189,7 @@ app.get('/khns', async (req, res) => {
         // 🔥 ĐẢM BẢO CỘT CUỐI CÙNG (Phí bến bãi) LUÔN RỖNG
         const dataToCopy = [
           row[29], row[5], row[11], row[9], row[10],
-          row[8], row[13], row[14], row[15], "" // Cột cuối luôn là rỗng
+          row[8], row[13], row[14], row[15] // Cột cuối luôn là rỗng
         ];
 
         filteredData.push(dataToCopy);
