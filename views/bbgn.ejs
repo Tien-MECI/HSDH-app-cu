@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Biên Bản Giao Nhận</title>
     <style>
@@ -17,40 +16,23 @@
             margin-bottom: 15px;
         }
 
-        td,
-        th {
+        td, th {
             border: 1px solid black;
             padding: 5px;
             text-align: left;
         }
 
-        .header {
-            text-align: center;
-            font-weight: bold;
-            font-size: 18px;
-        }
+        .header { text-align: center; font-weight: bold; font-size: 18px; }
+        .logo { text-align: left; }
+        .header-right { text-align: right; }
+        .red { color: red; }
+        .center-text { text-align: center; }
+        .no-border { border: none; }
 
-        .logo {
-            text-align: left;
-        }
+        /* Ẩn cột khi cần */
+        .hide-sl-giao { display: none; }
 
-        .header-right {
-            text-align: right;
-        }
-
-        .red {
-            color: red;
-        }
-
-        .center-text {
-            text-align: center;
-        }
-
-        .no-border {
-            border: none;
-        }
-
-        /* ✅ Watermark */
+        /* Watermark */
         .watermark {
             position: fixed;
             top: 35%;
@@ -60,161 +42,107 @@
             opacity: 0.1;
             text-align: center;
         }
+        .watermark img { width: 80vw; height: auto; }
 
-        .watermark img {
-            width: 80vw;
-            /* chiếm 80% chiều rộng trang */
-            height: auto;
-        }
-
-
-        /* CSS cho in ấn */
         @media print {
-            @page {
-                size: A4;
-                margin: 0;
-            }
-
-            body {
-                margin: 1.5cm;
-                padding: 0;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
+            @page { size: A4; margin: 0; }
+            body { margin: 1.5cm; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 
-    <% if (typeof autoPrint !=='undefined' && autoPrint) { %>
-        <script>
-            window.onload = function () {
-                setTimeout(function () {
-                    window.print();
-                    setTimeout(function () {
-                        if (window.opener) {
-                            window.close();
-                        }
-                    }, 500);
-                }, 1000);
-            };
-        </script>
-        <% } %>
+    <% if (typeof autoPrint !== 'undefined' && autoPrint) { %>
+    <script>
+        window.onload = function () {
+            setTimeout(function () {
+                window.print();
+                setTimeout(function () { if (window.opener) window.close(); }, 500);
+            }, 1000);
+        };
+    </script>
+    <% } %>
 </head>
-
 <body>
     <% if (watermarkBase64) { %>
-        <div class="watermark">
-            <img src="<%= watermarkBase64 %>" />
-        </div>
-        <% } %>
+    <div class="watermark">
+        <img src="<%= watermarkBase64 %>" />
+    </div>
+    <% } %>
 
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                    <td class="no-border">
-                        <img class="logo" src="<%= logoBase64 %>" style="width: 80px; height: 40px;" />
-                    </td>
-                    <td class="no-border" style="text-align: right;">
-                        <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI</strong>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="border: none; padding: 0;">
-                        <div style="border-top: 3px double black; margin: -1px 0 0 0;"></div>
-                    </td>
-                </tr>
-            </table>
+    <!-- Header công ty -->
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td class="no-border"><img class="logo" src="<%= logoBase64 %>" style="width: 80px; height: 40px;" /></td>
+            <td class="no-border" style="text-align: right;"><strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI</strong></td>
+        </tr>
+        <tr>
+            <td colspan="2" style="border: none; padding: 0;">
+                <div style="border-top: 3px double black; margin: -1px 0 0 0;"></div>
+            </td>
+        </tr>
+    </table>
 
-            <h2 class="center-text">BIÊN BẢN GIAO NHẬN</h2>
-            <p class="center-text">(Kiêm phiếu xuất kho số: <span class="red">
-                    <%= donHang[6] %>
-                </span>)</p>
-            <p>- Căn cứ hợp đồng/đơn hàng ngày … tháng … năm …</p>
-            <p>Hôm nay, ngày … tháng … năm …. Tại: <span class="red">
-                    <%= donHang[24] || donHang[26] || donHang[28] ||'' %>
-                </span></p>
-            <br>
+    <h2 class="center-text">BIÊN BẢN GIAO NHẬN</h2>
+    <p class="center-text">(Kiêm phiếu xuất kho số: <span class="red"><%= donHang[6] %></span>)</p>
+    <p>- Căn cứ hợp đồng/đơn hàng ngày … tháng … năm …</p>
+    <p>Hôm nay, ngày … tháng … năm …. Tại: <span class="red"><%= donHang[24] || donHang[26] || donHang[28] || '' %></span></p>
+    <br>
 
-            <!-- Thông tin bên nhận -->
-            <p><b>I. ĐẠI DIỆN BÊN NHẬN: </b>
-                <%= donHang[9] %>
-            </p>
-            <p>- Ông/Bà: <span class="red">
-                    <%= donHang[17] || donHang[20] || '' %>
-                </span> ..............................................| Chức
-                vụ:.........................................</p>
-            <p>- Điện thoại: <span class="red">
-                    <%= donHang[18] || donHang[21] || '' %>
-                </span> ..............................................
-            <p>- Địa chỉ: <span class="red">
-                    <%= donHang[24] || donHang[26] || donHang[28] %>
-                </span> ..............................................</p>
-            <br>
+    <!-- Thông tin bên nhận -->
+    <p><b>I. ĐẠI DIỆN BÊN NHẬN: </b><%= donHang[9] %></p>
+    <p>- Ông/Bà: <span class="red"><%= donHang[17] || donHang[20] || '' %></span> ..............................................| Chức vụ:.........................................</p>
+    <p>- Điện thoại: <span class="red"><%= donHang[18] || donHang[21] || '' %></span> ..............................................</p>
+    <p>- Địa chỉ: <span class="red"><%= donHang[24] || donHang[26] || donHang[28] %></span> ..............................................</p>
+    <br>
 
-            <!-- Thông tin bên giao -->
-            <p><b><strong>II. ĐẠI DIỆN BÊN GIAO:</strong></b> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</p>
-            <p>- Ông/Bà:...........................................................| Chức
-                vụ:..........................................</p>
-            <p>- Điện thoại:.......................................................| Số
-                CMND/CCCD:.....................................</p>
-            <p>- Địa chỉ trụ sở chính: Số 164, đường Nguyễn Trãi, phường Thanh Xuân, thành phố Hà Nội</p>
-            <p>- Địa điểm sản xuất, kinh doanh: Số 162, đường 916, thôn La Gián, xã Đoài Phương, thành phố Hà Nội</p>
-            <p>- Nhân viên theo dõi hợp đồng/đơn hàng: <span class="red">
-                    <%= donHang[2] %>
-                </span> | Điện thoại: <span class="red">
-                    <%= donHang[52] %>
-                </span></p>
-            <br>
+    <!-- Thông tin bên giao -->
+    <p><b><strong>II. ĐẠI DIỆN BÊN GIAO:</strong></b> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</p>
+    <p>- Ông/Bà:...........................................................| Chức vụ:..........................................</p>
+    <p>- Điện thoại:.......................................................| Số CMND/CCCD:.....................................</p>
+    <p>- Địa chỉ trụ sở chính: Số 164, đường Nguyễn Trãi, phường Thanh Xuân, thành phố Hà Nội</p>
+    <p>- Địa điểm sản xuất, kinh doanh: Số 162, đường 916, thôn La Gián, xã Đoài Phương, thành phố Hà Nội</p>
+    <p>- Nhân viên theo dõi hợp đồng/đơn hàng: <span class="red"><%= donHang[2] %></span> | Điện thoại: <span class="red"><%= donHang[52] %></span></p>
+    <br>
 
-            <!-- Bảng sản phẩm -->
-            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th style="text-align: center;">STT</th>
-                        <th style="text-align: left;">Tên sản phẩm chi tiết</th>
-                        <th style="text-align: center;">SL giao</th>
-                        <th style="text-align: center;">Đơn vị</th>
-                        <th style="text-align: center;">Tổng số lượng</th>
-                        <th style="text-align: center;">Ghi chú</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% products.forEach(function(product) { %>
-                        <tr>
-                            <td style="text-align: center;">
-                                <%= product.stt %>
-                            </td>
-                            <td style="text-align: left;">
-                                <%= product.tenSanPham %>
-                            </td>
-                            <td style="text-align: center;">
-                                <%= product.soLuong %>
-                            </td>
-                            <td style="text-align: center;">
-                                <%= product.donVi %>
-                            </td>
-                            <td style="text-align: center;">
-                                <%= product.tongSoLuong %>
-                            </td>
-                            <td style="text-align: center;">
-                                <%= product.ghiChu %>
-                            </td>
-                        </tr>
-                        <% }); %>
-                </tbody>
-            </table>
+    <!-- ========== KIỂM TRA CỘT SL GIAO ========== -->
+    <% 
+        const hideSLGiao = products.every(p => !p.soLuong || p.soLuong == '0' || p.soLuong.trim() === '');
+    %>
 
-            <br>
-            <p>Hai bên đồng ý với nội dung giao nhận trên, biên bản giao nhận được lập thành 02 bản, mỗi bên giữ 1 bản
-                có giá trị pháp lý như nhau để làm căn cứ thanh quyết toán.</p>
-            <p>Đề nghị quý khách hàng nhận hàng, kiểm tra hàng và phản ánh tình trạng hàng hóa ngay sau khi nhận hàng.
-                Thời gian tiếp nhận và xử lý hàng hóa không quá 24 giờ kể từ khi khách nhận được hàng.</p>
+    <!-- Bảng sản phẩm -->
+    <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="text-align: center;">STT</th>
+                <th style="text-align: left;">Tên sản phẩm chi tiết</th>
+                <th style="text-align: center;" class="<%= hideSLGiao ? 'hide-sl-giao' : '' %>">SL giao</th>
+                <th style="text-align: center;">Đơn vị</th>
+                <th style="text-align: center;">Tổng số lượng</th>
+                <th style="text-align: center;">Ghi chú</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% products.forEach(function(product) { %>
+            <tr>
+                <td style="text-align: center;"><%= product.stt %></td>
+                <td style="text-align: left;"><%= product.tenSanPham %></td>
+                <td style="text-align: center;" class="<%= hideSLGiao ? 'hide-sl-giao' : '' %>"><%= product.soLuong %></td>
+                <td style="text-align: center;"><%= product.donVi %></td>
+                <td style="text-align: center;"><%= product.tongSoLuong %></td>
+                <td style="text-align: center;"><%= product.ghiChu %></td>
+            </tr>
+            <% }); %>
+        </tbody>
+    </table>
 
-            <!-- Ký tên -->
-            <table class="no-border">
-                <tr>
-                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN GIAO<br>(Ký và ghi rõ họ tên)</td>
-                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN NHẬN<br>(Ký và ghi rõ họ tên)</td>
-                </tr>
-            </table>
+    <br>
+    <p>Hai bên đồng ý với nội dung giao nhận trên, biên bản giao nhận được lập thành 02 bản, mỗi bên giữ 1 bản có giá trị pháp lý như nhau để làm căn cứ thanh quyết toán.</p>
+    <p>Đề nghị quý khách hàng nhận hàng, kiểm tra hàng và phản ánh tình trạng hàng hóa ngay sau khi nhận hàng. Thời gian tiếp nhận và xử lý hàng hóa không quá 24 giờ kể từ khi khách nhận được hàng.</p>
+
+    <table class="no-border">
+        <tr>
+            <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN GIAO<br>(Ký và ghi rõ họ tên)</td>
+            <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN NHẬN<br>(Ký và ghi rõ họ tên)</td>
+        </tr>
+    </table>
 </body>
-
 </html>
