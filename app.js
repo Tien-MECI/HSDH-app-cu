@@ -3049,7 +3049,7 @@ app.get("/bangchamcong", async (req, res) => {
       const key = `${maNV}_${d}`;
 
       if (chamCongMap.has(key)) {
-        const ex = chamCongMap.get(key);
+        let ex = chamCongMap.get(key);
         ex.congNgay += congNgay;
         ex.tangCa += tangCa;
         if (["Nghỉ phép", "Nghỉ việc Louisa"].includes(trangThai)) {
