@@ -3020,9 +3020,9 @@ app.get("/bangchamcong", async (req, res) => {
     }
 
     console.log("Số nhân viên sau lọc:", activeStaff.length);
-
-    // --- Tạo map chấm công ---
+    // --- Tạo map chấm công (cộng dồn congNgay trong cùng ngày) ---
     const chamCongMap = new Map();
+
     chamCongRows.slice(1).forEach(r => {
       const ngayStr = r[1];
       const trangThai = r[2];
@@ -3033,38 +3033,29 @@ app.get("/bangchamcong", async (req, res) => {
       if (!ngayStr || !maNV) return;
 
       const [d, m, y] = ngayStr.split("/").map(Number);
-      if (m === month && y === year) {
-        const key = `${maNV}_${d}`;
+      if (m !== month || y !== year) return;
+
+      const key = `${maNV}_${d}`;
+
+      if (chamCongMap.has(key)) {
+        const existing = chamCongMap.get(key);
+        // Cộng dồn công ngày và tăng ca
+        existing.congNgay += congNgay;
+        existing.tangCa += tangCa;
+        // Ưu tiên trạng thái đặc biệt
+        if (trangThai === "Nghỉ việc riêng" || trangThai === "Nghỉ phép") {
+          existing.trangThai = trangThai;
+        }
+      } else {
         chamCongMap.set(key, { trangThai, congNgay, tangCa });
       }
     });
-
-    // --- Ngày trong tháng ---
-    const days = [];
-    const numDays = new Date(year, month, 0).getDate();
-    for (let i = 1; i <= numDays; i++) {
-      const date = new Date(year, month - 1, i);
-      days.push({ day: i, weekday: date.getDay(), date });
-    }
-
-    // --- Danh sách chức vụ đặc biệt ---
-    const specialRoles = [
-      "Chủ tịch hội đồng quản trị",
-      "Tổng giám đốc",
-      "Trưởng phòng kế hoạch tài chính",
-      "Trưởng phòng HCNS",
-      "Quản đốc",
-      "NV kế hoạch dịch vụ",
-      "Trưởng phòng kinh doanh",
-    ];
-
-    // --- Ngày lễ ---
-    const ngayLeVN = ["01-01", "04-30", "05-01", "09-02"];
 
     // --- Tổng hợp dữ liệu ---
     const records = activeStaff.map(nv => {
       const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
       let tongTangCa = 0;
+      let tongGioLe = 0; // Để tính thêm vào tổng ngày công
 
       // Chức vụ đặc biệt → auto 26 công
       if (specialRoles.includes(nv.chucVu?.trim())) {
@@ -3076,7 +3067,6 @@ app.get("/bangchamcong", async (req, res) => {
         };
       }
 
-      // Chấm công thường
       days.forEach((d, idx) => {
         const key = `${nv.maNV}_${d.day}`;
         const item = chamCongMap.get(key);
@@ -3085,27 +3075,60 @@ app.get("/bangchamcong", async (req, res) => {
           const { trangThai, congNgay, tangCa } = item;
           tongTangCa += tangCa;
 
-          if (trangThai === "Nghỉ việc riêng") ngayCong[idx] = ["X", "X"];
-          else if (trangThai === "Nghỉ phép") ngayCong[idx] = ["P", "P"];
-          else if (congNgay === 1) ngayCong[idx] = ["V", "V"];
-          else if (congNgay === 0.5) ngayCong[idx] = ["V", "X"];
-          else if (congNgay > 0 && congNgay < 0.5)
-            ngayCong[idx] = [`${(congNgay * 8).toFixed(1)}h`, ""];
-          else if (congNgay > 0.5 && congNgay < 1)
-            ngayCong[idx] = ["V", `${((congNgay - 0.5) * 8).toFixed(1)}h`];
+          // Trường hợp nghỉ phép / nghỉ riêng: cả ngày
+          if (trangThai === "Nghỉ việc riêng") {
+            ngayCong[idx] = ["X", "X"];
+          } else if (trangThai === "Nghỉ phép") {
+            ngayCong[idx] = ["P", "P"];
+          } 
+          // Làm đủ 1 ngày công
+          else if (congNgay >= 1) {
+            ngayCong[idx] = ["V", "V"];
+          }
+          // Làm nửa ngày chính xác (0.5)
+          else if (congNgay === 0.5) {
+            ngayCong[idx] = ["V", "X"];
+          }
+          // Làm ít hơn nửa ngày → ghi giờ vào ca sáng
+          else if (congNgay > 0 && congNgay < 0.5) {
+            const gio = (congNgay * 8).toFixed(1) + "h";
+            ngayCong[idx] = [gio, ""];
+            tongGioLe += congNgay * 8; // giờ lẻ
+          }
+          // Làm hơn nửa ngày nhưng chưa đủ 1 ngày
+          else if (congNgay > 0.5 && congNgay < 1) {
+            const gioChieu = ((congNgay - 0.5) * 8).toFixed(1) + "h";
+            ngayCong[idx] = ["V", gioChieu];
+            tongGioLe += (congNgay - 0.5) * 8; // giờ chiều lẻ
+          }
+          // congNgay === 1 đã xử lý ở trên
         } else {
+          // Không có dữ liệu chấm công
           const dayStr = `${String(d.date.getMonth() + 1).padStart(2, "0")}-${String(d.date.getDate()).padStart(2, "0")}`;
-          if (ngayLeVN.includes(dayStr)) ngayCong[idx] = ["L", "L"];
-          else ngayCong[idx] = ["X", "X"];
+          if (ngayLeVN.some(le => dayStr.includes(le))) {
+            ngayCong[idx] = ["L", "L"];
+          } else {
+            ngayCong[idx] = ["X", "X"];
+          }
         }
       });
 
-      const soNgayCong = ngayCong.flat().filter(v => v === "V").length / 2;
+      // === TÍNH TỔNG NGÀY CÔNG CHUẨN ===
+      let soBuoiDayDu = 0; // đếm số "V" (mỗi "V" = 0.5 công)
+
+      ngayCong.forEach(ca => {
+        if (ca[0] === "V") soBuoiDayDu++;
+        if (ca[1] === "V") soBuoiDayDu++;
+      });
+
+      const ngayCongTuBuoi = soBuoiDayDu / 2;           // mỗi 2 buổi = 1 ngày công
+      const ngayCongTuGioLe = tongGioLe / 8;            // 8 giờ lẻ = 1 ngày công
+      const tongNgayCong = ngayCongTuBuoi + ngayCongTuGioLe;
 
       return {
         ...nv,
         ngayCong,
-        soNgayCong: soNgayCong.toFixed(1),
+        soNgayCong: tongNgayCong.toFixed(1),
         tongTangCa: tongTangCa.toFixed(1),
       };
     });
