@@ -2978,54 +2978,67 @@ app.get("/bangchamcong", async (req, res) => {
 
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
-    const phong = req.query.phong?.trim() || "Tất cả";
+    const phong = (req.query.phong || "Tất cả").trim();
 
-    // --- Lấy dữ liệu ---
+    // ================== LẤY DỮ LIỆU ==================
     const [chamCongRes, nhanVienRes] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Cham_cong!A:V" }), // mở rộng đến V cho chắc
-      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Nhan_vien!A:AH" }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Cham_cong!A:V",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_HC_ID,
+        range: "Nhan_vien!A:AH",
+      }),
     ]);
 
     const chamCongRows = chamCongRes.data.values || [];
     const nhanVienRows = nhanVienRes.data.values || [];
 
-    // === Danh sách phòng + nhân viên hoạt động ===
-    const danhSachPhong = [...new Set(nhanVienRows.slice(1).map(r => (r[6] || "").trim()).filter(Boolean))].sort();
+    // ================== DANH SÁCH PHÒNG ==================
+    const danhSachPhong = [...new Set(
+      nhanVienRows.slice(1).map(r => (r[6] || "").trim()).filter(Boolean)
+    )].sort();
     danhSachPhong.unshift("Tất cả");
 
+    // ================== NHÂN VIÊN HOẠT ĐỘNG ==================
     const activeStaff = nhanVienRows
       .filter(r => r && r[33] === "Đang hoạt động")
       .map(r => ({
-        maNV: (r[0] || "").trim().toUpperCase(), // chuẩn hóa uppercase luôn
+        maNV: (r[0] || "").trim().toUpperCase(),
         hoTen: (r[1] || "").trim(),
         phong: (r[6] || "").trim(),
         chucVu: (r[9] || "").trim(),
       }))
       .filter(nv => nv.maNV);
 
-    if (phong !== "Tất cả") {
-      activeStaff = activeStaff.filter(nv => nv.phong === phong);
+    const staffInPhong = (phong === "Tất cả")
+      ? activeStaff
+      : activeStaff.filter(nv => nv.phong === phong);
+
+    console.log(`Nhân viên hiển thị: ${staffInPhong.length}`);
+
+    // ================== NGÀY TRONG THÁNG ==================
+    const numDays = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= numDays; i++) {
+      const date = new Date(year, month - 1, i);
+      days.push({ day: i, weekday: date.getDay(), date });
     }
 
-    // === Ngày trong tháng ===
-    const numDays = new Date(year, month, 0).getDate();
-    const days = Array.from({ length: numDays }, (_, i) => {
-      const date = new Date(year, month - 1, i + 1);
-      return { day: i + 1, weekday: date.getDay(), date };
-    });
-
-    // === Chức vụ đặc biệt (dùng includes để linh hoạt) ===
+    // ================== CHỨC VỤ ĐẶC BIỆT (26 công) ==================
     const specialRoles = [
-      "Chủ tịch", "Tổng giám đốc", "Trưởng phòng kế hoạch", "Trưởng phòng HCNS",
-      "Quản đốc", "NV kế hoạch dịch vụ", "Trưởng phòng kinh doanh"
+      "Chủ tịch", "Tổng giám đốc", "Trưởng phòng kế hoạch", 
+      "Trưởng phòng HCNS", "Quản đốc", "NV kế hoạch dịch vụ", "Trưởng phòng kinh doanh"
     ];
 
-    const ngayLeVN = ["01-01", "04-30", "05-01", "09-02"];
+    // ================== NGÀY LỄ ==================
+    const ngayLe = ["01-01", "04-30", "05-01", "09-02"];
 
-    // === GOM CHẤM CÔNG – CỘNG DỒN + DEBUG KEY ===
+    // ================== GOM CHẤM CÔNG – CỘNG DỒN ==================
     const chamCongMap = new Map();
 
-    chamCongRows.slice(1).forEach((r, index) => {
+    chamCongRows.slice(1).forEach(r => {
       if (!r || r.length < 13) return;
 
       const ngayStr = r[1];
@@ -3035,88 +3048,109 @@ app.get("/bangchamcong", async (req, res) => {
       const d = parseInt(dStr, 10);
       const m = parseInt(mStr, 10);
       const y = parseInt(yStr, 10);
-
       if (isNaN(d) || m !== month || y !== year) return;
 
-      // Cố gắng lấy mã NV từ nhiều cột có thể (M, hoặc cột khác nếu bị lệch)
-      let maNV = (r[12] || r[11] || r[13] || "").toString().trim().toUpperCase();
-      if (!maNV || maNV.length < 4) return; // bỏ dòng rác
+      // Lấy mã NV linh hoạt, tránh lỗi cột lệch
+      let maNV = "";
+      for (let i = 11; i <= 13; i++) {
+        if (r[i]) {
+          maNV = r[i].toString().trim().toUpperCase();
+          if (maNV.length >= 4) break;
+        }
+      }
+      if (!maNV) return;
 
       const trangThai = (r[2] || "").trim();
       const congNgay = parseFloat(r[16] || 0) || 0;
-      const tangCa = parseFloat(r[19] || 0) || 0;
+      const tangCa   = parseFloat(r[19] || 0) || 0;
 
       const key = `${maNV}_${d}`;
 
       if (chamCongMap.has(key)) {
-        let ex = chamCongMap.get(key);
-        ex.congNgay += congNgay;
-        ex.tangCa += tangCa;
-        if (["Nghỉ phép", "Nghỉ việc Louisa"].includes(trangThai)) {
-          ex.trangThai = trangThai;
+        // ◄◄◄ DÙNG let ĐỂ TRÁNH LỖI const ◄◄◄
+        let existing = chamCongMap.get(key);
+        existing.congNgay += congNgay;
+        existing.tangCa   += tangCa;
+        if (trangThai.includes("Nghỉ phép") || trangThai.includes("Nghỉ việc riêng")) {
+          existing.trangThai = trangThai;
         }
       } else {
         chamCongMap.set(key, { trangThai, congNgay, tangCa });
       }
     });
 
-    console.log(`Tổng key chấm công gom được: ${chamCongMap.size} (cho ${activeStaff.length} nhân viên)`);
+    console.log(`Tổng bản ghi chấm công hợp lệ: ${chamCongMap.size}`);
 
-    // === XỬ LÝ TỪNG NV ===
-    const records = activeStaff.map(nv => {
-      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
-      let tongTangCa = 0;
-      let tongGioLe = 0;
+    // ================== XỬ LÝ TỪNG NHÂN VIÊN ==================
+    const records = staffInPhong.map(nv => {
+      const bangCa = Array(numDays).fill(null).map(() => ["", ""]);
+      let tongTC = 0;
+      let gioLe  = 0;
 
-      const isSpecial = specialRoles.some(role => nv.chucVu.includes(role));
-
-      if (isSpecial) {
-        return { ...nv, ngayCong, soNgayCong: "26.0", tongTangCa: "0.0" };
+      const laDacBiet = specialRoles.some(role => nv.chucVu.includes(role));
+      if (laDacBiet) {
+        return { ...nv, ngayCong: bangCa, soNgayCong: "26.0", tongTangCa: "0.0" };
       }
 
       days.forEach((d, idx) => {
-        const key = `${nv.maNV}_${d.day}`;
-        const item = chamCongMap.get(key);
+        const key   = `${nv.maNV}_${d.day}`;
+        const data  = chamCongMap.get(key);
 
-        if (item) {
-          let { trangThai, congNgay, tangCa } = item;
-          tongTangCa += tangCa;
+        if (data) {
+          let { trangThai, congNgay, tangCa } = data;
+          tongTC += tangCa;
 
-          if (trangThai.includes("Nghỉ phép") || trangThai.includes("Nghỉ việc riêng")) {
-            ngayCong[idx] = trangThai.includes("phép") ? ["P", "P"] : ["X", "X"];
-          } else if (congNgay >= 1.0) {
-            ngayCong[idx] = ["V", "V"];
-          } else if (congNgay >= 0.5 && congNgay < 1.0) {
-            const gioChieu = ((congNgay - 0.5) * 8).toFixed(1);
-            ngayCong[idx] = ["V", gioChieu + "h"];
-            tongGioLe += (congNgay - 0.5) * 8;
+          if (trangThai.includes("Nghỉ phép")) {
+            bangCa[idx] = ["P", "P"];
+          } else if (trangThai.includes("Nghỉ việc riêng")) {
+            bangCa[idx] = ["X", "X"];
+          } else if (congNgay >= 1) {
+            bangCa[idx] = ["V", "V"];
+          } else if (congNgay >= 0.5 && congNgay < 1) {
+            const gioChieu = ((congNgay - 0.5) * 8).toFixed(1) + "h";
+            bangCa[idx] = ["V", gioChieu];
+            gioLe += (congNgay - 0.5) * 8;
           } else if (congNgay > 0 && congNgay < 0.5) {
-            const gio = (congNgay * 8).toFixed(1) + "h";
-            ngayCong[idx] = [gio, ""];
-            tongGioLe += congNgay * 8;
+            const gioSang = (congNgay * 8).toFixed(1) + "h";
+            bangCa[idx] = [gioSang, ""];
+            gioLe += congNgay * 8;
           } else if (congNgay === 0.5) {
-            ngayCong[idx] = ["V", "X"];
+            bangCa[idx] = ["V", "X"];
           }
         } else {
+          // Không có chấm công → kiểm tra ngày lễ
           const full = `${String(month).padStart(2,"0")}-${String(d.day).padStart(2,"0")}`;
-          ngayCong[idx] = ngayLeVN.includes(full) ? ["L", "L"] : ["X", "X"];
+          bangCa[idx] = ngayLe.includes(full) ? ["L", "L"] : ["X", "X"];
         }
       });
 
-      // Tính tổng công
-      const soV = ngayCong.flat().filter(c => c === "V").length;
+      // ================== TÍNH TỔNG NGÀY CÔNG ==================
+      const soV = bangCa.flat().filter(c => c === "V").length;
       const congChinh = soV / 2;
-      const congLe = tongGioLe / 8;
-      const tongCong = (congChinh + congLe).toFixed(1);
+      const congLe    = gioLe / 8;
+      const tongCong  = (congChinh + congLe).toFixed(1);
 
-      return { ...nv, ngayCong, soNgayCong: tongCong, tongTangCa: tongTangCa.toFixed(1) };
+      return {
+        ...nv,
+        ngayCong: bangCa,
+        soNgayCong: tongCong,
+        tongTangCa: tongTC.toFixed(1),
+      };
     });
 
-    res.render("bangchamcong", { month, year, phong, danhSachPhong, days, records });
+    // ================== RENDER ==================
+    res.render("bangchamcong", {
+      month,
+      year,
+      phong,
+      danhSachPhong,
+      days,
+      records,
+    });
 
   } catch (err) {
     console.error("Lỗi bảng chấm công:", err);
-    res.status(500).send("Lỗi server!");
+    res.status(500).send("Lỗi server khi tạo bảng chấm công");
   }
 });
 
