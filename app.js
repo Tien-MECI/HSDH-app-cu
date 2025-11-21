@@ -3301,12 +3301,12 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
             } else if (congNgay > 0.5 && congNgay < 1) {
               // 0.93 công -> V sáng + giờ chiều
               const gioChieu = ((congNgay - 0.5) * 8).toFixed(1);
-              ngayCong[d-1] = ["V", `${gioChieu}h`];
+              ngayCong[d-1] = ["V", `${gioChieu}`];
               tongGioLe += (congNgay - 0.5) * 8; // CỘNG GIỜ LẺ
             } else if (congNgay > 0 && congNgay < 0.5) {
               // Dưới 0.5 công -> chỉ làm buổi sáng
               const gioSang = (congNgay * 8).toFixed(1);
-              ngayCong[d-1] = [`${gioSang}h`, ""];
+              ngayCong[d-1] = [`${gioSang}`, ""];
               tongGioLe += congNgay * 8; // CỘNG GIỜ LẺ
             } else {
               // Công = 0 -> X hoặc L
