@@ -2974,183 +2974,130 @@ export default app;
 //// === TẠO BẢNG CHẤM CÔNG
 app.get("/bangchamcong", async (req, res) => {
   try {
-    console.log("=== BẮT ĐẦU LẤY BẢNG CHẤM CÔNG ===");
+    console.log("=== BẮT ĐẦU BẢNG CHẤM CÔNG ===");
 
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const phong = (req.query.phong || "Tất cả").trim();
 
-    // ================== LẤY DỮ LIỆU ==================
     const [chamCongRes, nhanVienRes] = await Promise.all([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_HC_ID,
-        range: "Cham_cong!A:V",
-      }),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_HC_ID,
-        range: "Nhan_vien!A:AH",
-      }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Cham_cong!A:U" }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Nhan_vien!A:AH" }),
     ]);
 
     const chamCongRows = chamCongRes.data.values || [];
     const nhanVienRows = nhanVienRes.data.values || [];
 
-    // ================== DANH SÁCH PHÒNG ==================
-    const danhSachPhong = [...new Set(
-      nhanVienRows.slice(1).map(r => (r[6] || "").trim()).filter(Boolean)
-    )].sort();
+    // Lấy phòng + nhân viên
+    const danhSachPhong = [...new Set(nhanVienRows.slice(1).map(r => (r[6] || "").trim()).filter(Boolean))].sort();
     danhSachPhong.unshift("Tất cả");
 
-    // ================== NHÂN VIÊN HOẠT ĐỘNG ==================
     const activeStaff = nhanVienRows
-      .filter(r => r && r[33] === "Đang hoạt động")
+      .filter(r => r?.[33] === "Đang hoạt động")
       .map(r => ({
-        maNV: (r[0] || "").trim().toUpperCase(),
+        maNV: (r[0] || "").trim(),  // ◄◄ KHÔNG toUpperCase NỮA !!!
         hoTen: (r[1] || "").trim(),
         phong: (r[6] || "").trim(),
         chucVu: (r[9] || "").trim(),
       }))
       .filter(nv => nv.maNV);
 
-    const staffInPhong = (phong === "Tất cả")
-      ? activeStaff
-      : activeStaff.filter(nv => nv.phong === phong);
+    const staff = phong === "Tất cả" ? activeStaff : activeStaff.filter(s => s.phong === phong);
 
-    console.log(`Nhân viên hiển thị: ${staffInPhong.length}`);
-
-    // ================== NGÀY TRONG THÁNG ==================
+    // Ngày trong tháng
     const numDays = new Date(year, month, 0).getDate();
-    const days = [];
-    for (let i = 1; i <= numDays; i++) {
-      const date = new Date(year, month - 1, i);
-      days.push({ day: i, weekday: date.getDay(), date });
-    }
+    const days = Array.from({length: numDays}, (_, i) => {
+      const d = new Date(year, month - 1, i + 1);
+      return { day: i + 1, weekday: d.getDay(), date: d };
+    });
 
-    // ================== CHỨC VỤ ĐẶC BIỆT (26 công) ==================
-    const specialRoles = [
-      "Chủ tịch", "Tổng giám đốc", "Trưởng phòng kế hoạch", 
-      "Trưởng phòng HCNS", "Quản đốc", "NV kế hoạch dịch vụ", "Trưởng phòng kinh doanh"
-    ];
-
-    // ================== NGÀY LỄ ==================
+    const specialRoles = ["Chủ tịch", "Tổng giám đốc", "Trưởng phòng kế hoạch", "Trưởng phòng HCNS", "Quản đốc", "NV kế hoạch dịch vụ", "Trưởng phòng kinh doanh"];
     const ngayLe = ["01-01", "04-30", "05-01", "09-02"];
 
-    // ================== GOM CHẤM CÔNG – CỘNG DỒN ==================
+    // === GOM CHẤM CÔNG – CHỈ DÙNG r[12] VÀ KHÔNG toUpperCase ===
     const chamCongMap = new Map();
 
     chamCongRows.slice(1).forEach(r => {
-      if (!r || r.length < 13) return;
-
+      if (!r || r.length < 20) return;
       const ngayStr = r[1];
       if (!ngayStr) return;
 
-      const [dStr, mStr, yStr] = ngayStr.split("/");
-      const d = parseInt(dStr, 10);
-      const m = parseInt(mStr, 10);
-      const y = parseInt(yStr, 10);
-      if (isNaN(d) || m !== month || y !== year) return;
+      const [d, m, y] = ngayStr.split("/").map(n => parseInt(n, 10));
+      if (m !== month || y !== year || isNaN(d)) return;
 
-      // Lấy mã NV linh hoạt, tránh lỗi cột lệch
-      let maNV = "";
-      for (let i = 11; i <= 13; i++) {
-        if (r[i]) {
-          maNV = r[i].toString().trim().toUpperCase();
-          if (maNV.length >= 4) break;
-        }
-      }
+      const maNV = (r[12] || "").toString().trim();  // ◄◄ GIỮ NGUYÊN CASE !!!
       if (!maNV) return;
 
       const trangThai = (r[2] || "").trim();
       const congNgay = parseFloat(r[16] || 0) || 0;
-      const tangCa   = parseFloat(r[19] || 0) || 0;
+      const tangCa = parseFloat(r[19] || 0) || 0;
 
       const key = `${maNV}_${d}`;
 
       if (chamCongMap.has(key)) {
-        // ◄◄◄ DÙNG let ĐỂ TRÁNH LỖI const ◄◄◄
-        let existing = chamCongMap.get(key);
-        existing.congNgay += congNgay;
-        existing.tangCa   += tangCa;
+        const ex = chamCongMap.get(key);
+        ex.congNgay += congNgay;
+        ex.tangCa += tangCa;
         if (trangThai.includes("Nghỉ phép") || trangThai.includes("Nghỉ việc riêng")) {
-          existing.trangThai = trangThai;
+          ex.trangThai = trangThai;
         }
       } else {
         chamCongMap.set(key, { trangThai, congNgay, tangCa });
       }
     });
 
-    console.log(`Tổng bản ghi chấm công hợp lệ: ${chamCongMap.size}`);
+    console.log(`Đã gom ${chamCongMap.size} bản ghi chấm công`);
 
-    // ================== XỬ LÝ TỪNG NHÂN VIÊN ==================
-    const records = staffInPhong.map(nv => {
+    // === XỬ LÝ TỪNG NV ===
+    const records = staff.map(nv => {
       const bangCa = Array(numDays).fill(null).map(() => ["", ""]);
       let tongTC = 0;
-      let gioLe  = 0;
+      let gioLe = 0;
 
-      const laDacBiet = specialRoles.some(role => nv.chucVu.includes(role));
-      if (laDacBiet) {
+      if (specialRoles.some(r => nv.chucVu.includes(r))) {
         return { ...nv, ngayCong: bangCa, soNgayCong: "26.0", tongTangCa: "0.0" };
       }
 
-      days.forEach((d, idx) => {
-        const key   = `${nv.maNV}_${d.day}`;
-        const data  = chamCongMap.get(key);
+      days.forEach((d, i) => {
+        const key = `${nv.maNV}_${d.day}`;  // ◄◄ GIỮ NGUYÊN CASE
+        const item = chamCongMap.get(key);
 
-        if (data) {
-          let { trangThai, congNgay, tangCa } = data;
+        if (item) {
+          const { trangThai, congNgay, tangCa } = item;
           tongTC += tangCa;
 
           if (trangThai.includes("Nghỉ phép")) {
-            bangCa[idx] = ["P", "P"];
+            bangCa[i] = ["P", "P"];
           } else if (trangThai.includes("Nghỉ việc riêng")) {
-            bangCa[idx] = ["X", "X"];
+            bangCa[i] = ["X", "X"];
           } else if (congNgay >= 1) {
-            bangCa[idx] = ["V", "V"];
-          } else if (congNgay >= 0.5 && congNgay < 1) {
-            const gioChieu = ((congNgay - 0.5) * 8).toFixed(1) + "h";
-            bangCa[idx] = ["V", gioChieu];
+            bangCa[i] = ["V", "V"];
+          } else if (congNgay > 0.5 && congNgay < 1) {
+            const h = ((congNgay - 0.5) * 8).toFixed(1) + "h";
+            bangCa[i] = ["V", h];
             gioLe += (congNgay - 0.5) * 8;
-          } else if (congNgay > 0 && congNgay < 0.5) {
-            const gioSang = (congNgay * 8).toFixed(1) + "h";
-            bangCa[idx] = [gioSang, ""];
-            gioLe += congNgay * 8;
-          } else if (congNgay === 0.5) {
-            bangCa[idx] = ["V", "X"];
+          } else if (congNgay > 0 && congNgay <= 0.5) {
+            const h = (congNgay * 8).toFixed(1) + "h";
+            bangCa[i] = congNgay === 0.5 ? ["V", "X"] : [h, ""];
+            if (congNgay < 0.5) gioLe += congNgay * 8;
           }
         } else {
-          // Không có chấm công → kiểm tra ngày lễ
-          const full = `${String(month).padStart(2,"0")}-${String(d.day).padStart(2,"0")}`;
-          bangCa[idx] = ngayLe.includes(full) ? ["L", "L"] : ["X", "X"];
+          const dateStr = `${String(month).padStart(2,"0")}-${String(d.day).padStart(2,"0")}`;
+          bangCa[i] = ngayLe.includes(dateStr) ? ["L", "L"] : ["X", "X"];
         }
       });
 
-      // ================== TÍNH TỔNG NGÀY CÔNG ==================
-      const soV = bangCa.flat().filter(c => c === "V").length;
-      const congChinh = soV / 2;
-      const congLe    = gioLe / 8;
-      const tongCong  = (congChinh + congLe).toFixed(1);
+      const soV = bangCa.flat().filter(x => x === "V").length;
+      const tongCong = (soV / 2 + gioLe / 8).toFixed(1);
 
-      return {
-        ...nv,
-        ngayCong: bangCa,
-        soNgayCong: tongCong,
-        tongTangCa: tongTC.toFixed(1),
-      };
+      return { ...nv, ngayCong: bangCa, soNgayCong: tongCong, tongTangCa: tongTC.toFixed(1) };
     });
 
-    // ================== RENDER ==================
-    res.render("bangchamcong", {
-      month,
-      year,
-      phong,
-      danhSachPhong,
-      days,
-      records,
-    });
+    res.render("bangchamcong", { month, year, phong, danhSachPhong, days, records });
 
   } catch (err) {
-    console.error("Lỗi bảng chấm công:", err);
-    res.status(500).send("Lỗi server khi tạo bảng chấm công");
+    console.error("Lỗi:", err);
+    res.status(500).send("Server lỗi!");
   }
 });
 
