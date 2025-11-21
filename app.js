@@ -2978,11 +2978,11 @@ app.get("/bangchamcong", async (req, res) => {
 
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
-    const phong = req.query.phong?.trim() || "Tất cả"; // ⬅️ thêm phòng
+    const phong = req.query.phong?.trim() || "Tất cả";
 
     console.log(`🗓️ Tháng: ${month}, Năm: ${year}, Phòng: ${phong}`);
 
-    // --- Lấy dữ liệu ---
+    // --- Lấy dữ liệu từ Google Sheets ---
     const [chamCongRes, nhanVienRes] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_HC_ID,
@@ -2997,30 +2997,50 @@ app.get("/bangchamcong", async (req, res) => {
     const chamCongRows = chamCongRes.data.values || [];
     const nhanVienRows = nhanVienRes.data.values || [];
 
-    // === Lấy danh sách phòng từ cột G ===
+    // === Danh sách phòng ===
     let danhSachPhong = [...new Set(nhanVienRows.slice(1).map(r => r[6] || ""))];
-    danhSachPhong = danhSachPhong.filter(p => p.trim() !== "");
-    danhSachPhong.sort();
+    danhSachPhong = danhSachPhong.filter(p => p.trim() !== "").sort();
     danhSachPhong.unshift("Tất cả");
 
-    // --- Lọc nhân viên đang hoạt động + lọc theo phòng ---
+    // --- Lọc nhân viên đang hoạt động ---
     let activeStaff = nhanVienRows
       .filter(r => r[33] === "Đang hoạt động") // cột AH
       .map(r => ({
         maNV: r[0],
         hoTen: r[1],
-        phong: r[6],     // ⬅️ cột G
+        phong: r[6],
         nhom: r[8],
         chucVu: r[9],
       }));
 
-    // Nếu chọn phòng khác "Tất cả" → lọc lại
     if (phong !== "Tất cả") {
       activeStaff = activeStaff.filter(nv => nv.phong === phong);
     }
-
     console.log("Số nhân viên sau lọc:", activeStaff.length);
-    // --- Tạo map chấm công (cộng dồn congNgay trong cùng ngày) ---
+
+    // === Tạo mảng ngày trong tháng ===
+    const numDays = new Date(year, month, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= numDays; i++) {
+      const date = new Date(year, month - 1, i);
+      days.push({ day: i, weekday: date.getDay(), date });
+    }
+
+    // === Chức vụ đặc biệt (tự động 26 công) ===
+    const specialRoles = [
+      "Chủ tịch hội đồng quản trị",
+      "Tổng giám đốc",
+      "Trưởng phòng kế hoạch tài chính",
+      "Trưởng phòng HCNS",
+      "Quản đốc",
+      "NV kế hoạch dịch vụ",
+      "Trưởng phòng kinh doanh",
+    ];
+
+    // === Ngày lễ (hiển thị L) ===
+    const ngayLeVN = ["01-01", "04-30", "05-01", "09-02"];
+
+    // === Gom dữ liệu chấm công (cộng dồn nếu có nhiều dòng trong ngày) ===
     const chamCongMap = new Map();
 
     chamCongRows.slice(1).forEach(r => {
@@ -3039,11 +3059,10 @@ app.get("/bangchamcong", async (req, res) => {
 
       if (chamCongMap.has(key)) {
         const existing = chamCongMap.get(key);
-        // Cộng dồn công ngày và tăng ca
         existing.congNgay += congNgay;
         existing.tangCa += tangCa;
-        // Ưu tiên trạng thái đặc biệt
-        if (trangThai === "Nghỉ việc riêng" || trangThai === "Nghỉ phép") {
+        // Ưu tiên trạng thái nghỉ phép/nghỉ riêng
+        if (["Nghỉ việc riêng", "Nghỉ phép"].includes(trangThai)) {
           existing.trangThai = trangThai;
         }
       } else {
@@ -3051,13 +3070,13 @@ app.get("/bangchamcong", async (req, res) => {
       }
     });
 
-    // --- Tổng hợp dữ liệu ---
+    // === Xử lý từng nhân viên ===
     const records = activeStaff.map(nv => {
-      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
+      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]); // [sáng, chiều]
       let tongTangCa = 0;
-      let tongGioLe = 0; // Để tính thêm vào tổng ngày công
+      let tongGioLe = 0; // Để tính công lẻ
 
-      // Chức vụ đặc biệt → auto 26 công
+      // Chức vụ đặc biệt → cố định 26 công
       if (specialRoles.includes(nv.chucVu?.trim())) {
         return {
           ...nv,
@@ -3075,55 +3094,44 @@ app.get("/bangchamcong", async (req, res) => {
           const { trangThai, congNgay, tangCa } = item;
           tongTangCa += tangCa;
 
-          // Trường hợp nghỉ phép / nghỉ riêng: cả ngày
           if (trangThai === "Nghỉ việc riêng") {
             ngayCong[idx] = ["X", "X"];
           } else if (trangThai === "Nghỉ phép") {
             ngayCong[idx] = ["P", "P"];
-          } 
-          // Làm đủ 1 ngày công
-          else if (congNgay >= 1) {
+          } else if (congNgay >= 1) {
             ngayCong[idx] = ["V", "V"];
-          }
-          // Làm nửa ngày chính xác (0.5)
-          else if (congNgay === 0.5) {
+          } else if (congNgay === 0.5) {
             ngayCong[idx] = ["V", "X"];
-          }
-          // Làm ít hơn nửa ngày → ghi giờ vào ca sáng
-          else if (congNgay > 0 && congNgay < 0.5) {
+          } else if (congNgay > 0 && congNgay < 0.5) {
+            // Làm ít hơn 4h → ghi giờ ở ca sáng
             const gio = (congNgay * 8).toFixed(1) + "h";
             ngayCong[idx] = [gio, ""];
-            tongGioLe += congNgay * 8; // giờ lẻ
-          }
-          // Làm hơn nửa ngày nhưng chưa đủ 1 ngày
-          else if (congNgay > 0.5 && congNgay < 1) {
+            tongGioLe += congNgay * 8;
+          } else if (congNgay > 0.5 && congNgay < 1) {
+            // Làm từ 4h đến dưới 8h → V sáng + giờ chiều
             const gioChieu = ((congNgay - 0.5) * 8).toFixed(1) + "h";
             ngayCong[idx] = ["V", gioChieu];
-            tongGioLe += (congNgay - 0.5) * 8; // giờ chiều lẻ
+            tongGioLe += (congNgay - 0.5) * 8;
           }
-          // congNgay === 1 đã xử lý ở trên
+          // Nếu congNgay >= 1 đã xử lý ở trên (hiển thị V V)
         } else {
-          // Không có dữ liệu chấm công
-          const dayStr = `${String(d.date.getMonth() + 1).padStart(2, "0")}-${String(d.date.getDate()).padStart(2, "0")}`;
-          if (ngayLeVN.some(le => dayStr.includes(le))) {
-            ngayCong[idx] = ["L", "L"];
-          } else {
-            ngayCong[idx] = ["X", "X"];
-          }
+          // Không chấm công
+          const dayStr = `${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+          const isLe = ngayLeVN.some(le => dayStr.includes(le));
+          ngayCong[idx] = isLe ? ["L", "L"] : ["X", "X"];
         }
       });
 
-      // === TÍNH TỔNG NGÀY CÔNG CHUẨN ===
-      let soBuoiDayDu = 0; // đếm số "V" (mỗi "V" = 0.5 công)
-
+      // === Tính tổng ngày công chính xác ===
+      let soBuoiV = 0;
       ngayCong.forEach(ca => {
-        if (ca[0] === "V") soBuoiDayDu++;
-        if (ca[1] === "V") soBuoiDayDu++;
+        if (ca[0] === "V") soBuoiV++;
+        if (ca[1] === "V") soBuoiV++;
       });
 
-      const ngayCongTuBuoi = soBuoiDayDu / 2;           // mỗi 2 buổi = 1 ngày công
-      const ngayCongTuGioLe = tongGioLe / 8;            // 8 giờ lẻ = 1 ngày công
-      const tongNgayCong = ngayCongTuBuoi + ngayCongTuGioLe;
+      const congTuBuoi = soBuoiV / 2;           // 2 buổi V = 1 ngày công
+      const congTuGioLe = tongGioLe / 8;        // 8 giờ lẻ = 1 ngày công
+      const tongNgayCong = congTuBuoi + congTuGioLe;
 
       return {
         ...nv,
@@ -3133,7 +3141,15 @@ app.get("/bangchamcong", async (req, res) => {
       };
     });
 
-    res.render("bangchamcong", { month, year, phong, danhSachPhong, days, records });
+    // Render view
+    res.render("bangchamcong", {
+      month,
+      year,
+      phong,
+      danhSachPhong,
+      days,
+      records,
+    });
 
   } catch (err) {
     console.error("❌ Lỗi khi lấy dữ liệu bảng chấm công:", err);
