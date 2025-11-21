@@ -3188,6 +3188,8 @@ app.get("/bangchamcong", async (req, res) => {
 
 import ExcelJS from "exceljs";
 
+import ExcelJS from "exceljs";
+
 app.get("/bangchamcong/export-excel", async (req, res) => {
   try {
     const month = parseInt(req.query.month);
@@ -3201,6 +3203,14 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 
     const chamCongRows = chamCongRes.data.values || [];
     const nhanVienRows = nhanVienRes.data.values || [];
+
+    // --- HÀM PARSE CÔNG NGÀY - GIỐNG NHƯ WEB ---
+    function parseCongNgay(value) {
+      if (!value) return 0;
+      const cleanValue = value.toString().trim().replace(',', '.');
+      const parsed = parseFloat(cleanValue);
+      return isNaN(parsed) ? 0 : parsed;
+    }
 
     // --- Lấy danh sách phòng ---
     let danhSachPhong = [...new Set(nhanVienRows.slice(1).map(r => r[6] || ""))].filter(p => p.trim() !== "");
@@ -3220,14 +3230,17 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 
     if (phong !== "Tất cả") activeStaff = activeStaff.filter(nv => nv.phong === phong);
 
-    // --- Map chấm công ---
+    // --- Map chấm công - SỬA DÙNG HÀM PARSE MỚI ---
     const chamCongMap = new Map();
     chamCongRows.slice(1).forEach(r => {
       const ngayStr = r[1];
       const trangThai = r[2];
       const maNV = r[12];
-      const congNgay = parseFloat(r[16] || 0);
-      const tangCa = parseFloat(r[19] || 0);
+      
+      // SỬA: Dùng hàm parseCongNgay
+      const congNgay = parseCongNgay(r[16]);
+      const tangCa = parseCongNgay(r[19]);
+      
       if (!ngayStr || !maNV) return;
       const [d, m, y] = ngayStr.split("/").map(Number);
       if (m === month && y === year) chamCongMap.set(`${maNV}_${d}`, { trangThai, congNgay, tangCa });
@@ -3248,123 +3261,219 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
       "Trưởng phòng kinh doanh",
     ];
 
-    // --- Tính dữ liệu chấm công ---
+    // --- Tính dữ liệu chấm công - SỬA LOGIC GIỐNG WEB ---
     const records = activeStaff.map(nv => {
       const ngayCong = Array(numDays).fill(null).map(() => ["", ""]);
       let tongTangCa = 0;
+      let tongGioLe = 0; // THÊM: Để tính giờ lẻ
 
-      if (specialRoles.includes(nv.chucVu?.trim())) return { ...nv, ngayCong, soNgayCong: 26, tongTangCa: 0 };
+      // Chức vụ đặc biệt → cố định 26 công
+      if (specialRoles.includes(nv.chucVu?.trim())) {
+        for (let i = 0; i < numDays; i++) {
+          ngayCong[i] = ["V", "V"];
+        }
+        return { 
+          ...nv, 
+          ngayCong, 
+          soNgayCong: 26, 
+          tongTangCa: 0 
+        };
+      }
 
-      for (let d=1; d<=numDays; d++){
+      for (let d = 1; d <= numDays; d++) {
         const key = `${nv.maNV}_${d}`;
         const item = chamCongMap.get(key);
-        if (item){
+        
+        if (item) {
           const { trangThai, congNgay, tangCa } = item;
           tongTangCa += tangCa;
-          if(trangThai==="Nghỉ việc riêng") ngayCong[d-1]=["X","X"];
-          else if(trangThai==="Nghỉ phép") ngayCong[d-1]=["P","P"];
-          else if(congNgay===1) ngayCong[d-1]=["V","V"];
-          else if(congNgay===0.5) ngayCong[d-1]=["V","X"];
-          else if(congNgay>0 && congNgay<0.5) ngayCong[d-1]=[`${(congNgay*8).toFixed(1)}h`,""];
-          else if(congNgay>0.5 && congNgay<1) ngayCong[d-1]=["V",`${((congNgay-0.5)*8).toFixed(1)}h`];
+
+          // Xử lý trạng thái nghỉ trước
+          if (trangThai === "Nghỉ việc riêng") {
+            ngayCong[d-1] = ["X", "X"];
+          } else if (trangThai === "Nghỉ phép") {
+            ngayCong[d-1] = ["P", "P"];
+          } 
+          // Xử lý công ngày - LOGIC GIỐNG WEB
+          else {
+            if (congNgay >= 1) {
+              ngayCong[d-1] = ["V", "V"];
+            } else if (congNgay === 0.5) {
+              ngayCong[d-1] = ["V", "X"];
+            } else if (congNgay > 0.5 && congNgay < 1) {
+              // 0.93 công -> V sáng + giờ chiều
+              const gioChieu = ((congNgay - 0.5) * 8).toFixed(1);
+              ngayCong[d-1] = ["V", `${gioChieu}h`];
+              tongGioLe += (congNgay - 0.5) * 8; // CỘNG GIỜ LẺ
+            } else if (congNgay > 0 && congNgay < 0.5) {
+              // Dưới 0.5 công -> chỉ làm buổi sáng
+              const gioSang = (congNgay * 8).toFixed(1);
+              ngayCong[d-1] = [`${gioSang}h`, ""];
+              tongGioLe += congNgay * 8; // CỘNG GIỜ LẺ
+            } else {
+              // Công = 0 -> X hoặc L
+              const dayStr = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+              if (ngayLeVN.includes(dayStr)) {
+                ngayCong[d-1] = ["L", "L"];
+              } else {
+                ngayCong[d-1] = ["X", "X"];
+              }
+            }
+          }
         } else {
+          // Không chấm công
           const dayStr = `${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          if(ngayLeVN.includes(dayStr)) ngayCong[d-1]=["L","L"];
-          else ngayCong[d-1]=["X","X"];
+          if (ngayLeVN.includes(dayStr)) {
+            ngayCong[d-1] = ["L", "L"];
+          } else {
+            ngayCong[d-1] = ["X", "X"];
+          }
         }
       }
 
-      const soNgayCong = ngayCong.flat().filter(v=>v==="V").length/2;
-      return {...nv, ngayCong, soNgayCong, tongTangCa};
+      // TÍNH SỐ NGÀY CÔNG CHÍNH XÁC - GIỐNG WEB
+      let soBuoiV = 0;
+      ngayCong.forEach(ca => {
+        if (ca[0] === "V") soBuoiV++;
+        if (ca[1] === "V") soBuoiV++;
+      });
+
+      const congTuBuoi = soBuoiV / 2;
+      const congTuGioLe = tongGioLe / 8;
+      const soNgayCong = congTuBuoi + congTuGioLe;
+
+      return {
+        ...nv, 
+        ngayCong, 
+        soNgayCong, 
+        tongTangCa
+      };
     });
 
     // --- Tạo workbook & worksheet ---
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Bang cham cong");
 
-    const totalCols = 4 + numDays*2 + 2; // STT + Mã + Họ + Chức vụ + ngày + soNgay + tangCa
+    const totalCols = 4 + numDays * 2 + 2;
 
     // --- Tiêu đề lớn ---
-    ws.mergeCells(1,1,1,totalCols);
-    const titleCell = ws.getCell(1,1);
+    ws.mergeCells(1, 1, 1, totalCols);
+    const titleCell = ws.getCell(1, 1);
     titleCell.value = "BẢNG CHẤM CÔNG";
-    titleCell.alignment = { horizontal:"center", vertical:"middle" };
-    titleCell.font = { size:16, bold:true };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+    titleCell.font = { size: 16, bold: true };
 
     // --- Thông tin Tháng/Năm/Phòng ---
-    ws.mergeCells(2,1,2,totalCols);
-    const infoCell = ws.getCell(2,1);
+    ws.mergeCells(2, 1, 2, totalCols);
+    const infoCell = ws.getCell(2, 1);
     infoCell.value = `Tháng: ${month} / Năm: ${year} / Phòng: ${phong}`;
-    infoCell.alignment = { horizontal:"center" };
-    infoCell.font = { bold:true };
+    infoCell.alignment = { horizontal: "center" };
+    infoCell.font = { bold: true };
 
     // --- Header 1 ---
-    let headerRow1 = ["STT","Mã NV","Họ tên","Chức vụ"];
-    days.forEach(d=>{ headerRow1.push(`${d}`,"") });
-    headerRow1.push("Số ngày công","Tăng ca");
+    let headerRow1 = ["STT", "Mã NV", "Họ tên", "Chức vụ"];
+    days.forEach(d => { headerRow1.push(`${d}`, "") });
+    headerRow1.push("Số ngày công", "Tăng ca");
     const hr1 = ws.addRow(headerRow1);
 
     // --- Header 2 ---
-    let headerRow2 = ["","","",""];
-    days.forEach(()=>{ headerRow2.push("S","C") });
-    headerRow2.push("","");
+    let headerRow2 = ["", "", "", ""];
+    days.forEach(() => { headerRow2.push("S", "C") });
+    headerRow2.push("", "");
 
     const hr2 = ws.addRow(headerRow2);
 
     // Gộp ô cho header
-    ws.mergeCells(hr1.number,1,hr2.number,1);
-    ws.mergeCells(hr1.number,2,hr2.number,2);
-    ws.mergeCells(hr1.number,3,hr2.number,3);
-    ws.mergeCells(hr1.number,4,hr2.number,4);
+    ws.mergeCells(hr1.number, 1, hr2.number, 1);
+    ws.mergeCells(hr1.number, 2, hr2.number, 2);
+    ws.mergeCells(hr1.number, 3, hr2.number, 3);
+    ws.mergeCells(hr1.number, 4, hr2.number, 4);
 
     let colIdx = 5;
-    days.forEach(()=>{
-      ws.mergeCells(hr1.number,colIdx,hr1.number,colIdx+1);
-      colIdx+=2;
+    days.forEach(() => {
+      ws.mergeCells(hr1.number, colIdx, hr1.number, colIdx + 1);
+      colIdx += 2;
     });
-    ws.mergeCells(hr1.number,colIdx,hr2.number,colIdx);
-    ws.mergeCells(hr1.number,colIdx+1,hr2.number,colIdx+1);
+    ws.mergeCells(hr1.number, colIdx, hr2.number, colIdx);
+    ws.mergeCells(hr1.number, colIdx + 1, hr2.number, colIdx + 1);
 
     // --- Style cho header ---
-    [hr1,hr2].forEach(r=>{
-      r.eachCell(cell=>{
-        cell.font = { bold:true };
-        cell.alignment = { horizontal:"center", vertical:"middle" };
+    [hr1, hr2].forEach(r => {
+      r.eachCell(cell => {
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top:{style:"thin"}, left:{style:"thin"}, bottom:{style:"thin"}, right:{style:"thin"}
+          top: { style: "thin" }, 
+          left: { style: "thin" }, 
+          bottom: { style: "thin" }, 
+          right: { style: "thin" }
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE6E6E6' }
         };
       });
     });
 
     // --- Ghi dữ liệu + màu sắc + border ---
-    records.forEach((r, idx)=>{
-      const row = [idx+1, r.maNV, r.hoTen, r.chucVu];
-      r.ngayCong.forEach(ca=>row.push(ca[0],ca[1]));
-      row.push(r.soNgayCong,r.tongTangCa);
+    records.forEach((r, idx) => {
+      const row = [idx + 1, r.maNV, r.hoTen, r.chucVu];
+      r.ngayCong.forEach(ca => row.push(ca[0], ca[1]));
+      row.push(r.soNgayCong.toFixed(1), r.tongTangCa.toFixed(1)); // SỬA: Format số
       const rw = ws.addRow(row);
 
-      rw.eachCell({ includeEmpty:true }, (cell, colNumber)=>{
+      rw.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.border = {
-          top:{style:"thin"}, left:{style:"thin"}, bottom:{style:"thin"}, right:{style:"thin"}
+          top: { style: "thin" }, 
+          left: { style: "thin" }, 
+          bottom: { style: "thin" }, 
+          right: { style: "thin" }
         };
-        // Màu theo giá trị
-        if(typeof cell.value==="string"){
-          if(cell.value==="V") cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFFFF'}};
-          else if(cell.value==="X") cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF8B3'}};
-          else if(cell.value==="L") cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC999'}};
-          else if(cell.value==="P") cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFA3D2FF'}};
+        
+        // Màu theo giá trị - GIỐNG WEB
+        if (typeof cell.value === "string") {
+          if (cell.value === "V") {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+          } else if (cell.value === "X") {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8B3' } };
+          } else if (cell.value === "L") {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC999' } };
+          } else if (cell.value === "P") {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA3D2FF' } };
+          } else if (cell.value.includes('h')) {
+            // Ô có giờ (ví dụ: "3.4h") - màu xanh nhạt
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E8' } };
+          }
+        }
+        
+        // Căn giữa cho các cột ngày
+        if (colNumber >= 5 && colNumber <= 4 + numDays * 2) {
+          cell.alignment = { horizontal: "center" };
         }
       });
     });
 
+    // --- Căn chỉnh cột ---
+    ws.columns.forEach(column => {
+      let maxLength = 0;
+      column.eachCell({ includeEmpty: true }, cell => {
+        const length = cell.value ? cell.value.toString().length : 0;
+        if (length > maxLength) {
+          maxLength = length;
+        }
+      });
+      column.width = Math.max(8, maxLength + 2);
+    });
+
     // --- Xuất file ---
-    res.setHeader("Content-Disposition",`attachment; filename="bang_cham_cong_${month}_${year}.xlsx"`);
-    res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="bang_cham_cong_${month}_${year}.xlsx"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     await wb.xlsx.write(res);
     res.end();
 
-  } catch(err){
-    console.error("EXPORT EXCEL ERROR:",err);
+  } catch (err) {
+    console.error("EXPORT EXCEL ERROR:", err);
     res.status(500).send("Lỗi khi xuất Excel!");
   }
 });
