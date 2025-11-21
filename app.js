@@ -3123,15 +3123,15 @@ app.get("/bangchamcong", async (req, res) => {
             } else if (congNgay > 0.5 && congNgay < 1) {
               // 0.93 công -> V sáng + giờ chiều
               const gioChieu = ((congNgay - 0.5) * 8).toFixed(1);
-              ngayCong[idx] = ["V", `${gioChieu}h`];
+              ngayCong[idx] = ["V", `${gioChieu}`];
               tongGioLe += (congNgay - 0.5) * 8;
-              console.log(`  -> V ${gioChieu}h (${congNgay} công = V sáng + ${gioChieu}h chiều)`);
+              console.log(`  -> V ${gioChieu} (${congNgay} công = V sáng + ${gioChieu} chiều)`);
             } else if (congNgay > 0 && congNgay < 0.5) {
               // Dưới 0.5 công -> chỉ làm buổi sáng
               const gioSang = (congNgay * 8).toFixed(1);
-              ngayCong[idx] = [`${gioSang}h`, ""];
+              ngayCong[idx] = [`${gioSang}`, ""];
               tongGioLe += congNgay * 8;
-              console.log(`  -> ${gioSang}h "" (${congNgay} công = ${gioSang}h sáng)`);
+              console.log(`  -> ${gioSang} "" (${congNgay} công = ${gioSang} sáng)`);
             } else if (congNgay === 0) {
               // Công = 0 -> X hoặc L
               const dayStr = `${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
