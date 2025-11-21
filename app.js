@@ -3071,94 +3071,106 @@ app.get("/bangchamcong", async (req, res) => {
     });
 
     // === Xử lý từng nhân viên - SỬA LOGIC XỬ LÝ CÔNG ===
+    // === Xử lý từng nhân viên - SỬA LOGIC XỬ LÝ CÔNG ===
     const records = activeStaff.map(nv => {
-      const ngayCong = Array(numDays).fill(null).map(() => ["", ""]); // [sáng, chiều]
-      let tongTangCa = 0;
-      let tongGioLe = 0; // Để tính công lẻ
+  const ngayCong = Array(numDays).fill(null).map(() => ["", ""]); // [sáng, chiều]
+  let tongTangCa = 0;
+  let tongGioLe = 0; // Để tính công lẻ
 
-      // Chức vụ đặc biệt → cố định 26 công
-      if (specialRoles.includes(nv.chucVu?.trim())) {
-        // Fill tất cả các ngày với V
-        for (let i = 0; i < numDays; i++) {
-          ngayCong[i] = ["V", "V"];
-        }
-        return {
-          ...nv,
-          ngayCong,
-          soNgayCong: "26.0",
-          tongTangCa: "0.0",
-        };
-      }
+  // Chức vụ đặc biệt → cố định 26 công
+  if (specialRoles.includes(nv.chucVu?.trim())) {
+    // Fill tất cả các ngày với V
+    for (let i = 0; i < numDays; i++) {
+      ngayCong[i] = ["V", "V"];
+    }
+    return {
+      ...nv,
+      ngayCong,
+      soNgayCong: "26.0",
+      tongTangCa: "0.0",
+    };
+  }
 
-      days.forEach((d, idx) => {
-        const key = `${nv.maNV}_${d.day}`;
-        const item = chamCongMap.get(key);
+  days.forEach((d, idx) => {
+    const key = `${nv.maNV}_${d.day}`;
+    const item = chamCongMap.get(key);
 
-        if (item) {
-          const { trangThai, congNgay, tangCa } = item;
-          tongTangCa += tangCa;
+    if (item) {
+      const { trangThai, congNgay, tangCa } = item;
+      tongTangCa += tangCa;
 
-          // Xử lý trạng thái nghỉ trước
-          if (trangThai === "Nghỉ việc riêng") {
-            ngayCong[idx] = ["X", "X"];
-          } else if (trangThai === "Nghỉ phép") {
-            ngayCong[idx] = ["P", "P"];
-          } 
-          // Xử lý công ngày - LOGIC MỚI CHÍNH XÁC HƠN
-          else {
-            // Làm tròn công ngày để tránh lỗi số thập phân
-            const roundedCongNgay = Math.round(congNgay * 100) / 100;
-            
-            if (roundedCongNgay >= 1) {
-              ngayCong[idx] = ["V", "V"];
-            } else if (roundedCongNgay === 0.5) {
-              ngayCong[idx] = ["V", "X"];
-            } else if (roundedCongNgay > 0.5 && roundedCongNgay < 1) {
-              // Ví dụ: 0.93 công -> V sáng + giờ chiều
-              const gioChieu = ((roundedCongNgay - 0.5) * 8).toFixed(1) + "h";
-              ngayCong[idx] = ["V", gioChieu];
-              tongGioLe += (roundedCongNgay - 0.5) * 8;
-            } else if (roundedCongNgay > 0 && roundedCongNgay < 0.5) {
-              // Ví dụ: 0.25 công -> chỉ làm buổi sáng
-              const gioSang = (roundedCongNgay * 8).toFixed(1) + "h";
-              ngayCong[idx] = [gioSang, ""];
-              tongGioLe += roundedCongNgay * 8;
-            } else if (roundedCongNgay === 0) {
-              // Công = 0 -> X (trừ khi có lý do khác)
-              const dayStr = `${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
-              const isLe = ngayLeVN.some(le => dayStr.includes(le));
-              ngayCong[idx] = isLe ? ["L", "L"] : ["X", "X"];
-            } else {
-              // Trường hợp khác -> X
-              ngayCong[idx] = ["X", "X"];
-            }
-          }
-        } else {
-          // Không chấm công
+      // Xử lý trạng thái nghỉ trước
+      if (trangThai === "Nghỉ việc riêng") {
+        ngayCong[idx] = ["X", "X"];
+      } else if (trangThai === "Nghỉ phép") {
+        ngayCong[idx] = ["P", "P"];
+      } 
+      // Xử lý công ngày - LOGIC SỬA QUAN TRỌNG
+      else {
+        // KHÔNG làm tròn, dùng giá trị gốc để tính toán chính xác
+        const exactCongNgay = congNgay;
+        
+        console.log(`DEBUG: ${nv.maNV} ngày ${d.day} - congNgay=${exactCongNgay}`);
+
+        if (exactCongNgay >= 1) {
+          ngayCong[idx] = ["V", "V"];
+          console.log(`  -> V V (đủ ngày)`);
+        } else if (exactCongNgay === 0.5) {
+          ngayCong[idx] = ["V", "X"];
+          console.log(`  -> V X (nửa ngày)`);
+        } else if (exactCongNgay > 0.5 && exactCongNgay < 1) {
+          // QUAN TRỌNG: 0.93 công -> V sáng + giờ chiều
+          const gioChieu = ((exactCongNgay - 0.5) * 8).toFixed(1);
+          ngayCong[idx] = ["V", `${gioChieu}h`];
+          tongGioLe += (exactCongNgay - 0.5) * 8;
+          console.log(`  -> V ${gioChieu}h (${exactCongNgay} công = V sáng + ${gioChieu}h chiều)`);
+        } else if (exactCongNgay > 0 && exactCongNgay < 0.5) {
+          // Dưới 0.5 công -> chỉ làm buổi sáng
+          const gioSang = (exactCongNgay * 8).toFixed(1);
+          ngayCong[idx] = [`${gioSang}h`, ""];
+          tongGioLe += exactCongNgay * 8;
+          console.log(`  -> ${gioSang}h "" (${exactCongNgay} công = ${gioSang}h sáng)`);
+        } else if (exactCongNgay === 0) {
+          // Công = 0 -> X hoặc L
           const dayStr = `${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
           const isLe = ngayLeVN.some(le => dayStr.includes(le));
           ngayCong[idx] = isLe ? ["L", "L"] : ["X", "X"];
+          console.log(`  -> ${isLe ? "L L" : "X X"} (0 công)`);
+        } else {
+          // Trường hợp khác -> X
+          ngayCong[idx] = ["X", "X"];
+          console.log(`  -> X X (trường hợp đặc biệt: ${exactCongNgay} công)`);
         }
-      });
+      }
+    } else {
+      // Không chấm công
+      const dayStr = `${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+      const isLe = ngayLeVN.some(le => dayStr.includes(le));
+      ngayCong[idx] = isLe ? ["L", "L"] : ["X", "X"];
+      console.log(`DEBUG: ${nv.maNV} ngày ${d.day} - không chấm công -> ${isLe ? "L L" : "X X"}`);
+    }
+  });
 
-      // === Tính tổng ngày công chính xác ===
-      let soBuoiV = 0;
-      ngayCong.forEach(ca => {
-        if (ca[0] === "V") soBuoiV++;
-        if (ca[1] === "V") soBuoiV++;
-      });
+  // === Tính tổng ngày công chính xác ===
+  let soBuoiV = 0;
+  ngayCong.forEach(ca => {
+    if (ca[0] === "V") soBuoiV++;
+    if (ca[1] === "V") soBuoiV++;
+  });
 
-      const congTuBuoi = soBuoiV / 2;           // 2 buổi V = 1 ngày công
-      const congTuGioLe = tongGioLe / 8;        // 8 giờ lẻ = 1 ngày công
-      const tongNgayCong = congTuBuoi + congTuGioLe;
+  const congTuBuoi = soBuoiV / 2;           // 2 buổi V = 1 ngày công
+  const congTuGioLe = tongGioLe / 8;        // 8 giờ lẻ = 1 ngày công
+  const tongNgayCong = congTuBuoi + congTuGioLe;
 
-      return {
-        ...nv,
-        ngayCong,
-        soNgayCong: tongNgayCong.toFixed(1),
-        tongTangCa: tongTangCa.toFixed(1),
-      };
-    });
+  console.log(`TỔNG KẾT ${nv.maNV}: ${soBuoiV} buổi V = ${congTuBuoi} công, ${tongGioLe.toFixed(1)} giờ lẻ = ${congTuGioLe.toFixed(1)} công -> Tổng: ${tongNgayCong.toFixed(1)} công`);
+
+  return {
+    ...nv,
+    ngayCong,
+    soNgayCong: tongNgayCong.toFixed(1),
+    tongTangCa: tongTangCa.toFixed(1),
+  };
+});
 
     // === DEBUG: In thông tin để kiểm tra ===
     console.log("=== DEBUG THÔNG TIN CHẤM CÔNG ===");
