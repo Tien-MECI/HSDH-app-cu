@@ -3188,8 +3188,6 @@ app.get("/bangchamcong", async (req, res) => {
 
 import ExcelJS from "exceljs";
 
-import ExcelJS from "exceljs";
-
 app.get("/bangchamcong/export-excel", async (req, res) => {
   try {
     const month = parseInt(req.query.month);
