@@ -209,6 +209,32 @@
 
     <!-- BẢNG TỔNG HỢP -->
     <h2 class="center-text yellow bold" style="font-size: 14px;">BẢNG TỔNG HỢP VẬT TƯ - SẢN PHẨM CHO ĐƠN HÀNG DÀNH CHO KHO</h2>
+    
+    <%
+        // PHÂN LOẠI VẬT TƯ: VTP vs KHÔNG PHẢI VTP
+        let summaryDataC_normal = [];
+        let summaryDataC_VTP = [];
+        
+        if (summaryDataC && Array.isArray(summaryDataC)) {
+            summaryDataC.forEach(item => {
+                if (item.code && typeof item.code === 'string' && item.code.substring(0, 3) === "VTP") {
+                    summaryDataC_VTP.push(item);
+                } else {
+                    summaryDataC_normal.push(item);
+                }
+            });
+        }
+        
+        // TÍNH TỔNG SỐ DÒNG ĐỂ ĐÁNH STT
+        let totalRows = 0;
+        if (summaryDataB) totalRows += summaryDataB.length;
+        totalRows += summaryDataC_normal.length;
+        totalRows += summaryDataC_VTP.length;
+        
+        // BIẾN ĐẾM STT
+        let currentSTT = 1;
+    %>
+    
     <table style="font-size: 12px;">
         <thead>
             <tr>
@@ -221,19 +247,36 @@
             </tr>
         </thead>
         <tbody>
-            <% summaryDataB.forEach(item => { %>
+            <!-- HIỂN THỊ SẢN PHẨM (summaryDataB) -->
+            <% if (summaryDataB) { %>
+                <% summaryDataB.forEach(item => { %>
+                    <tr>
+                        <td><%= currentSTT++ %></td>
+                        <td><%= item.code %></td>
+                        <td></td>
+                        <td><%= item.desc %></td>
+                        <td><%= item.sum %></td>
+                        <td><%= item.DVT %></td>
+                    </tr>
+                <% }) %>
+            <% } %>
+            
+            <!-- HIỂN THỊ VẬT TƯ THÔNG THƯỜNG (KHÔNG PHẢI VTP) -->
+            <% summaryDataC_normal.forEach(item => { %>
                 <tr>
-                    <td><%= item.stt %></td>
-                    <td><%= item.code %></td>
+                    <td><%= currentSTT++ %></td>
                     <td></td>
+                    <td><%= item.code %></td>
                     <td><%= item.desc %></td>
                     <td><%= item.sum %></td>
                     <td><%= item.DVT %></td>
                 </tr>
             <% }) %>
-            <% summaryDataC.forEach(item => { %>
+            
+            <!-- HIỂN THỊ VẬT TƯ VTP (CUỐI CÙNG) -->
+            <% summaryDataC_VTP.forEach(item => { %>
                 <tr>
-                    <td><%= item.stt %></td>
+                    <td><%= currentSTT++ %></td>
                     <td></td>
                     <td><%= item.code %></td>
                     <td><%= item.desc %></td>
