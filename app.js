@@ -2422,15 +2422,15 @@ app.get("/dashboard", async (req, res) => {
       const nv = salesByNV[nhanVien];
       nv.tongDon++;
       // tổng doanh số không tính đơn hủy
-      if (!trangThai.includes("hủy")) nv.tongDoanhSo += giaTriDonHang;
+      if (!trangThai.includes("Hủy đơn")) nv.tongDoanhSo += giaTriDonHang;
 
-      if (trangThai.includes("kế hoạch sản xuất") || trangThai.includes("chốt")) {
+      if (trangThai.includes("Kế hoạch sản xuất") || trangThai.includes("chốt")) {
         nv.soDonChot++; nv.doanhSoChot += giaTriDonHang; soDonChot++;
       }
-      if (trangThai.includes("hủy")) {
+      if (trangThai.includes("Hủy đơn")) {
         nv.soDonHuy++; nv.doanhSoHuy += giaTriDonHang; soDonHuy++;
       }
-      if (baoGia.includes("báo giá")) nv.soBaoGia++;
+      if (baoGia.includes("Báo giá")) nv.soBaoGia++;
     });
 
     const sales = Object.values(salesByNV).sort((a,b) => b.tongDoanhSo - a.tongDoanhSo);
