@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Báo cáo lộ trình</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: center;
+        }
+        .no-border {
+            border: none !important;
+        }
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            padding-bottom: 10px;
+        }
+        .sub-header-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            padding-bottom: 10px;
+        }
+        .footer-sign {
+            width: 100%;
+            margin-top: 40px;
+            text-align: center;
+        }
+        .footer-sign td {
+            border: none;
+            font-weight: bold;
+            padding-top: 40px;
+        }
+    </style>
+</head>
+
+<body>
+
+<% if (formOnly) { %>
+
+    <h2>BÁO CÁO LỘ TRÌNH XE</h2>
+
+    <form method="GET" action="/baocaolotrinh">
+        <label>Tháng:</label>
+        <input type="number" name="thang" min="1" max="12" required>
+        <label>Năm:</label>
+        <input type="number" name="nam" min="2000" required>
+        <button type="submit">Lấy báo cáo</button>
+    </form>
+
+<% } else { %>
+
+    <!-- LOGO + TÊN CÔNG TY -->
+    <table class="no-border">
+        <tr class="no-border">
+            <td class="no-border" style="width: 15%;">
+                <% if (logoBase64) { %>
+                    <img src="<%= logoBase64 %>" style="height:70px;">
+                <% } %>
+            </td>
+
+            <td class="no-border header-title">
+                CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI
+            </td>
+
+            <td class="no-border" style="width: 15%;"></td>
+        </tr>
+
+        <tr class="no-border">
+            <td class="no-border"></td>
+            <td class="no-border sub-header-title">BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= thang %></td>
+            <td class="no-border"></td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- === 3 DÒNG GIÁ TRỊ ĐẦU === -->
+    <table>
+        <tr>
+            <td>Giá khấu hao phương tiện</td>
+            <% data.forEach(row => { %>
+                <td><%= row.khauHao.toLocaleString() %></td>
+            <% }) %>
+        </tr>
+
+        <tr>
+            <td>Giá nhiên liệu trong tháng</td>
+            <% data.forEach(row => { %>
+                <td><%= donGiaTrungBinh.toLocaleString() %></td>
+            <% }) %>
+        </tr>
+
+        <tr>
+            <td>Định mức nhiên liệu/100km</td>
+            <% data.forEach(row => { %>
+                <td><%= row.dinhMuc %></td>
+            <% }) %>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- === BẢNG CHÍNH === -->
+    <table>
+        <tr>
+            <th>Tên người sử dụng xe</th>
+            <% data.forEach(row => { %>
+                <th><%= row.tenXe %></th>
+            <% }) %>
+
+            <th>Tổng số km sử dụng cá nhân</th>
+            <th>Tiền khấu hao</th>
+            <th>Tiền nhiên liệu</th>
+            <th>Thành tiền</th>
+            <th>Tiền Epass</th>
+            <th>Tổng thành tiền</th>
+            <th>Ký xác nhận</th>
+        </tr>
+
+        <!-- Dòng giá trị -->
+        <tr>
+            <td>MC mượn QM</td>
+
+            <% data.forEach(row => { %>
+                <td><%= row.tongKm %></td>
+            <% }) %>
+
+            <td><%= data.reduce((s, r) => s + r.tongKm, 0) %></td>
+
+            <td><%= data.reduce((s, r) => s + r.tienKhau, 0).toLocaleString() %></td>
+            <td><%= data.reduce((s, r) => s + r.tienNhienLieu, 0).toLocaleString() %></td>
+            <td><%= data.reduce((s, r) => s + r.thanhTien, 0).toLocaleString() %></td>
+            <td><%= data.reduce((s, r) => s + r.epass, 0).toLocaleString() %></td>
+            <td><%= data.reduce((s, r) => s + r.tongThanhTien, 0).toLocaleString() %></td>
+
+            <td></td>
+        </tr>
+    </table>
+
+    <!-- FOOTER -->
+    <table class="footer-sign">
+        <tr>
+            <td>Ban giám đốc</td>
+            <td>PT kế toán</td>
+            <td>Người lập phiếu</td>
+        </tr>
+    </table>
+
+<% } %>
+
+</body>
+</html>

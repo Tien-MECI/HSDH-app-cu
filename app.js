@@ -77,7 +77,7 @@ app.set("views", path.join(__dirname, "views"));
 
 
 
-// === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
+ // === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
 async function loadDriveImageBase64(fileId) {
   try {
     // 1️⃣ Lấy metadata để biết mimeType
@@ -3473,6 +3473,191 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
   } catch (err) {
     console.error("EXPORT EXCEL ERROR:", err);
     res.status(500).send("Lỗi khi xuất Excel!");
+  }
+});
+
+
+//Lộ trình xe
+
+app.get("/baocaolotrinh", async (req, res) => {
+  try {
+    const { thang, nam } = req.query;
+
+    // Nếu CHƯA nhập tháng/năm → hiển thị form
+    if (!thang || !nam) {
+      return res.render("baocaolotrinh", { 
+        formOnly: true, 
+        data: null,
+        logoBase64: "",
+        watermarkBase64: ""
+      });
+    }
+
+    // Convert tháng/năm thành dạng "mm/yyyy"
+    const targetMonth = String(thang).padStart(2, "0") + "/" + String(nam);
+
+    // -----------------------------------------------
+    // 1) LOAD LOGO + WATERMARK
+    // -----------------------------------------------
+    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+    // -----------------------------------------------
+    // 2) LẤY DỮ LIỆU 3 SHEET
+    // -----------------------------------------------
+    const loTrinhReq = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_HC_ID,
+      range: "Lo_trinh_xe!A:Z",
+    });
+    const dataPhuongTienReq = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_HC_ID,
+      range: "Data_phuong_tien!A:Z",
+    });
+    const xangDauReq = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_HC_ID,
+      range: "QL_ly_xang_dau!A:Z",
+    });
+
+    const loTrinh = loTrinhReq.data.values || [];
+    const dataPhuongTien = dataPhuongTienReq.data.values || [];
+    const xangDau = xangDauReq.data.values || [];
+
+    // Bỏ dòng tiêu đề
+    loTrinh.shift();
+    dataPhuongTien.shift();
+    xangDau.shift();
+
+    // -----------------------------------------------
+    // 3) TÍNH ĐƠN GIÁ NHIÊN LIỆU TRUNG BÌNH
+    // -----------------------------------------------
+
+    const dsGia = [];
+
+    xangDau.forEach(r => {
+      const ngayDo = r[13]; // cột 14
+      const tenXe = r[6]; // cột 7
+      const dongia = parseFloat(r[10]); // cột 11
+
+      if (!ngayDo || !dongia) return;
+
+      // check tháng/năm
+      if (ngayDo.endsWith(targetMonth)) {
+        dsGia.push(dongia);
+      }
+    });
+
+    const donGiaTrungBinh = dsGia.length > 0 ?
+      dsGia.reduce((a, b) => a + b, 0) / dsGia.length :
+      20000; // fallback nếu không có dữ liệu
+
+    // -----------------------------------------------
+    // 4) LẤY ĐỊNH MỨC + KHẤU HAO TỪ DATA_PHUONG_TIEN
+    // -----------------------------------------------
+
+    const xeInfo = {};
+    dataPhuongTien.forEach(r => {
+      const tenXe = r[1];     // cột 2
+      const dinhMuc = parseFloat(r[5]); // cột 6
+      const khauHao = parseFloat(r[6]); // cột 7
+      
+      if (!tenXe) return;
+      
+      xeInfo[tenXe] = {
+        dinhMuc: dinhMuc || 0,
+        khauHao: khauHao || 0
+      };
+    });
+
+    // -----------------------------------------------
+    // 5) LỌC DỮ LIỆU LỘ TRÌNH THEO THÁNG/NĂM
+    // -----------------------------------------------
+
+    const baoCaoXeQM = {}; // theo Xe Quang Minh
+    const baoCaoCaNhan = {}; // theo xe dùng cá nhân
+
+    const tongEpass = {}; // tổng tiền epass theo xe
+
+    loTrinh.forEach(row => {
+      const ngay = row[0];   // cột 1
+      const tenXe = row[1];  // cột 2
+      const mucDich = row[6]; // cột 7
+      const soKm = parseFloat(row[8]) || 0; // cột 9
+      const nguoiSd = row[11]; // cột 12
+      const epass = parseFloat(row[13]) || 0; // cột 14
+
+      // Check tháng/năm
+      if (!ngay.endsWith(targetMonth)) return;
+      if (!tenXe) return;
+
+      // Cộng tiền epass
+      tongEpass[tenXe] = (tongEpass[tenXe] || 0) + epass;
+
+      // Nếu xe Quang Minh
+      if (tenXe === "Xe Quang Minh") {
+        baoCaoXeQM[tenXe] = (baoCaoXeQM[tenXe] || 0) + soKm;
+      }
+
+      // Nếu dùng cá nhân
+      if (mucDich === "Cá nhân") {
+        baoCaoCaNhan[tenXe] = (baoCaoCaNhan[tenXe] || 0) + soKm;
+      }
+    });
+
+    // -----------------------------------------------
+    // 6) GHÉP TẤT CẢ THÀNH DỮ LIỆU BẢNG CUỐI
+    // -----------------------------------------------
+    const finalRows = [];
+
+    const allXe = new Set([
+      ...Object.keys(baoCaoXeQM),
+      ...Object.keys(baoCaoCaNhan)
+    ]);
+
+    allXe.forEach(tenXe => {
+      const kmQM = baoCaoXeQM[tenXe] || 0;
+      const kmCN = baoCaoCaNhan[tenXe] || 0;
+      const tongKm = kmQM + kmCN;
+
+      const dinhMuc = xeInfo[tenXe]?.dinhMuc || 0;
+      const khauHao = xeInfo[tenXe]?.khauHao || 0;
+      const epass = tongEpass[tenXe] || 0;
+
+      const tienKhau = tongKm * khauHao;
+      const tienNhienLieu = (tongKm * dinhMuc / 100) * donGiaTrungBinh;
+      const thanhTien = tienKhau + tienNhienLieu;
+      const tongThanhTien = thanhTien + epass;
+
+      finalRows.push({
+        tenXe,
+        kmQM,
+        kmCN,
+        tongKm,
+        dinhMuc,
+        khauHao,
+        tienKhau,
+        tienNhienLieu,
+        thanhTien,
+        epass,
+        tongThanhTien
+      });
+    });
+
+    // -----------------------------------------------
+    // Render ra EJS
+    // -----------------------------------------------
+    res.render("baocaolotrinh", {
+      formOnly: false,
+      data: finalRows,
+      donGiaTrungBinh,
+      logoBase64,
+      watermarkBase64,
+      thang,
+      nam
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Lỗi xử lý báo cáo");
   }
 });
 
