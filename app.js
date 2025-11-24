@@ -2395,42 +2395,58 @@ app.get("/dashboard", async (req, res) => {
     let soDonChot = 0, soDonHuy = 0;
 
     donHangRows.forEach(row => {
-      const nhanVien = row[2] || "Không xác định";    // C
-      const ngayDuyetRaw = row[49] || "";             // AX
-      const trangThai = String(row[43] || "").trim().toLowerCase(); // AR
-      const baoGia = String(row[46] || "").trim().toLowerCase();    // AU
-      const giaTriDonHang = parseMoney(row[64]);      // BM
+  const nhanVien = row[2] || "Không xác định";         // C
+  const ngayDuyetRaw = row[49] || "";                  // AX
+  const trangThai = String(row[43] || "").trim().toLowerCase(); // AR (lowercase)
+  const baoGia = String(row[46] || "").trim().toLowerCase();    // AU (lowercase)
+  const giaTriDonHang = parseMoney(row[64]);           // BM
 
-      const ngayObj = parseSheetDate(ngayDuyetRaw);
-      if (startMonth && endMonth && ngayObj) {
-        const th = ngayObj.getMonth() + 1;
-        if (th < startMonth || th > endMonth) return;
-      }
+  const ngayObj = parseSheetDate(ngayDuyetRaw);
+  if (startMonth && endMonth && ngayObj) {
+    const th = ngayObj.getMonth() + 1;
+    if (th < startMonth || th > endMonth) return;
+  }
 
-      if (!salesByNV[nhanVien]) {
-        salesByNV[nhanVien] = {
-          nhanVien,
-          tongDoanhSo: 0,
-          tongDon: 0,
-          soDonChot: 0,
-          doanhSoChot: 0,
-          soDonHuy: 0,
-          doanhSoHuy: 0,
-          soBaoGia: 0
-        };
-      }
-      const nv = salesByNV[nhanVien];
-      nv.tongDon++;
-      // tổng doanh số không tính đơn hủy
-      if (!trangThai.includes("Hủy đơn")) nv.tongDoanhSo += giaTriDonHang;
+  // Tạo record nếu NV chưa có
+  if (!salesByNV[nhanVien]) {
+    salesByNV[nhanVien] = {
+      nhanVien,
+      tongDoanhSo: 0,
+      tongDon: 0,
+      soDonChot: 0,
+      doanhSoChot: 0,
+      soDonHuy: 0,
+      doanhSoHuy: 0,
+      soBaoGia: 0
+    };
+  }
 
-      if (trangThai.includes("Kế hoạch sản xuất") || trangThai.includes("chốt")) {
-        nv.soDonChot++; nv.doanhSoChot += giaTriDonHang; soDonChot++;
-      }
-      if (trangThai.includes("Hủy đơn")) {
-        nv.soDonHuy++; nv.doanhSoHuy += giaTriDonHang; soDonHuy++;
-      }
-      if (baoGia.includes("Báo giá")) nv.soBaoGia++;
+  const nv = salesByNV[nhanVien];
+  nv.tongDon++;
+
+  // ❌ Đơn hủy thì không cộng vào tổng doanh số
+  if (!trangThai.includes("hủy đơn")) {
+    nv.tongDoanhSo += giaTriDonHang;
+  }
+
+  // ✅ Đơn chốt hoặc kế hoạch sản xuất
+  if (trangThai.includes("kế hoạch sản xuất") || trangThai.includes("chốt")) {
+    nv.soDonChot++;
+    nv.doanhSoChot += giaTriDonHang;
+    soDonChot++;
+  }
+
+  // ❌ Đơn hủy
+  if (trangThai.includes("hủy đơn")) {
+    nv.soDonHuy++;
+    nv.doanhSoHuy += giaTriDonHang;
+    soDonHuy++;
+  }
+
+  // 📌 Báo giá
+  if (baoGia.includes("báo giá")) {
+    nv.soBaoGia++;
+  }
     });
 
     const sales = Object.values(salesByNV).sort((a,b) => b.tongDoanhSo - a.tongDoanhSo);
