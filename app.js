@@ -2397,9 +2397,11 @@ app.get("/dashboard", async (req, res) => {
     donHangRows.forEach(row => {
   const nhanVien = row[2] || "Không xác định";        // C
   const ngayDuyetRaw = row[49] || "";                 // AX
-  const trangThai = String(row[43] || "").trim();     // AR (giữ nguyên không đổi lowercase)
+  const trangThai = String(row[43] || "").trim();     // AR (giữ nguyên)
   const baoGia = String(row[46] || "").trim();        // AU (giữ nguyên)
-  const giaTriDonHang = parseMoney(row[64]);          // BM
+  // parseMoney trả về number (nếu NaN thì xem như 0)
+  let giaTriDonHang = parseMoney(row[64]);
+  if (!isFinite(giaTriDonHang)) giaTriDonHang = 0;
 
   const ngayObj = parseSheetDate(ngayDuyetRaw);
   if (startMonth && endMonth && ngayObj) {
@@ -2407,14 +2409,19 @@ app.get("/dashboard", async (req, res) => {
     if (th < startMonth || th > endMonth) return;
   }
 
-  // Tạo record nếu NV chưa có
   if (!salesByNV[nhanVien]) {
     salesByNV[nhanVien] = {
       nhanVien,
-      tongDoanhSo: 0,     // Chỉ cộng nếu trạng thái = KH SX hoặc Sửa bản vẽ
+      // 2 tổng phụ theo yêu cầu
+      doanhSoKeHoach: 0,     // trạng thái === "Kế hoạch sản xuất"
+      doanhSoSuaBanVe: 0,    // trạng thái === "Sửa bản vẽ"
+      // tổng hợp = 1 + 2 (luôn cập nhật)
+      tongDoanhSo: 0,
+
+      // counters
       tongDon: 0,
-      soDonChot: 0,
-      doanhSoChot: 0,
+      soDonChot: 0,       // count "Kế hoạch sản xuất"
+      doanhSoChot: 0,     // giá trị chốt (tương tự doanhSoKeHoach)
       soDonHuy: 0,
       doanhSoHuy: 0,
       soBaoGia: 0
@@ -2424,41 +2431,35 @@ app.get("/dashboard", async (req, res) => {
   const nv = salesByNV[nhanVien];
   nv.tongDon++;
 
-  // =============================
-  // 1️⃣ TÍNH TỔNG DOANH SỐ ĐÚNG NHẤT
-  // =============================
-  if (
-    trangThai === "Kế hoạch sản xuất" ||
-    trangThai === "Sửa bản vẽ"
-  ) {
-    nv.tongDoanhSo += giaTriDonHang;
-  }
-
-  // =============================
-  // 2️⃣ TÍNH ĐƠN CHỐT
-  // =============================
+  // Nếu trạng thái chính xác là "Kế hoạch sản xuất"
   if (trangThai === "Kế hoạch sản xuất") {
+    nv.doanhSoKeHoach += giaTriDonHang;
     nv.soDonChot++;
     nv.doanhSoChot += giaTriDonHang;
     soDonChot++;
   }
 
-  // =============================
-  // 3️⃣ TÍNH ĐƠN HỦY
-  // =============================
+  // Nếu trạng thái chính xác là "Sửa bản vẽ"
+  if (trangThai === "Sửa bản vẽ") {
+    nv.doanhSoSuaBanVe += giaTriDonHang;
+  }
+
+  // Đơn hủy
   if (trangThai === "Hủy đơn") {
     nv.soDonHuy++;
     nv.doanhSoHuy += giaTriDonHang;
     soDonHuy++;
   }
 
-  // =============================
-  // 4️⃣ TÍNH BÁO GIÁ
-  // =============================
+  // Báo giá (so sánh chính xác)
   if (baoGia === "Báo giá") {
     nv.soBaoGia++;
   }
+
+  // Cập nhật tổng hợp = tổng 2 loại (kehoach + suabanve)
+  nv.tongDoanhSo = (nv.doanhSoKeHoach || 0) + (nv.doanhSoSuaBanVe || 0);
 });
+
 
 
     const sales = Object.values(salesByNV).sort((a,b) => b.tongDoanhSo - a.tongDoanhSo);
