@@ -3513,24 +3513,6 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 //Lộ trình xe
 
 // Thêm route báo cáo lộ trình xe
-app.get("/baocaolotrinh", async (req, res) => {
-  try {
-    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    
-    res.render("baocaolotrinh", {
-      title: "Báo cáo lộ trình xe",
-      logo: logoBase64,
-      data: null,
-      month: null,
-      year: null,
-      error: null
-    });
-  } catch (error) {
-    console.error("❌ Lỗi khi tải form báo cáo lộ trình:", error);
-    res.status(500).send("Lỗi khi tải form báo cáo lộ trình");
-  }
-});
-
 app.post("/baocaolotrinh", async (req, res) => {
   try {
     // Kiểm tra req.body tồn tại
