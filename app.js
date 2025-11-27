@@ -3512,14 +3512,8 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 
 //Lộ trình xe
 
-// Thêm route báo cáo lộ trình xe
 app.post("/baocaolotrinh", async (req, res) => {
   try {
-    // Kiểm tra req.body tồn tại
-    if (!req.body) {
-      throw new Error("Không nhận được dữ liệu form");
-    }
-
     const { month, year } = req.body;
     
     if (!month || !year) {
@@ -3528,8 +3522,8 @@ app.post("/baocaolotrinh", async (req, res) => {
         title: "Báo cáo lộ trình xe",
         logo: logoBase64,
         data: null,
-        month: null,
-        year: null,
+        month,
+        year,
         error: "Vui lòng chọn tháng và năm"
       });
     }
@@ -3548,17 +3542,12 @@ app.post("/baocaolotrinh", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
     const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    
-    // Xử lý an toàn khi req.body có thể undefined
-    const monthValue = req.body ? req.body.month : null;
-    const yearValue = req.body ? req.body.year : null;
-    
     res.render("baocaolotrinh", {
       title: "Báo cáo lộ trình xe",
       logo: logoBase64,
       data: null,
-      month: monthValue,
-      year: yearValue,
+      month: req.body.month,
+      year: req.body.year,
       error: "Lỗi khi tạo báo cáo: " + error.message
     });
   }
@@ -3574,8 +3563,11 @@ async function calculateAverageFuelPrice(month, year) {
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) {
+      console.log("❌ Không có dữ liệu trong sheet QL_ly_xang_dau");
       return 20000; // Giá mặc định nếu không có dữ liệu
     }
+
+    console.log(`📊 Dữ liệu QL_ly_xang_dau: ${rows.length} dòng`);
 
     let totalPrice = 0;
     let count = 0;
@@ -3603,10 +3595,13 @@ async function calculateAverageFuelPrice(month, year) {
           if (!isNaN(donGia) && donGia > 0) {
             totalPrice += donGia;
             count++;
+            console.log(`⛽ Dữ liệu giá nhiên liệu: Ngày ${ngayDo}, Đơn giá: ${donGia}`);
           }
         }
       }
     }
+
+    console.log(`⛽ Tổng số mẫu giá nhiên liệu: ${count}, Tổng giá: ${totalPrice}`);
 
     return count > 0 ? Math.round(totalPrice / count) : 20000;
   } catch (error) {
@@ -3618,6 +3613,8 @@ async function calculateAverageFuelPrice(month, year) {
 // Hàm chính tạo báo cáo lộ trình
 async function generateBaoCaoLoTrinh(month, year) {
   try {
+    console.log(`🔍 Bắt đầu tạo báo cáo cho tháng ${month}/${year}`);
+
     // Lấy dữ liệu từ các sheet
     const [loTrinhData, dataPhuongTien, averageFuelPrice] = await Promise.all([
       getSheetData(SPREADSHEET_HC_ID, "Lo_trinh_xe"),
@@ -3625,9 +3622,14 @@ async function generateBaoCaoLoTrinh(month, year) {
       calculateAverageFuelPrice(month, year)
     ]);
 
+    console.log(`📊 Dữ liệu lộ trình: ${loTrinhData ? loTrinhData.length : 0} dòng`);
+    console.log(`📊 Dữ liệu phương tiện: ${dataPhuongTien ? dataPhuongTien.length : 0} dòng`);
+    console.log(`⛽ Giá nhiên liệu trung bình: ${averageFuelPrice}`);
+
     // Tạo map cho thông tin phương tiện
     const vehicleInfoMap = new Map();
     if (dataPhuongTien && dataPhuongTien.length > 1) {
+      console.log("📋 Dữ liệu Data_phuong_tien:");
       for (let i = 1; i < dataPhuongTien.length; i++) {
         const row = dataPhuongTien[i];
         if (row.length >= 8) {
@@ -3639,8 +3641,11 @@ async function generateBaoCaoLoTrinh(month, year) {
             dinhMucNhienLieu,
             dinhMucKhauHao
           });
+          console.log(`🚗 Phương tiện: ${tenXe}, Định mức nhiên liệu: ${dinhMucNhienLieu}, Khấu hao: ${dinhMucKhauHao}`);
         }
       }
+    } else {
+      console.log("❌ Không có dữ liệu phương tiện");
     }
 
     // Xử lý dữ liệu lộ trình
@@ -3648,6 +3653,9 @@ async function generateBaoCaoLoTrinh(month, year) {
     let totalKmCaNhan = 0;
 
     if (loTrinhData && loTrinhData.length > 1) {
+      console.log("📋 Dữ liệu Lo_trinh_xe phù hợp:");
+      let matchedCount = 0;
+      
       for (let i = 1; i < loTrinhData.length; i++) {
         const row = loTrinhData[i];
         if (row.length < 15) continue;
@@ -3670,6 +3678,8 @@ async function generateBaoCaoLoTrinh(month, year) {
             const nguoiSuDung = row[11]; // Cột 12
             const tienEpass = parseFloat(row[13]) || 0; // Cột 14
 
+            console.log(`✅ Dữ liệu khớp: ${tenXe}, Mục đích: ${mucDich}, Số km: ${soKm}`);
+
             // Chỉ xử lý nếu là "Xe Quang Minh" hoặc "Cá nhân"
             if (tenXe === "Xe Quang Minh" || mucDich === "Cá nhân") {
               if (!vehicleReport.has(tenXe)) {
@@ -3684,11 +3694,18 @@ async function generateBaoCaoLoTrinh(month, year) {
               current.totalKm += soKm;
               current.totalEpass += tienEpass;
               totalKmCaNhan += soKm;
+              matchedCount++;
             }
           }
         }
       }
+      console.log(`📈 Tổng số bản ghi phù hợp: ${matchedCount}`);
+    } else {
+      console.log("❌ Không có dữ liệu lộ trình");
     }
+
+    console.log(`📈 Tổng số xe trong báo cáo: ${vehicleReport.size}`);
+    console.log(`📈 Tổng km cá nhân: ${totalKmCaNhan}`);
 
     // Tính toán chi phí cho từng xe
     const reportItems = [];
@@ -3722,6 +3739,8 @@ async function generateBaoCaoLoTrinh(month, year) {
       totalThanhTien += thanhTien;
       totalTienEpass += data.totalEpass;
       totalTongThanhTien += tongThanhTien;
+
+      console.log(`💰 Tính toán cho ${tenXe}: KM=${data.totalKm}, Khấu hao=${tienKhauHao}, Nhiên liệu=${tienNhienLieu}`);
     }
 
     return {
@@ -3752,7 +3771,12 @@ async function getSheetData(spreadsheetId, sheetName) {
       spreadsheetId,
       range: sheetName,
     });
-    return response.data.values || [];
+    const values = response.data.values || [];
+    console.log(`📋 Sheet ${sheetName}: ${values.length} dòng`);
+    if (values.length > 0) {
+      console.log(`📋 Header: ${values[0].join(' | ')}`);
+    }
+    return values;
   } catch (error) {
     console.error(`❌ Lỗi khi lấy dữ liệu từ sheet ${sheetName}:`, error);
     return [];
