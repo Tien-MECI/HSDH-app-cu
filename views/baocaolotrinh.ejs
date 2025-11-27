@@ -2,29 +2,32 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Báo cáo lộ trình xe tháng <%= data.thang %>/<%= data.nam %></title>
+  <title>Báo cáo lộ trình xe tháng <%= data ? data.thang : '' %>/<%= data ? data.nam : '' %></title>
   <style>
-    body { font-family: "Times New Roman", serif; margin: 25px; position: relative; font-size: 13px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { border: 1px solid #000; padding: 5px 3px; text-align: center; vertical-align: middle; line-height: 1.4; }
-    th { background-color: #d9d9d9; font-weight: bold; }
-    .logo { height: 70px; }
-    .title { font-weight: bold; font-size: 22px; color: #c00; margin: 5px 0; }
-    .watermark { position: absolute; top: 48%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); opacity: 0.07; z-index: -1; }
-    .watermark img { width: 1000px; }
+    body { font-family: "Times New Roman", serif; margin: 20px; position: relative; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; word-wrap:break-word; }
+    th, td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
+    th { background-color: #e9f0fb; font-weight: bold; }
+    .logo { height: 65px; }
+    .title { font-weight: bold; font-size: 18px; color: #c00; }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); opacity: 0.06; z-index: -1; pointer-events:none; }
+    .watermark img { width: 900px; }
     .bold { font-weight: bold; }
     .text-left { text-align: left !important; padding-left: 8px; }
-    .small { font-size: 11px; }
-    .footer { margin-top: 80px; display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
+    .small { font-size: 11px; line-height: 1.2; text-align: left; padding-left:6px; }
+    .footer { margin-top: 50px; display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
+    .col-vehicle { white-space: nowrap; }
+    /* make two columns per vehicle (MC mượn QM / Cá nhân) */
+    .vehicle-cell { width: 6%; }
   </style>
 </head>
 <body>
 
 <% if (!data) { %>
-  <div style="text-align:center; margin-top:120px;">
-    <h2>Chọn tháng/năm để xem báo cáo</h2>
+  <div style="text-align:center; margin-top:100px;">
+    <h2>Chọn tháng/năm để xem báo cáo lộ trình xe</h2>
     <form method="GET">
-      <select name="thang" required><% for(let i=1;i<=12;i++) { %><option value="<%=i%>"><%=i%> tháng</option><% } %></select>
+      <select name="thang" required><% for(let i=1;i<=12;i++){ %><option value="<%=i%>"><%=i%> tháng</option><% } %></select>
       <input type="number" name="nam" value="<%= new Date().getFullYear() %>" min="2020" required style="width:80px;">
       <button type="submit" style="padding:8px 20px; margin-left:10px;">Xem báo cáo</button>
     </form>
@@ -32,7 +35,7 @@
 <% } else { %>
 
   <% if (watermark) { %>
-    <div class="watermark"><img src="<%= watermark %>" /></div>
+    <div class="watermark"><img src="<%= watermark %>" alt="watermark" /></div>
   <% } %>
 
   <div style="text-align:center; margin-bottom:10px;">
@@ -41,109 +44,215 @@
     <h2>BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= data.thang %>/<%= data.nam %></h2>
   </div>
 
+  <%
+    // ========= PREPARE helper data (run in EJS render time on server) =========
+    // data.xeArray: array các xe với fields:
+    //  tenXe, dinhMucNL, dinhMucKH, loaiNhienLieu, kmQuangMinh, kmCaNhan, nguoiSD_CaNhan (Set), tienEpass, userKmMap (optional)
+    // data.donGiaTB: đơn giá nhiên liệu trung bình
+    // data.userEpass: optional object mapping user->epass (server có thể gửi nếu muốn)
+    // We'll build danhSachNguoi: list người dùng cá nhân (từ nguoiSD_CaNhan) + 'MECI sử dụng' nếu cần.
+  %>
+
+  <%
+    // chuyển Set thành Array nếu cần
+    data.xeArray.forEach(x => {
+      if (x && x.nguoiSD_CaNhan && typeof x.nguoiSD_CaNhan.forEach === 'function' && !Array.isArray(x.nguoiSD_CaNhan)) {
+        x._nguoiSDArr = Array.from(x.nguoiSD_CaNhan);
+      } else {
+        x._nguoiSDArr = x && x.nguoiSD_CaNhan ? (Array.isArray(x.nguoiSD_CaNhan) ? x.nguoiSD_CaNhan : []) : [];
+      }
+      // ensure userKmMap exists (optional): if server provided object or Map, normalize to plain object
+      if (x.userKmMap && typeof x.userKmMap === 'object' && !(x.userKmMap instanceof Map)) {
+        x._userKmMap = x.userKmMap;
+      } else if (x.userKmMap instanceof Map) {
+        x._userKmMap = {};
+        for (let [k,v] of x.userKmMap) x._userKmMap[k]=v;
+      } else {
+        x._userKmMap = {};
+      }
+    });
+
+    // build set of users from all xe._nguoiSDArr
+    const userSet = new Set();
+    data.xeArray.forEach(x => {
+      x._nguoiSDArr.forEach(u => { if (u) userSet.add(u); });
+    });
+
+    // if Xe Quang Minh has kmQuangMinh > 0, add MECI sử dụng user row
+    let hasQM = false;
+    const xeQuangMinh = data.xeArray.find(x => (x.tenXe || '').trim().toLowerCase() === 'xe quang minh');
+    if (xeQuangMinh && (parseFloat(xeQuangMinh.kmQuangMinh) || 0) > 0) {
+      hasQM = true;
+      userSet.add('MECI sử dụng');
+    }
+
+    const danhSachNguoi = Array.from(userSet);
+    // sort danhSachNguoi to make MECI cuối cùng (optional)
+    danhSachNguoi.sort((a,b) => {
+      if (a === 'MECI sử dụng') return 1;
+      if (b === 'MECI sử dụng') return -1;
+      return a.localeCompare(b,'vi');
+    });
+  %>
+
   <table>
     <thead>
-      <!-- Dòng 1: Giá khấu hao -->
+      <!-- Row 1 main headers -->
       <tr>
-        <th rowspan="2">Tên người<br>sử dụng xe</th>
-        <th rowspan="2">Định mức<br>nhiên liệu<br>/100km</th>
-        <% data.xeArray.forEach(xe => { %>
-          <th colspan="1" class="small">
-            Giá khấu hao phương tiện<br>
-            Lấy theo tên xe ở bảng data_phuong_tien cột số 7
+        <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
+        <th rowspan="4" style="width:6%;">Định mức<br/>nhiên liệu<br/>(/100km)</th>
+
+        <% data.xeArray.forEach(function(xe){ %>
+          <th colspan="2" style="background:#fff; border-bottom:none; padding:6px;">
+            <div class="small">
+              Giá khấu hao phương tiện: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+              Loại nhiên liệu: <%= (xe.loaiNhienLieu || 'DO') %><br>
+              Giá nhiên liệu tháng: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
+            </div>
           </th>
-        <% }) %>
-        <th rowspan="2">Tổng số km<br>sử dụng<br>cá nhân</th>
-        <th rowspan="2">Tiền<br>khấu hao</th>
-        <th rowspan="2">Tiền<br>nhiên liệu</th>
-        <th rowspan="2">Thành tiền</th>
-        <th rowspan="2">Tiền<br>Epass</th>
-        <th rowspan="2">Tổng<br>thành tiền</th>
-        <th rowspan="2">Ký xác nhận</th>
+        <% }); %>
+
+        <th rowspan="4" style="width:7%;">Tổng số km<br/>sử dụng<br/>cá nhân</th>
+        <th rowspan="4" style="width:7%;">Tiền<br/>Khấu hao</th>
+        <th rowspan="4" style="width:7%;">Tiền<br/>nhiên liệu</th>
+        <th rowspan="4" style="width:7%;">Thành tiền</th>
+        <th rowspan="4" style="width:7%;">Tiền<br/>Epass</th>
+        <th rowspan="4" style="width:7%;">Tổng<br/>thành tiền</th>
+        <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
       </tr>
 
-      <!-- Dòng 2: Giá nhiên liệu + Định mức + Loại nhiên liệu -->
+      <!-- Row 2: vehicle names (spanning two columns) -->
       <tr>
-        <% data.xeArray.forEach(xe => { %>
-          <th class="small">
-            Giá nhiên liệu trong tháng<br>
-            Lấy giá trung bình của code tính và ghi vào<br><br>
-            Định mức nhiên liệu/100km<br>
-            Lấy theo tên xe ở bảng data_phuong_tien cột số 6<br><br>
-            Loại nhiên liệu<br>
-            Lấy theo tên xe ở bảng data_phuong_tien cột số 5
-          </th>
-        <% }) %>
+        <% data.xeArray.forEach(function(xe){ %>
+          <th colspan="2" style="font-weight:bold; font-size:14px;"><%= xe.tenXe %></th>
+        <% }); %>
       </tr>
 
-      <!-- Dòng 3: Tên xe -->
+      <!-- Row 3: MC mượn QM / Cá nhân labels for each vehicle -->
       <tr>
-        <th></th>
-        <th></th>
-        <% data.xeArray.forEach(xe => { %>
-          <th><%= xe.tenXe %></th>
-        <% }) %>
-        <th colspan="6"></th>
+        <% data.xeArray.forEach(function(){ %>
+          <th class="small">MC mượn QM</th>
+          <th class="small">Cá nhân</th>
+        <% }); %>
+      </tr>
+
+      <!-- Row 4: Định mức nhiên liệu hiển thị (lấy từ first vehicle dinhMucNL as example per column - but show per vehicle below) -->
+      <tr>
+        <th class="small"> <!-- empty header for name col alignment --> </th>
+        <th class="small"><!-- empty for global Dinh muc label --> </th>
+        <% data.xeArray.forEach(function(xe){ %>
+          <th class="small"><%= xe.dinhMucNL ? xe.dinhMucNL : '' %></th>
+          <th class="small"><%= xe.loaiNhienLieu || '' %></th>
+        <% }); %>
+        <!-- these columns are spanned from above, so no extra headers here -->
       </tr>
     </thead>
 
     <tbody>
-      <!-- Dòng người sử dụng cá nhân -->
+      <!-- Now build one row per user -->
       <% 
-        const nguoiCaNhan = {};
-        data.xeArray.forEach(xe => {
-          Array.from(xe.nguoiSD_CaNhan).forEach(name => {
-            nguoiCaNhan[name] = nguoiCaNhan[name] || { xe: [], km: 0 };
-            nguoiCaNhan[name].xe.push(xe.tenXe);
-            nguoiCaNhan[name].km += xe.kmCaNhan;
-          });
-        });
+        // helper function (inside EJS) to get km of a user on a vehicle:
+        function kmForUserOnVehicle(xe, user) {
+          // 1) if user === 'MECI sử dụng' and xe has kmQuangMinh, return that for Xe Quang Minh only
+          if (user === 'MECI sử dụng') {
+            if ((xe.tenXe || '').trim().toLowerCase() === 'xe quang minh') {
+              return Number(xe.kmQuangMinh) || 0;
+            }
+            return 0;
+          }
+          // 2) if xe._userKmMap contains mapping, use it
+          if (xe._userKmMap && typeof xe._userKmMap === 'object' && xe._userKmMap[user] != null) {
+            return Number(xe._userKmMap[user]) || 0;
+          }
+          // 3) if xe._nguoiSDArr contains exactly one user and equals this user, give all kmCaNhan to them
+          if (Array.isArray(xe._nguoiSDArr) && xe._nguoiSDArr.length === 1 && xe._nguoiSDArr[0] === user) {
+            return Number(xe.kmCaNhan) || 0;
+          }
+          // 4) if xe._nguoiSDArr contains user but we don't have per-user km, we cannot split accurately -> leave blank (0)
+          if (Array.isArray(xe._nguoiSDArr) && xe._nguoiSDArr.includes(user)) {
+            // no accurate split info — choose to leave 0 (so you don't overassign),
+            // but you could also distribute equally: Math.round(xe.kmCaNhan / xe._nguoiSDArr.length)
+            // We'll try equal split as fallback to give user visible numbers:
+            if (Number(xe.kmCaNhan) && xe._nguoiSDArr.length > 0) {
+              return Math.round(Number(xe.kmCaNhan) / xe._nguoiSDArr.length);
+            }
+            return 0;
+          }
+          return 0;
+        }
       %>
 
-      <% Object.keys(nguoiCaNhan).forEach((ten, idx) => { %>
+      <% for (let i = 0; i < danhSachNguoi.length; i++) { 
+           const user = danhSachNguoi[i];
+           // compute per-vehicle km cells and totals per user
+           let totalKmUser = 0;
+           let totalKhauHao_user = 0;
+           let totalNhienLieu_user = 0;
+           let totalEpass_user = (data.userEpass && data.userEpass[user]) ? Number(data.userEpass[user]) : 0;
+      %>
         <tr>
-          <td class="text-left bold" rowspan="1"><%= ten %></td>
-          <% if (idx === 0) { %>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold">
-              <%= data.xeArray.length > 0 ? data.xeArray[0].dinhMucNL : 0 %>
-            </td>
-          <% } %>
-          <% data.xeArray.forEach(xe => { %>
-            <td>
-              <% if (xe.nguoiSD_CaNhan.has(ten)) { %>
-                <%= xe.kmCaNhan.toLocaleString() %>
-              <% } %>
-            </td>
-          <% }) %>
-          <% if (idx === 0) { %>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold">
-              <%= data.tongKmCaNhan.toLocaleString() %>
-            </td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold"><%= data.tongTienKhauHao.toLocaleString() %></td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold"><%= data.tongTienNhienLieu.toLocaleString() %></td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold"><%= data.tongThanhTien.toLocaleString() %></td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold"><%= data.tongEpass.toLocaleString() %></td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>" class="bold"><%= data.tongCuoi.toLocaleString() %></td>
-            <td rowspan="<%= Object.keys(nguoiCaNhan).length + (data.coXeQuangMinh ? 2 : 1) %>"></td>
-          <% } %>
-        </tr>
-      <% }) %>
+          <td class="text-left"><%= user %></td>
+          <!-- For the global Định mức nhiên liệu column we could show blank or a representative value (left blank) -->
+          <td></td>
 
-      <!-- Dòng Xe Quang Minh (nếu có) -->
-      <% if (data.coXeQuangMinh) { %>
-        <tr>
-          <td class="text-left small">
-            Nếu Xe Quang Minh có số km sử dụng thì tạo hàng này và ghi tên người là MECI sử dụng
-          </td>
-          <% data.xeArray.forEach(xe => { %>
-            <td>
-              <% if (xe.tenXe === 'Xe Quang Minh') { %>
-                <%= xe.kmQuangMinh.toLocaleString() %>
-              <% } %>
-            </td>
-          <% }) %>
+          <% data.xeArray.forEach(function(xe){
+              const km = kmForUserOnVehicle(xe, user) || 0;
+              // compute money for this user on this vehicle
+              const khauhao = Math.round(km * (Number(xe.dinhMucKH) || 0));
+              const nhienlieu = Math.round((km * (Number(xe.dinhMucNL) || 0) / 100) * (Number(data.donGiaTB) || 0));
+              // accumulate totals in EJS scope variables for current user
+              totalKmUser += km;
+              totalKhauHao_user += khauhao;
+              totalNhienLieu_user += nhienlieu;
+          %>
+            <!-- MC mượn QM cell: show km only if this user is MECI sử dụng and xe is Xe Quang Minh -->
+            <td class="vehicle-cell"><%= (user === 'MECI sử dụng' && (xe.tenXe || '').trim().toLowerCase() === 'xe quang minh') ? (km ? km.toLocaleString() : '') : '' %></td>
+            <!-- Cá nhân cell: show km for normal users (including MECI if we consider them personal) -->
+            <td class="vehicle-cell"><%= (user !== 'MECI sử dụng') ? (km ? km.toLocaleString() : '') : '' %></td>
+          <% }); /* end foreach xe */ %>
+
+          <td class="bold"><%= totalKmUser ? totalKmUser.toLocaleString() : '' %></td>
+          <td class="bold"><%= totalKhauHao_user ? totalKhauHao_user.toLocaleString() : '' %></td>
+          <td class="bold"><%= totalNhienLieu_user ? totalNhienLieu_user.toLocaleString() : '' %></td>
+          <td class="bold"><%= (totalKhauHao_user + totalNhienLieu_user) ? (totalKhauHao_user + totalNhienLieu_user).toLocaleString() : '' %></td>
+          <td class="bold"><%= totalEpass_user ? totalEpass_user.toLocaleString() : '' %></td>
+          <td class="bold"><%= ( (totalKhauHao_user + totalNhienLieu_user) + totalEpass_user ) ? ( (totalKhauHao_user + totalNhienLieu_user) + totalEpass_user ).toLocaleString() : '' %></td>
+          <td></td>
         </tr>
       <% } %>
+
+      <!-- Optional final summary row (totals across all users) -->
+      <%
+        // compute grand totals
+        let grandKm = 0, grandKh = 0, grandNl = 0, grandEpass = 0;
+        // We will re-iterate users to sum (cheap)
+        for (let ui=0; ui<danhSachNguoi.length; ui++) {
+          const u = danhSachNguoi[ui];
+          let totKm=0, totKh=0, totNl=0, totEp= (data.userEpass && data.userEpass[u]) ? Number(data.userEpass[u]) : 0;
+          data.xeArray.forEach(function(xe){
+            const k = kmForUserOnVehicle(xe,u) || 0;
+            totKm += k;
+            totKh += Math.round(k * (Number(xe.dinhMucKH) || 0));
+            totNl += Math.round((k * (Number(xe.dinhMucNL) || 0) / 100) * (Number(data.donGiaTB) || 0));
+          });
+          grandKm += totKm; grandKh += totKh; grandNl += totNl; grandEpass += totEp;
+        }
+      %>
+      <tr>
+        <td class="text-left bold">Tổng</td>
+        <td></td>
+        <% data.xeArray.forEach(function(xe){ %>
+          <td></td><td></td>
+        <% }); %>
+        <td class="bold"><%= grandKm ? grandKm.toLocaleString() : '' %></td>
+        <td class="bold"><%= grandKh ? grandKh.toLocaleString() : '' %></td>
+        <td class="bold"><%= grandNl ? grandNl.toLocaleString() : '' %></td>
+        <td class="bold"><%= (grandKh + grandNl) ? (grandKh + grandNl).toLocaleString() : '' %></td>
+        <td class="bold"><%= grandEpass ? grandEpass.toLocaleString() : '' %></td>
+        <td class="bold"><%= (grandKh + grandNl + grandEpass) ? (grandKh + grandNl + grandEpass).toLocaleString() : '' %></td>
+        <td></td>
+      </tr>
+
     </tbody>
   </table>
 
@@ -154,5 +263,6 @@
   </div>
 
 <% } %>
+
 </body>
 </html>
