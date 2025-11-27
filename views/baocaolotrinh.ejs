@@ -2,164 +2,277 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Báo cáo lộ trình</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: Arial, sans-serif;
             font-size: 14px;
+            line-height: 1.4;
+            color: #000;
         }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 13px;
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
-        th, td {
-            border: 1px solid #000;
-            padding: 4px 6px;
+        
+        .header {
             text-align: center;
+            margin-bottom: 20px;
         }
-        .no-border {
-            border: none !important;
+        
+        .logo {
+            max-height: 80px;
+            margin-bottom: 10px;
         }
-        .header-title {
-            font-size: 20px;
+        
+        .title {
+            font-size: 18px;
             font-weight: bold;
-            text-align: center;
-            padding-bottom: 10px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
         }
-        .sub-header-title {
-            font-size: 16px;
+        
+        .form-section {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 120px;
             font-weight: bold;
-            text-align: center;
-            padding-bottom: 10px;
         }
-        .footer-sign {
-            width: 100%;
-            margin-top: 40px;
-            text-align: center;
+        
+        input, select, button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
         }
-        .footer-sign td {
+        
+        button {
+            background: #4CAF50;
+            color: white;
             border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        
+        .report-table th,
+        .report-table td {
+            border: 1px solid #000;
+            padding: 6px 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .report-table th {
+            background-color: #f0f0f0;
             font-weight: bold;
-            padding-top: 40px;
+        }
+        
+        .text-left {
+            text-align: left;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background-color: #e8f4fd;
+        }
+        
+        .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            text-align: center;
+            width: 30%;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            padding-top: 5px;
+        }
+        
+        .error {
+            color: red;
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+            font-style: italic;
         }
     </style>
 </head>
-
 <body>
+    <div class="container">
+        <!-- Header với logo -->
+        <div class="header">
+            <% if (logo) { %>
+                <img src="<%= logo %>" alt="Logo" class="logo">
+            <% } %>
+            <div class="title">BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= month || '...' %></div>
+        </div>
 
-<% if (formOnly) { %>
+        <!-- Form chọn tháng/năm -->
+        <div class="form-section">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="month">Tháng:</label>
+                    <select id="month" name="month" required>
+                        <option value="">Chọn tháng</option>
+                        <% for(let i = 1; i <= 12; i++) { %>
+                            <option value="<%= i %>" <%= month == i ? 'selected' : '' %>>Tháng <%= i %></option>
+                        <% } %>
+                    </select>
+                    
+                    <label for="year" style="margin-left: 20px;">Năm:</label>
+                    <select id="year" name="year" required>
+                        <option value="">Chọn năm</option>
+                        <% for(let i = 2020; i <= 2030; i++) { %>
+                            <option value="<%= i %>" <%= year == i ? 'selected' : '' %>>Năm <%= i %></option>
+                        <% } %>
+                    </select>
+                    
+                    <button type="submit">Lấy báo cáo</button>
+                </div>
+            </form>
+        </div>
 
-    <h2>BÁO CÁO LỘ TRÌNH XE</h2>
+        <!-- Hiển thị lỗi -->
+        <% if (error) { %>
+            <div class="error"><%= error %></div>
+        <% } %>
 
-    <form method="GET" action="/baocaolotrinh">
-        <label>Tháng:</label>
-        <input type="number" name="thang" min="1" max="12" required>
-        <label>Năm:</label>
-        <input type="number" name="nam" min="2000" required>
-        <button type="submit">Lấy báo cáo</button>
-    </form>
+        <!-- Bảng báo cáo -->
+        <% if (data) { %>
+            <table class="report-table">
+                <!-- Dòng 1: Giá khấu hao phương tiện -->
+                <tr>
+                    <td class="text-left" style="width: 200px;">Giá khấu hao phương tiện</td>
+                    <% data.reportItems.forEach(item => { %>
+                        <td><%= item.dinhMucKhauHao.toLocaleString('vi-VN') %></td>
+                    <% }); %>
+                    <!-- Thêm cột trống cho đủ 7 cột như mẫu -->
+                    <% for(let i = data.reportItems.length; i < 7; i++) { %>
+                        <td></td>
+                    <% } %>
+                </tr>
+                
+                <!-- Dòng 2: Giá nhiên liệu trong tháng -->
+                <tr>
+                    <td class="text-left">Giá nhiên liệu trong tháng</td>
+                    <% data.reportItems.forEach(item => { %>
+                        <td><%= item.averageFuelPrice.toLocaleString('vi-VN') %></td>
+                    <% }); %>
+                    <% for(let i = data.reportItems.length; i < 7; i++) { %>
+                        <td></td>
+                    <% } %>
+                </tr>
+                
+                <!-- Dòng 3: Định mức nhiên liệu/100km -->
+                <tr>
+                    <td class="text-left">Định mức nhiên liệu/100km</td>
+                    <% data.reportItems.forEach(item => { %>
+                        <td><%= item.dinhMucNhienLieu %></td>
+                    <% }); %>
+                    <% for(let i = data.reportItems.length; i < 7; i++) { %>
+                        <td></td>
+                    <% } %>
+                </tr>
+                
+                <!-- Dòng 4: Tiêu đề cột -->
+                <tr>
+                    <td class="text-left">Tên người sử dụng xe</td>
+                    <% data.reportItems.forEach(item => { %>
+                        <td><%= item.tenXe %></td>
+                    <% }); %>
+                    <td>Tổng số km sử dụng cá nhân</td>
+                    <td>Tiền Khấu hao</td>
+                    <td>Tiền nhiên liệu</td>
+                    <td>Thành tiền</td>
+                    <td>Tiền Epass</td>
+                    <td>Tổng thành tiền</td>
+                    <td>Ký xác nhận</td>
+                </tr>
+                
+                <!-- Dòng dữ liệu -->
+                <tr>
+                    <td class="text-left">MC mượn QM</td>
+                    <% data.reportItems.forEach(item => { %>
+                        <td><%= item.totalKm.toLocaleString('vi-VN') %></td>
+                    <% }); %>
+                    <!-- Thêm cột trống cho đủ trước khi đến cột tổng -->
+                    <% for(let i = data.reportItems.length; i < 6; i++) { %>
+                        <td></td>
+                    <% } %>
+                    <td class="total-row"><%= data.totals.totalKmCaNhan.toLocaleString('vi-VN') %></td>
+                    <td class="total-row"><%= data.totals.totalTienKhauHao.toLocaleString('vi-VN') %></td>
+                    <td class="total-row"><%= data.totals.totalTienNhienLieu.toLocaleString('vi-VN') %></td>
+                    <td class="total-row"><%= data.totals.totalThanhTien.toLocaleString('vi-VN') %></td>
+                    <td class="total-row"><%= data.totals.totalTienEpass.toLocaleString('vi-VN') %></td>
+                    <td class="total-row"><%= data.totals.totalTongThanhTien.toLocaleString('vi-VN') %></td>
+                    <td></td>
+                </tr>
+            </table>
 
-<% } else { %>
-
-    <!-- LOGO + TÊN CÔNG TY -->
-    <table class="no-border">
-        <tr class="no-border">
-            <td class="no-border" style="width: 15%;">
-                <% if (logoBase64) { %>
-                    <img src="<%= logoBase64 %>" style="height:70px;">
-                <% } %>
-            </td>
-
-            <td class="no-border header-title">
-                CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI
-            </td>
-
-            <td class="no-border" style="width: 15%;"></td>
-        </tr>
-
-        <tr class="no-border">
-            <td class="no-border"></td>
-            <td class="no-border sub-header-title">BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= thang %></td>
-            <td class="no-border"></td>
-        </tr>
-    </table>
-
-    <br>
-
-    <!-- === 3 DÒNG GIÁ TRỊ ĐẦU === -->
-    <table>
-        <tr>
-            <td>Giá khấu hao phương tiện</td>
-            <% data.forEach(row => { %>
-                <td><%= row.khauHao.toLocaleString() %></td>
-            <% }) %>
-        </tr>
-
-        <tr>
-            <td>Giá nhiên liệu trong tháng</td>
-            <% data.forEach(row => { %>
-                <td><%= donGiaTrungBinh.toLocaleString() %></td>
-            <% }) %>
-        </tr>
-
-        <tr>
-            <td>Định mức nhiên liệu/100km</td>
-            <% data.forEach(row => { %>
-                <td><%= row.dinhMuc %></td>
-            <% }) %>
-        </tr>
-    </table>
-
-    <br>
-
-    <!-- === BẢNG CHÍNH === -->
-    <table>
-        <tr>
-            <th>Tên người sử dụng xe</th>
-            <% data.forEach(row => { %>
-                <th><%= row.tenXe %></th>
-            <% }) %>
-
-            <th>Tổng số km sử dụng cá nhân</th>
-            <th>Tiền khấu hao</th>
-            <th>Tiền nhiên liệu</th>
-            <th>Thành tiền</th>
-            <th>Tiền Epass</th>
-            <th>Tổng thành tiền</th>
-            <th>Ký xác nhận</th>
-        </tr>
-
-        <!-- Dòng giá trị -->
-        <tr>
-            <td>MC mượn QM</td>
-
-            <% data.forEach(row => { %>
-                <td><%= row.tongKm %></td>
-            <% }) %>
-
-            <td><%= data.reduce((s, r) => s + r.tongKm, 0) %></td>
-
-            <td><%= data.reduce((s, r) => s + r.tienKhau, 0).toLocaleString() %></td>
-            <td><%= data.reduce((s, r) => s + r.tienNhienLieu, 0).toLocaleString() %></td>
-            <td><%= data.reduce((s, r) => s + r.thanhTien, 0).toLocaleString() %></td>
-            <td><%= data.reduce((s, r) => s + r.epass, 0).toLocaleString() %></td>
-            <td><%= data.reduce((s, r) => s + r.tongThanhTien, 0).toLocaleString() %></td>
-
-            <td></td>
-        </tr>
-    </table>
-
-    <!-- FOOTER -->
-    <table class="footer-sign">
-        <tr>
-            <td>Ban giám đốc</td>
-            <td>PT kế toán</td>
-            <td>Người lập phiếu</td>
-        </tr>
-    </table>
-
-<% } %>
-
+            <!-- Phần chữ ký -->
+            <div class="signature-section">
+                <div class="signature-box">
+                    <div>Ban giám đốc</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>PT kế toán</div>
+                    <div class="signature-line"></div>
+                </div>
+                <div class="signature-box">
+                    <div>Người lập phiếu</div>
+                    <div class="signature-line"></div>
+                </div>
+            </div>
+        <% } else if (month && year && !error) { %>
+            <div class="no-data">Không có dữ liệu cho tháng <%= month %>/<%= year %></div>
+        <% } %>
+    </div>
 </body>
 </html>
