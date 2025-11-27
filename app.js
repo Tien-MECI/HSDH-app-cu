@@ -3646,34 +3646,37 @@ async function generateBaoCaoLoTrinh(month, year) {
     console.log(`📊 Dữ liệu phương tiện: ${dataPhuongTien ? dataPhuongTien.length : 0} dòng`);
     console.log(`⛽ Giá nhiên liệu trung bình: ${averageFuelPrice}`);
 
-    // Tạo map cho thông tin phương tiện
+    // Tạo map cho thông tin phương tiện - sửa lại để lấy đúng tên xe
     const vehicleInfoMap = new Map();
     if (dataPhuongTien && dataPhuongTien.length > 1) {
       console.log("📋 Dữ liệu Data_phuong_tien:");
       for (let i = 1; i < dataPhuongTien.length; i++) {
         const row = dataPhuongTien[i];
         if (row.length >= 8) {
-          const tenXe = row[1]; // Cột 2
-          const dinhMucNhienLieu = parseFloat(row[6]) || 0; // Cột 7
-          const dinhMucKhauHao = parseFloat(row[7]) || 0; // Cột 8
+          const tenXe = row[1]; // Cột 2 - tên phương tiện
+          const dinhMucNhienLieu = parseFloat(row[6]) || 12; // Cột 7 - định mức nhiên liệu
+          const dinhMucKhauHao = parseFloat(row[7]) || 2000; // Cột 8 - định mức khấu hao
           
-          vehicleInfoMap.set(tenXe, {
-            dinhMucNhienLieu,
-            dinhMucKhauHao
-          });
-          console.log(`🚗 Phương tiện: ${tenXe}, Định mức nhiên liệu: ${dinhMucNhienLieu}, Khấu hao: ${dinhMucKhauHao}`);
+          if (tenXe && tenXe.trim() !== "") {
+            vehicleInfoMap.set(tenXe.trim(), {
+              dinhMucNhienLieu,
+              dinhMucKhauHao
+            });
+            console.log(`🚗 Phương tiện: "${tenXe}", Định mức nhiên liệu: ${dinhMucNhienLieu}, Khấu hao: ${dinhMucKhauHao}`);
+          }
         }
       }
     } else {
       console.log("❌ Không có dữ liệu phương tiện");
     }
 
-    // Xử lý dữ liệu lộ trình
+    // Xử lý dữ liệu lộ trình - TẬP HỢP TẤT CẢ CÁC XE CÓ TRONG LỘ TRÌNH
     const vehicleReport = new Map();
     let totalKmCaNhan = 0;
+    let allVehiclesInReport = new Set(); // Tập hợp tất cả các xe xuất hiện trong báo cáo
 
     if (loTrinhData && loTrinhData.length > 1) {
-      console.log("📋 Dữ liệu Lo_trinh_xe phù hợp:");
+      console.log("📋 Xử lý dữ liệu Lo_trinh_xe:");
       let matchedCount = 0;
       
       for (let i = 1; i < loTrinhData.length; i++) {
@@ -3691,43 +3694,52 @@ async function generateBaoCaoLoTrinh(month, year) {
           const rowMonth = parseInt(dateParts[1]);
           const rowYear = parseInt(dateParts[2]);
 
+          // Kiểm tra tháng/năm - chú ý: có thể có sai số về định dạng
           if (rowMonth === month && rowYear === year) {
-            const tenXe = row[1]; // Cột 2
-            const mucDich = row[6]; // Cột 7
-            const soKm = parseFloat(row[8]) || 0; // Cột 9
-            const nguoiSuDung = row[11]; // Cột 12
-            const tienEpass = parseFloat(row[13]) || 0; // Cột 14
+            const tenXe = row[1] ? row[1].trim() : ""; // Cột 2 - tên phương tiện
+            const mucDich = row[6] ? row[6].trim() : ""; // Cột 7 - mục đích sử dụng
+            const soKm = parseFloat(row[8]) || 0; // Cột 9 - số km
+            const tienEpass = parseFloat(row[13]) || 0; // Cột 14 - tiền epass
 
-            console.log(`✅ Dữ liệu khớp: ${tenXe}, Mục đích: ${mucDich}, Số km: ${soKm}`);
+            console.log(`✅ Dữ liệu khớp: "${tenXe}", Mục đích: "${mucDich}", Số km: ${soKm}`);
 
-            // Chỉ xử lý nếu là "Xe Quang Minh" hoặc "Cá nhân"
-            if (tenXe === "Xe Quang Minh" || mucDich === "Cá nhân") {
-              if (!vehicleReport.has(tenXe)) {
-                vehicleReport.set(tenXe, {
-                  totalKm: 0,
-                  totalEpass: 0,
-                  info: vehicleInfoMap.get(tenXe) || { dinhMucNhienLieu: 12, dinhMucKhauHao: 2000 }
-                });
+            // THÊM TẤT CẢ CÁC XE VÀO DANH SÁCH HIỂN THỊ
+            if (tenXe && tenXe !== "") {
+              allVehiclesInReport.add(tenXe);
+              
+              // Chỉ tính tổng km cho "Xe Quang Minh" hoặc "Cá nhân"
+              if (tenXe === "Xe Quang Minh" || mucDich === "Cá nhân") {
+                if (!vehicleReport.has(tenXe)) {
+                  // Lấy thông tin phương tiện từ map, nếu không có thì dùng mặc định
+                  const vehicleInfo = vehicleInfoMap.get(tenXe) || { 
+                    dinhMucNhienLieu: 12, 
+                    dinhMucKhauHao: 2000 
+                  };
+                  
+                  vehicleReport.set(tenXe, {
+                    totalKm: 0,
+                    totalEpass: 0,
+                    info: vehicleInfo
+                  });
+                }
+
+                const current = vehicleReport.get(tenXe);
+                current.totalKm += soKm;
+                current.totalEpass += tienEpass;
+                totalKmCaNhan += soKm;
+                matchedCount++;
               }
-
-              const current = vehicleReport.get(tenXe);
-              current.totalKm += soKm;
-              current.totalEpass += tienEpass;
-              totalKmCaNhan += soKm;
-              matchedCount++;
             }
           }
         }
       }
       console.log(`📈 Tổng số bản ghi phù hợp: ${matchedCount}`);
+      console.log(`📈 Tất cả xe trong báo cáo:`, Array.from(allVehiclesInReport));
     } else {
       console.log("❌ Không có dữ liệu lộ trình");
     }
 
-    console.log(`📈 Tổng số xe trong báo cáo: ${vehicleReport.size}`);
-    console.log(`📈 Tổng km cá nhân: ${totalKmCaNhan}`);
-
-    // Tính toán chi phí cho từng xe
+    // TẠO DANH SÁCH BÁO CÁO CHO TẤT CẢ CÁC XE
     const reportItems = [];
     let totalTienKhauHao = 0;
     let totalTienNhienLieu = 0;
@@ -3735,7 +3747,14 @@ async function generateBaoCaoLoTrinh(month, year) {
     let totalTienEpass = 0;
     let totalTongThanhTien = 0;
 
-    for (const [tenXe, data] of vehicleReport.entries()) {
+    // Duyệt qua tất cả các xe có trong báo cáo
+    for (const tenXe of allVehiclesInReport) {
+      const data = vehicleReport.get(tenXe) || {
+        totalKm: 0,
+        totalEpass: 0,
+        info: vehicleInfoMap.get(tenXe) || { dinhMucNhienLieu: 12, dinhMucKhauHao: 2000 }
+      };
+
       const tienKhauHao = data.totalKm * data.info.dinhMucKhauHao;
       const tienNhienLieu = (data.totalKm * data.info.dinhMucNhienLieu / 100) * averageFuelPrice;
       const thanhTien = tienKhauHao + tienNhienLieu;
@@ -3754,14 +3773,20 @@ async function generateBaoCaoLoTrinh(month, year) {
         tongThanhTien
       });
 
-      totalTienKhauHao += tienKhauHao;
-      totalTienNhienLieu += tienNhienLieu;
-      totalThanhTien += thanhTien;
-      totalTienEpass += data.totalEpass;
-      totalTongThanhTien += tongThanhTien;
+      // Chỉ cộng vào tổng nếu là xe cần tính (Xe Quang Minh hoặc Cá nhân)
+      if (tenXe === "Xe Quang Minh" || vehicleReport.has(tenXe)) {
+        totalTienKhauHao += tienKhauHao;
+        totalTienNhienLieu += tienNhienLieu;
+        totalThanhTien += thanhTien;
+        totalTienEpass += data.totalEpass;
+        totalTongThanhTien += tongThanhTien;
+      }
 
-      console.log(`💰 Tính toán cho ${tenXe}: KM=${data.totalKm}, Khấu hao=${tienKhauHao}, Nhiên liệu=${tienNhienLieu}`);
+      console.log(`💰 Tính toán cho "${tenXe}": KM=${data.totalKm}, Khấu hao=${tienKhauHao}, Nhiên liệu=${tienNhienLieu}`);
     }
+
+    console.log(`📊 Tổng số xe trong báo cáo: ${reportItems.length}`);
+    console.log(`📊 Danh sách xe:`, reportItems.map(item => item.tenXe));
 
     return {
       reportItems,
