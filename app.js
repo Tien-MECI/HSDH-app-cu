@@ -3721,7 +3721,7 @@ app.get("/baocaolotrinh", async (req, res) => {
     const xeArray = Object.values(dataXe);
 
     console.log(`\nTổng kết: ${tongKmCaNhan} km cá nhân → Thành tiền: ${tongThanhTien.toLocaleString()} + Epass ${tongEpass.toLocaleString()} = ${tongCuoi.toLocaleString()}đ\n`);
-
+    const coXeQuangMinh = dataXe['Xe Quang Minh'] && dataXe['Xe Quang Minh'].kmQuangMinh > 0;
     res.render("baocaolotrinh", {
       data: {
         thang: month,
@@ -3734,6 +3734,7 @@ app.get("/baocaolotrinh", async (req, res) => {
         tongThanhTien,
         tongEpass,
         tongCuoi,
+        coXeQuangMinh,
       },
       logo: await loadDriveImageBase64(LOGO_FILE_ID),
       watermark: await loadDriveImageBase64(WATERMARK_FILE_ID),
