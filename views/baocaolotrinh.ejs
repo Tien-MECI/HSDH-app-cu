@@ -4,49 +4,57 @@
   <meta charset="UTF-8">
   <title>Báo cáo lộ trình xe tháng <%= data.thang %>/<%= data.nam %></title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 30px; position: relative; font-size: 12.5px; }
+    body { font-family: "Times New Roman", serif; margin: 20px; position: relative; font-size: 13px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
-    th { background-color: #f0f0f0; font-weight: bold; }
-    .logo { height: 70px; }
-    .title { font-size: 20px; font-weight: bold; color: #c00; }
-    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); opacity: 0.08; z-index: -1; }
-    .watermark img { width: 900px; }
+    th, td { border: 1px solid #000; padding: 5px; text-align: center; vertical-align: middle; height: 30px; }
+    th { background-color: #f0f0f0; }
+    .logo { height: 65px; }
+    .title { font-weight: bold; font-size: 20px; color: #c00; }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); opacity: 0.07; z-index: -1; }
+    .watermark img { width: 1000px; }
     .bold { font-weight: bold; }
-    .text-left { text-align: left !important; padding-left: 10px; }
-    .small { font-size: 11px; }
-    .footer { margin-top: 80px; display: flex; justify-content: space-between; font-weight: bold; text-align: center; }
+    .text-left { text-align: left !important; padding-left: 8px; }
+    .small { font-size: 11px; line-height: 1.3; }
+    .footer { margin-top: 70px; display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
   </style>
 </head>
 <body>
 
 <% if (!data) { %>
-  <h2 style="text-align:center;">Chọn tháng/năm để xem báo cáo</h2>
-  <form method="GET" style="text-align:center; margin:40px;">
-    <select name="thang" required><% for(let i=1;i<=12;i++) { %><option value="<%=i%>"><%=i%> tháng</option><% } %></select>
-    <input type="number" name="nam" value="<%= new Date().getFullYear() %>" min="2020" style="width:80px;" required>
-    <button type="submit" style="padding:8px 16px;">Xem báo cáo</button>
-  </form>
+  <div style="text-align:center; margin-top:100px;">
+    <h2>Chọn tháng/năm để xem báo cáo lộ trình xe</h2>
+    <form method="GET">
+      <select name="thang" required><% for(let i=1;i<=12;i++){ %><option value="<%=i%>"><%=i%> tháng</option><% } %></select>
+      <input type="number" name="nam" value="<%= new Date().getFullYear() %>" min="2020" required style="width:80px;">
+      <button type="submit" style="padding:8px 20px; margin-left:10px;">Xem báo cáo</button>
+    </form>
+  </div>
 <% } else { %>
 
   <% if (watermark) { %>
     <div class="watermark"><img src="<%= watermark %>" /></div>
   <% } %>
 
-  <div style="text-align:center; margin-bottom:20px;">
+  <div style="text-align:center; margin-bottom:15px;">
     <% if (logo) { %><img src="<%= logo %>" class="logo" alt="MECI"><% } %><br>
     <div class="title">CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI</div>
     <h2>BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= data.thang %>/<%= data.nam %></h2>
   </div>
 
-  <!-- Header bảng -->
   <table>
     <thead>
+      <!-- Dòng 1: Thông tin xe -->
       <tr>
-        <th rowspan="3">Tên người<br>sử dụng xe</th>
-        <th rowspan="3">Định mức<br>nhiên liệu<br>/100km</th>
+        <th rowspan="3" style="width:9%">Tên người<br>sử dụng xe</th>
+        <th rowspan="3" style="width:6%">Định mức<br>nhiên liệu<br>/100km</th>
         <% data.xeArray.forEach(xe => { %>
-          <th colspan="2"><%= xe.tenXe %></th>
+          <th colspan="2" style="background:#fff; border-bottom:none;">
+            <div class="small">
+              Giá khấu hao phương tiện: <%= xe.dinhMucKH.toLocaleString() %> đ/km<br>
+              Loại nhiên liệu: <%= xe.loaiNhienLieu || 'DO' %><br>
+              Giá nhiên liệu trong tháng: <%= data.donGiaTB.toLocaleString() %> đ/lít
+            </div>
+          </th>
         <% }) %>
         <th rowspan="3">Tổng số km<br>sử dụng<br>cá nhân</th>
         <th rowspan="3">Tiền<br>khấu hao</th>
@@ -56,29 +64,31 @@
         <th rowspan="3">Tổng<br>thành tiền</th>
         <th rowspan="3">Ký xác nhận</th>
       </tr>
+
+      <!-- Dòng 2: Tên xe -->
       <tr>
         <% data.xeArray.forEach(xe => { %>
-          <th colspan="2">Giá khấu hao phương tiện: <%= xe.dinhMucKH.toLocaleString() %> đ/km<br>
-                            Loại nhiên liệu: <%= xe.loaiNhienLieu || 'DO' %><br>
-                            Giá nhiên liệu trong tháng: <%= data.donGiaTB.toLocaleString() %> đ/lít</th>
+          <th colspan="2" style="background:#fff; font-weight:bold; font-size:14px;"><%= xe.tenXe %></th>
         <% }) %>
       </tr>
+
+      <!-- Dòng 3: MC mượn QM / Cá nhân -->
       <tr>
         <% data.xeArray.forEach(() => { %>
-          <th>MC mượn QM</th>
-          <th>Cá nhân</th>
+          <th class="small">MC mượn QM</th>
+          <th class="small">Cá nhân</th>
         <% }) %>
       </tr>
     </thead>
-    <tbody>
 
-      <!-- Dòng 1: MC mượn QM (chỉ hiển thị nếu có Xe Quang Minh) -->
+    <tbody>
+      <!-- Dòng MC mượn QM (nếu có Xe Quang Minh) -->
       <% if (data.xeArray.some(xe => xe.kmQuangMinh > 0)) { %>
         <tr>
           <td class="text-left bold">MC mượn QM</td>
           <td></td>
           <% data.xeArray.forEach(xe => { %>
-            <td><%= xe.kmQuangMinh > 0 ? xe.kmQuangMinh.toLocaleString() : '' %></td>
+            <td><%= xe.tenXe === 'Xe Quang Minh' ? xe.kmQuangMinh.toLocaleString() : '' %></td>
             <td></td>
           <% }) %>
           <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
@@ -87,7 +97,7 @@
           <td class="text-left small">MECI sử dụng</td>
           <td></td>
           <% data.xeArray.forEach(xe => { %>
-            <td><small><%= xe.kmQuangMinh > 0 ? 'MECI' : '' %></small></td>
+            <td><%= xe.tenXe === 'Xe Quang Minh' ? 'MECI sử dụng' : '' %></td>
             <td></td>
           <% }) %>
           <td colspan="7"></td>
@@ -97,7 +107,7 @@
       <!-- Dòng Cá nhân -->
       <tr>
         <td class="text-left bold">Cá nhân</td>
-        <td class="bold"><%= data.xeArray.length > 0 ? data.xeArray[0].dinhMucNL : 0 %></td>
+        <td class="bold"><%= data.xeArray.length > 0 ? data.xeArray[0].dinhMucNL : '' %></td>
         <% data.xeArray.forEach(xe => { %>
           <td></td>
           <td><%= xe.kmCaNhan > 0 ? xe.kmCaNhan.toLocaleString() : '' %></td>
@@ -114,16 +124,7 @@
       <!-- Dòng tên người sử dụng cá nhân -->
       <tr>
         <td class="text-left small">
-          <% 
-            const tenNguoi = [];
-            data.xeArray.forEach(xe => {
-              if (xe.kmCaNhan > 0) {
-                Array.from(xe.nguoiSD_CaNhan).forEach(name => tenNguoi.push(name));
-              }
-            });
-            console.log("Tên người cá nhân:", tenNguoi);
-          %>
-          <%= tenNguoi.join(', ') %>
+          <%= Array.from(new Set(data.xeArray.flatMap(xe => Array.from(xe.nguoiSD_CaNhan)))).join(', ') %>
         </td>
         <td></td>
         <% data.xeArray.forEach(xe => { %>
@@ -132,7 +133,6 @@
         <% }) %>
         <td colspan="7"></td>
       </tr>
-
     </tbody>
   </table>
 
