@@ -3598,9 +3598,10 @@ app.get("/baocaolotrinh", async (req, res) => {
       if (row[2]) {
         const ten = row[2].trim();
         phuongTienInfo[ten] = {
-          tenXe: ten,
-          dinhMucNL: parseFloat(row[6]) || 0,
-          dinhMucKH: parseFloat(row[7]) || 0,
+            tenXe: ten,
+            dinhMucNL: parseFloat(row[6]) || 0,
+            dinhMucKH: parseFloat(row[7]) || 0,
+            loaiNhienLieu: (row[5] || "").trim() || "DO",  // Cột 5 là loại nhiên liệu
         };
       }
     });
@@ -3679,12 +3680,13 @@ app.get("/baocaolotrinh", async (req, res) => {
         tenXe,
         dinhMucNL: info.dinhMucNL,
         dinhMucKH: info.dinhMucKH,
+        loaiNhienLieu: info.loaiNhienLieu,
         kmQuangMinh: 0,
         kmCaNhan: 0,
         nguoiSD_QuangMinh: new Set(),
         nguoiSD_CaNhan: new Set(),
         tienEpass: 0,
-      };
+        };
     });
 
     records.forEach(r => {
