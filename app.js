@@ -3617,7 +3617,7 @@ async function calculateAverageFuelPrice(month, year) {
 
         if (rowMonth === month && rowYear === year) {
           const donGia = parseFloat(row[11]); // Cột 11 (index 10) là đơn giá
-          const loaiNhienLieu = row[8]; // Cột 10 (index 9) là loại nhiên liệu
+          const loaiNhienLieu = row[9]; // Cột 10 (index 9) là loại nhiên liệu
 
           if (!isNaN(donGia) && donGia > 0) {
             totalPrice += donGia;
