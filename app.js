@@ -3603,7 +3603,7 @@ async function calculateAverageFuelPrice(month, year) {
       if (row.length < 15) continue;
 
       // Cột 14 (index 13) là ngày đổ - điều chỉnh nếu cần
-      const ngayDo = row[13];
+      const ngayDo = row[14];
       if (!ngayDo) continue;
 
       console.log(`📅 Kiểm tra ngày đổ: ${ngayDo}`);
