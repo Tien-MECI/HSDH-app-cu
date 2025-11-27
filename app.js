@@ -3542,12 +3542,13 @@ app.post("/baocaolotrinh", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
     const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    // Sửa lại: kiểm tra req.body có tồn tại không
     res.render("baocaolotrinh", {
       title: "Báo cáo lộ trình xe",
       logo: logoBase64,
       data: null,
-      month: req.body.month,
-      year: req.body.year,
+      month: (req.body && req.body.month) ? req.body.month : null,
+      year: (req.body && req.body.year) ? req.body.year : null,
       error: "Lỗi khi tạo báo cáo: " + error.message
     });
   }
