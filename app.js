@@ -3683,73 +3683,48 @@ async function generateBaoCaoLoTrinh(month, year) {
 
     if (loTrinhData && loTrinhData.length > 1) {
   console.log("📋 Xử lý dữ liệu Lo_trinh_xe:");
-  
-  // DEBUG: In ra 10 dòng đầu tiên để xem dữ liệu thực tế
-  console.log("🔍 DEBUG - 10 dòng đầu tiên của Lo_trinh_xe:");
-  for (let debugIndex = 0; debugIndex < Math.min(10, loTrinhData.length); debugIndex++) {
-    const debugRow = loTrinhData[debugIndex];
-    console.log(`Dòng ${debugIndex}:`, debugRow);
-  }
-  
   let matchedCount = 0;
+  
+  // Thêm debug để xem có bao nhiêu dòng dữ liệu
+  console.log(`🔍 Tổng số dòng dữ liệu: ${loTrinhData.length - 1} (trừ header)`);
   
   for (let i = 1; i < loTrinhData.length; i++) {
     const row = loTrinhData[i];
-    if (row.length < 15) continue;
-
-    // Cột 1 (index 1) là Ngay_tao
-    const ngayTao = row[1];
-    if (!ngayTao) continue;
-
-    console.log(`📅 Kiểm tra ngày: "${ngayTao}"`);
-
-    // THỬ NHIỀU ĐỊNH DẠNG NGÀY KHÁC NHAU
-    let rowDay, rowMonth, rowYear;
-    
-    // Thử định dạng dd/mm/yyyy
-    let dateParts = ngayTao.split('/');
-    if (dateParts.length === 3) {
-      rowDay = parseInt(dateParts[0]);
-      rowMonth = parseInt(dateParts[1]);
-      rowYear = parseInt(dateParts[2]);
-      console.log(`📅 Phân tích theo dd/mm/yyyy: ngày ${rowDay}, tháng ${rowMonth}, năm ${rowYear}`);
-    } 
-    // Thử định dạng khác nếu cần
-    else if (ngayTao.includes('-')) {
-      dateParts = ngayTao.split('-');
-      if (dateParts.length === 3) {
-        rowDay = parseInt(dateParts[0]);
-        rowMonth = parseInt(dateParts[1]);
-        rowYear = parseInt(dateParts[2]);
-        console.log(`📅 Phân tích theo dd-mm-yyyy: ngày ${rowDay}, tháng ${rowMonth}, năm ${rowYear}`);
-      }
-    }
-    // Thử parse trực tiếp nếu là timestamp
-    else if (!isNaN(new Date(ngayTao).getTime())) {
-      const dateObj = new Date(ngayTao);
-      rowDay = dateObj.getDate();
-      rowMonth = dateObj.getMonth() + 1;
-      rowYear = dateObj.getFullYear();
-      console.log(`📅 Phân tích theo Date object: ngày ${rowDay}, tháng ${rowMonth}, năm ${rowYear}`);
-    }
-    else {
-      console.log(`❌ Không thể phân tích ngày: ${ngayTao}`);
+    if (row.length < 15) {
+      console.log(`⚠️ Dòng ${i} không đủ 15 cột: ${row.length}`);
       continue;
     }
 
-    // Kiểm tra tháng/năm - THÊM DEBUG CHO ĐIỀU KIỆN
-    console.log(`🔍 So sánh: rowMonth=${rowMonth} vs month=${month}, rowYear=${rowYear} vs year=${year}`);
-    
+    // Cột 1 (index 1) là Ngay_tao
+    const ngayTao = row[1];
+    if (!ngayTao) {
+      console.log(`⚠️ Dòng ${i} không có ngày tạo`);
+      continue;
+    }
+
+    // Kiểm tra ngày có thuộc tháng/năm được chọn
+    const dateParts = ngayTao.split('/');
+    if (dateParts.length !== 3) {
+      console.log(`❌ Dòng ${i}: Định dạng ngày không hợp lệ: "${ngayTao}"`);
+      continue;
+    }
+
+    const rowDay = parseInt(dateParts[0]);
+    const rowMonth = parseInt(dateParts[1]);
+    const rowYear = parseInt(dateParts[2]);
+
+    // Kiểm tra tháng/năm - THÊM DEBUG CHI TIẾT
     if (rowMonth === month && rowYear === year) {
-      const tenXe = row[2] ? row[2].trim() : ""; // Cột 3 (index 2) - Loai_xe
-      const mucDich = row[7] ? row[7].trim() : ""; // Cột 8 (index 7) - Muc_dich_su_dung
-      const soKm = parseFloat(row[9]) || 0; // Cột 10 (index 9) - Tong_km_su_dung
-      const nguoiSuDung = row[12] ? row[12].trim() : ""; // Cột 13 (index 12) - Nguoi_tao
-      const tienEpass = parseFloat(row[14]) || 0; // Cột 15 (index 14) - Phi_cau_duong_epass
+      console.log(`✅ Dòng ${i} KHỚP tháng/năm: ${rowMonth}/${rowYear}`);
+      
+      const tenXe = row[2] ? row[2].trim() : "";
+      const mucDich = row[7] ? row[7].trim() : "";
+      const soKm = parseFloat(row[9]) || 0;
+      const tienEpass = parseFloat(row[14]) || 0;
 
-      console.log(`✅ Dữ liệu khớp: "${tenXe}", Mục đích: "${mucDich}", Số km: ${soKm}, Người dùng: "${nguoiSuDung}"`);
+      console.log(`   Xe: "${tenXe}", Mục đích: "${mucDich}", Số km: ${soKm}`);
 
-      // THÊM ĐIỀU KIỆN LỌC LINH HOẠT HƠN
+      // Chỉ xử lý nếu là "Xe Quang Minh" hoặc "Cá nhân"
       const isXeQuangMinh = tenXe.includes("Quang Minh") || tenXe === "Xe Quang Minh";
       const isCaNhan = mucDich.includes("Cá nhân") || mucDich.includes("cá nhân");
 
@@ -3775,17 +3750,20 @@ async function generateBaoCaoLoTrinh(month, year) {
 
         console.log(`📈 Đã thêm: ${tenXe} - KM: ${soKm}, Tổng KM: ${current.totalKm}`);
       } else {
-        console.log(`⚠️ Bỏ qua: "${tenXe}" - không phải "Xe Quang Minh" hoặc "Cá nhân"`);
+        console.log(`   ⚠️ Bỏ qua: không phải "Xe Quang Minh" hoặc "Cá nhân"`);
       }
     } else {
-      console.log(`❌ Không khớp tháng/năm: ${rowMonth}/${rowYear} vs ${month}/${year}`);
+      // Chỉ log một số dòng không khớp để tránh quá nhiều log
+      if (i <= 10 || i % 100 === 0) {
+        console.log(`❌ Dòng ${i} không khớp: ${rowMonth}/${rowYear} vs ${month}/${year}`);
+      }
     }
   }
   console.log(`📈 Tổng số bản ghi phù hợp: ${matchedCount}`);
   console.log(`📈 Các xe trong báo cáo:`, Array.from(vehicleReport.keys()));
-    } else {
-    console.log("❌ Không có dữ liệu lộ trình");
-    }
+} else {
+  console.log("❌ Không có dữ liệu lộ trình");
+}
 
     // TẠO DANH SÁCH BÁO CÁO CHO CÁC XE ĐÃ LỌC
     const reportItems = [];
