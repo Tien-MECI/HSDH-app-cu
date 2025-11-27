@@ -3561,7 +3561,7 @@ app.get("/baocaolotrinh", async (req, res) => {
       if (!ngayDoStr) return;
       const ngayDo = parseDate(ngayDoStr);
       if (ngayDo >= start && ngayDo <= end) {
-        const lit = parseFloat(row[9]) || 0;
+        const lit = parseFloat(row[10]) || 0;
         const gia = parseFloat(row[11]) || 0;
         if (lit > 0 && gia > 0) {
           tongLit += lit;
@@ -3582,8 +3582,8 @@ app.get("/baocaolotrinh", async (req, res) => {
     // Lọc dữ liệu trong tháng
     const records = loTrinhRows
       .map(row => {
-        if (!row[0]) return null;
-        const ngay = parseDate(row[0]);
+        if (!row[1]) return null;
+        const ngay = parseDate(row[1]);
         if (!ngay || ngay.getMonth() + 1 !== month || ngay.getFullYear() !== year) return null;
 
         return {
