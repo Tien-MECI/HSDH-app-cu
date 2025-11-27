@@ -3512,6 +3512,26 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 
 //Lộ trình xe
 
+// --- Route GET để hiển thị form ---
+app.get("/baocaolotrinh", async (req, res) => {
+  try {
+    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    
+    res.render("baocaolotrinh", {
+      title: "Báo cáo lộ trình xe",
+      logo: logoBase64,
+      data: null,
+      month: null,
+      year: null,
+      error: null
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi tải form báo cáo lộ trình:", error);
+    res.status(500).send("Lỗi khi tải form báo cáo lộ trình");
+  }
+});
+
+// --- Route POST để xử lý dữ liệu (đoạn code bạn đã có) ---
 app.post("/baocaolotrinh", async (req, res) => {
   try {
     const { month, year } = req.body;
@@ -3542,13 +3562,12 @@ app.post("/baocaolotrinh", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
     const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    // Sửa lại: kiểm tra req.body có tồn tại không
     res.render("baocaolotrinh", {
       title: "Báo cáo lộ trình xe",
       logo: logoBase64,
       data: null,
-      month: (req.body && req.body.month) ? req.body.month : null,
-      year: (req.body && req.body.year) ? req.body.year : null,
+      month: req.body?.month,
+      year: req.body?.year,
       error: "Lỗi khi tạo báo cáo: " + error.message
     });
   }
