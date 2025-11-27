@@ -12,6 +12,10 @@ import { preparexkvtData } from './xuatvattu.js';
 import { buildAttendanceData } from "./helpers/chamcong.js";
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
+// --- QUAN TRỌNG: Thêm middleware để parse form data ---
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 app.set("view engine", "ejs");
 app.set("views", "./views");
 
@@ -3529,6 +3533,11 @@ app.get("/baocaolotrinh", async (req, res) => {
 
 app.post("/baocaolotrinh", async (req, res) => {
   try {
+    // Kiểm tra req.body tồn tại
+    if (!req.body) {
+      throw new Error("Không nhận được dữ liệu form");
+    }
+
     const { month, year } = req.body;
     
     if (!month || !year) {
@@ -3537,8 +3546,8 @@ app.post("/baocaolotrinh", async (req, res) => {
         title: "Báo cáo lộ trình xe",
         logo: logoBase64,
         data: null,
-        month,
-        year,
+        month: null,
+        year: null,
         error: "Vui lòng chọn tháng và năm"
       });
     }
@@ -3557,12 +3566,17 @@ app.post("/baocaolotrinh", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
     const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    
+    // Xử lý an toàn khi req.body có thể undefined
+    const monthValue = req.body ? req.body.month : null;
+    const yearValue = req.body ? req.body.year : null;
+    
     res.render("baocaolotrinh", {
       title: "Báo cáo lộ trình xe",
       logo: logoBase64,
       data: null,
-      month: req.body.month,
-      year: req.body.year,
+      month: monthValue,
+      year: yearValue,
       error: "Lỗi khi tạo báo cáo: " + error.message
     });
   }
