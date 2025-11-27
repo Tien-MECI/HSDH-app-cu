@@ -3516,6 +3516,8 @@ app.get("/baocaolotrinh", async (req, res) => {
   try {
     const { thang, nam } = req.query;
 
+    console.log(`\n=== BÁO CÁO LỘ TRÌNH - THÁNG ${thang}/${nam} ===`);
+
     if (!thang || !nam) {
       return res.render("baocaolotrinh", {
         data: null,
@@ -3526,6 +3528,7 @@ app.get("/baocaolotrinh", async (req, res) => {
 
     const month = parseInt(thang);
     const year = parseInt(nam);
+    console.log(`Tìm kiếm: Tháng ${month}, Năm ${year}`);
 
     // Lấy dữ liệu 3 sheet
     const [loTrinhRes, ptRes, xangRes] = await Promise.all([
@@ -3534,11 +3537,62 @@ app.get("/baocaolotrinh", async (req, res) => {
       sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "QL_ly_xang_dau!A:Z" }),
     ]);
 
-    const loTrinhRows = (loTrinhRes.data.values || []).slice(1); // bỏ header
-    const ptRows = (ptRes.data.values || []).slice(1);
-    const xangRows = (xangRes.data.values || []).slice(1);
+    const loTrinhAll = loTrinhRes.data.values || [];
+    const loTrinhRows = loTrinhAll.slice(1); // bỏ header
+    const xangAll = xangRes.data.values || [];
+    const xangRows = xangAll.slice(1);
 
-    // Map: tên phương tiện → thông tin định mức
+    // LOG 1: 3 dòng cuối cùng sheet Lộ trình xe
+    console.log("\n1. 3 dòng cuối cùng trong sheet 'Lo_trinh_xe':");
+    const last3LoTrinh = loTrinhRows.slice(-3);
+    last3LoTrinh.forEach((row, i) => {
+      console.log(`   ${loTrinhAll.length - 3 + i}: [Ngày] ${row[1] || row[0]} | [Xe] ${row[2]} | [Mục đích] ${row[7]} | [Km] ${row[9]} | [Người SD] ${row[12]}`);
+    });
+
+    // LOG 2: 3 dòng cuối cùng sheet Xăng dầu
+    console.log("\n2. 3 dòng cuối cùng trong sheet 'QL_ly_xang_dau':");
+    const last3Xang = xangRows.slice(-3);
+    last3Xang.forEach((row, i) => {
+      console.log(`   ${xangAll.length - 3 + i}: [Ngày đổ] ${row[14]} | [Phương tiện] ${row[7]} | [Số lít] ${row[10]} | [Đơn giá] ${row[11]}`);
+    });
+
+    // LOG 3: Kiểm tra định dạng ngày ở cả 2 sheet (dòng cuối)
+    console.log("\n3. Kiểm tra định dạng ngày:");
+    if (last3LoTrinh.length > 0) {
+      const lastLoTrinh = last3LoTrinh[last3LoTrinh.length - 1];
+      const ngayLoTrinhRaw = lastLoTrinh[1] || lastLoTrinh[0];
+      const parsedLoTrinh = parseDate(ngayLoTrinhRaw);
+      console.log(`   Lộ trình (dòng cuối): "${ngayLoTrinhRaw}" → parse thành: ${parsedLoTrinh ? parsedLoTrinh.toISOString().split('T')[0] : 'NULL'}`);
+    }
+    if (last3Xang.length > 0) {
+      const lastXang = last3Xang[last3Xang.length - 1];
+      const ngayXangRaw = lastXang[14];
+      const parsedXang = parseDate(ngayXangRaw);
+      console.log(`   Xăng dầu (dòng cuối): "${ngayXangRaw}" → parse thành: ${parsedXang ? parsedXang.toISOString().split('T')[0] : 'NULL'}`);
+    }
+
+    // Hàm parseDate (giữ nguyên, nhưng log thêm nếu cần)
+    function parseDate(str) {
+      if (!str) return null;
+      const s = str.toString().trim();
+      const parts = s.split(/[-\/]/);
+      if (parts.length !== 3) return null;
+      let d, m, y;
+      if (s.includes('/')) {
+        // dd/mm/yyyy
+        [d, m, y] = parts;
+      } else {
+        // yyyy-mm-dd
+        [y, m, d] = parts;
+      }
+      d = d.padStart(2, '0');
+      m = m.padStart(2, '0');
+      const date = new Date(y, m - 1, d);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // Map phương tiện
+    const ptRows = (ptRes.data.values || []).slice(1);
     const phuongTienInfo = {};
     ptRows.forEach(row => {
       if (row[2]) {
@@ -3551,16 +3605,13 @@ app.get("/baocaolotrinh", async (req, res) => {
       }
     });
 
-    // Tính đơn giá nhiên liệu trung bình trong tháng
+    // Tính đơn giá TB xăng dầu
     let tongLit = 0, tongTienNL = 0;
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0);
-
     xangRows.forEach(row => {
-      const ngayDoStr = row[14];
-      if (!ngayDoStr) return;
-      const ngayDo = parseDate(ngayDoStr);
-      if (ngayDo >= start && ngayDo <= end) {
+      const ngayDo = parseDate(row[14]);
+      if (ngayDo && ngayDo >= start && ngayDo <= end) {
         const lit = parseFloat(row[10]) || 0;
         const gia = parseFloat(row[11]) || 0;
         if (lit > 0 && gia > 0) {
@@ -3570,20 +3621,14 @@ app.get("/baocaolotrinh", async (req, res) => {
       }
     });
     const donGiaTB = tongLit > 0 ? Math.round(tongTienNL / tongLit) : 0;
+    console.log(`\nĐơn giá nhiên liệu trung bình tháng ${month}/${year}: ${donGiaTB.toLocaleString()} đ/lít (tổng ${tongLit} lít)`);
 
-    function parseDate(str) {
-      const parts = str.toString().trim().split(/[-\/]/);
-      if (parts.length !== 3) return null;
-      const d = parts[0], m = parts[1], y = parts[2];
-      if (y.length === 4) return new Date(y, m - 1, d);
-      return new Date(y, m - 1, d.padStart(2, '0'));
-    }
-
-    // Lọc dữ liệu trong tháng
+    // Lọc dữ liệu lộ trình trong tháng
     const records = loTrinhRows
       .map(row => {
-        if (!row[1]) return null;
-        const ngay = parseDate(row[1]);
+        const ngayRaw = row[1] || row[0];
+        if (!ngayRaw) return null;
+        const ngay = parseDate(ngayRaw);
         if (!ngay || ngay.getMonth() + 1 !== month || ngay.getFullYear() !== year) return null;
 
         return {
@@ -3596,10 +3641,36 @@ app.get("/baocaolotrinh", async (req, res) => {
       })
       .filter(Boolean);
 
-    // Danh sách xe duy nhất có dữ liệu trong tháng
-    const danhSachXe = [...new Set(records.map(r => r.phuongTien))].filter(Boolean);
+    console.log(`\nTổng số bản ghi lộ trình thỏa tháng ${month}/${year}: ${records.length} dòng`);
 
-    // Tổng hợp dữ liệu cho từng xe
+    // LOG 4: Xe nào được dùng Cá nhân + km
+    console.log("\n4. Xe sử dụng Cá nhân trong tháng:");
+    const caNhanData = {};
+    records.forEach(r => {
+      if (r.mucDich === "Cá nhân") {
+        if (!caNhanData[r.phuongTien]) caNhanData[r.phuongTien] = { km: 0, nguoi: new Set() };
+        caNhanData[r.phuongTien].km += r.soKm;
+        if (r.nguoiSD) caNhanData[r.phuongTien].nguoi.add(r.nguoiSD);
+      }
+    });
+    Object.keys(caNhanData).forEach(xe => {
+      console.log(`   → ${xe}: ${caNhanData[xe].km} km | Người: ${Array.from(caNhanData[xe].nguoi).join(', ')}`);
+    });
+    if (Object.keys(caNhanData).length === 0) console.log("   (Không có xe nào dùng Cá nhân)");
+
+    // LOG 5: Có "Xe Quang Minh" không?
+    console.log("\n5. Có sử dụng 'Xe Quang Minh' không?");
+    const qmRecords = records.filter(r => r.phuongTien === "Xe Quang Minh");
+    if (qmRecords.length > 0) {
+      const tongKmQM = qmRecords.reduce((s, r) => s + r.soKm, 0);
+      const nguoiQM = [...new Set(qmRecords.map(r => r.nguoiSD).filter(Boolean))];
+      console.log(`   CÓ! Tổng ${tongKmQM} km | Người sử dụng: ${nguoiQM.join(', ') || '(không ghi)'}`);
+    } else {
+      console.log("   KHÔNG có bản ghi nào là 'Xe Quang Minh'");
+    }
+
+    // === Tiếp tục xử lý dữ liệu như cũ (giữ nguyên logic tính tiền) ===
+    const danhSachXe = [...new Set(records.map(r => r.phuongTien))].filter(Boolean);
     const dataXe = {};
 
     danhSachXe.forEach(tenXe => {
@@ -3631,7 +3702,6 @@ app.get("/baocaolotrinh", async (req, res) => {
       }
     });
 
-    // Tính tiền
     Object.values(dataXe).forEach(xe => {
       const kmCaNhan = xe.kmCaNhan;
       xe.tienKhauHao = Math.round(kmCaNhan * xe.dinhMucKH);
@@ -3647,6 +3717,8 @@ app.get("/baocaolotrinh", async (req, res) => {
     const tongCuoi = tongThanhTien + tongEpass;
 
     const xeArray = Object.values(dataXe);
+
+    console.log(`\nTổng kết: ${tongKmCaNhan} km cá nhân → Thành tiền: ${tongThanhTien.toLocaleString()} + Epass ${tongEpass.toLocaleString()} = ${tongCuoi.toLocaleString()}đ\n`);
 
     res.render("baocaolotrinh", {
       data: {
@@ -3666,8 +3738,8 @@ app.get("/baocaolotrinh", async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Lỗi: " + err.message);
+    console.error("LỖI TO: ", err);
+    res.status(500).send("Lỗi server: " + err.message);
   }
 });
 
