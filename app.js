@@ -3512,338 +3512,164 @@ app.get("/bangchamcong/export-excel", async (req, res) => {
 
 //Lộ trình xe
 
-// --- Route GET để hiển thị form ---
 app.get("/baocaolotrinh", async (req, res) => {
   try {
-    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    
-    res.render("baocaolotrinh", {
-      title: "Báo cáo lộ trình xe",
-      logo: logoBase64,
-      data: null,
-      month: null,
-      year: null,
-      error: null
-    });
-  } catch (error) {
-    console.error("❌ Lỗi khi tải form báo cáo lộ trình:", error);
-    res.status(500).send("Lỗi khi tải form báo cáo lộ trình");
-  }
-});
+    const { thang, nam } = req.query;
 
-// --- Route POST để xử lý dữ liệu (đoạn code bạn đã có) ---
-app.post("/baocaolotrinh", async (req, res) => {
-  try {
-    const { month, year } = req.body;
-    
-    if (!month || !year) {
-      const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+    if (!thang || !nam) {
       return res.render("baocaolotrinh", {
-        title: "Báo cáo lộ trình xe",
-        logo: logoBase64,
         data: null,
-        month,
-        year,
-        error: "Vui lòng chọn tháng và năm"
+        logo: await loadDriveImageBase64(LOGO_FILE_ID),
+        watermark: await loadDriveImageBase64(WATERMARK_FILE_ID),
       });
     }
 
-    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    const reportData = await generateBaoCaoLoTrinh(parseInt(month), parseInt(year));
-    
-    res.render("baocaolotrinh", {
-      title: "Báo cáo lộ trình xe",
-      logo: logoBase64,
-      data: reportData,
-      month,
-      year,
-      error: null
-    });
-  } catch (error) {
-    console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
-    const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-    res.render("baocaolotrinh", {
-      title: "Báo cáo lộ trình xe",
-      logo: logoBase64,
-      data: null,
-      month: req.body?.month,
-      year: req.body?.year,
-      error: "Lỗi khi tạo báo cáo: " + error.message
-    });
-  }
-});
+    const month = parseInt(thang);
+    const year = parseInt(nam);
 
-// Hàm tính đơn giá nhiên liệu trung bình
-async function calculateAverageFuelPrice(month, year) {
-  try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_HC_ID,
-      range: "QL_ly_xang_dau",
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length === 0) {
-      console.log("❌ Không có dữ liệu trong sheet QL_ly_xang_dau");
-      return 20000;
-    }
-
-    console.log(`📊 Dữ liệu QL_ly_xang_dau: ${rows.length} dòng`);
-    
-    // Log header để debug
-    if (rows.length > 0) {
-      console.log(`📋 Header QL_ly_xang_dau: ${rows[0].join(' | ')}`);
-    }
-
-    let totalPrice = 0;
-    let count = 0;
-
-    // Bỏ qua header, bắt đầu từ row 1
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (row.length < 15) continue;
-
-      // Cột 14 (index 13) là ngày đổ - điều chỉnh nếu cần
-      const ngayDo = row[14];
-      if (!ngayDo) continue;
-
-      console.log(`📅 Kiểm tra ngày đổ: ${ngayDo}`);
-
-      // Kiểm tra định dạng ngày và so sánh tháng/năm
-      const dateParts = ngayDo.split('/');
-      if (dateParts.length === 3) {
-        const rowDay = parseInt(dateParts[0]);
-        const rowMonth = parseInt(dateParts[1]);
-        const rowYear = parseInt(dateParts[2]);
-
-        if (rowMonth === month && rowYear === year) {
-          const donGia = parseFloat(row[11]); // Cột 11 (index 10) là đơn giá
-          const loaiNhienLieu = row[9]; // Cột 10 (index 9) là loại nhiên liệu
-
-          if (!isNaN(donGia) && donGia > 0) {
-            totalPrice += donGia;
-            count++;
-            console.log(`⛽ Dữ liệu giá nhiên liệu phù hợp: Ngày ${ngayDo}, Đơn giá: ${donGia}, Loại: ${loaiNhienLieu}`);
-          }
-        }
-      }
-    }
-
-    console.log(`⛽ Tổng số mẫu giá nhiên liệu phù hợp: ${count}, Tổng giá: ${totalPrice}, Giá TB: ${count > 0 ? Math.round(totalPrice / count) : 20000}`);
-
-    return count > 0 ? Math.round(totalPrice / count) : 20000;
-  } catch (error) {
-    console.error("❌ Lỗi khi tính đơn giá nhiên liệu:", error);
-    return 20000;
-  }
-}
-
-// Hàm chính tạo báo cáo lộ trình
-async function generateBaoCaoLoTrinh(month, year) {
-  try {
-    console.log(`🔍 Bắt đầu tạo báo cáo cho tháng ${month}/${year}`);
-
-    // Lấy dữ liệu từ các sheet
-    const [loTrinhData, dataPhuongTien, averageFuelPrice] = await Promise.all([
-      getSheetData(SPREADSHEET_HC_ID, "Lo_trinh_xe"),
-      getSheetData(SPREADSHEET_HC_ID, "Data_phuong_tien"),
-      calculateAverageFuelPrice(month, year)
+    // Lấy dữ liệu 3 sheet
+    const [loTrinhRes, ptRes, xangRes] = await Promise.all([
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Lo_trinh_xe!A:Z" }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "Data_phuong_tien!A:Z" }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_HC_ID, range: "QL_ly_xang_dau!A:Z" }),
     ]);
 
-    console.log(`📊 Dữ liệu lộ trình: ${loTrinhData ? loTrinhData.length : 0} dòng`);
-    console.log(`📊 Dữ liệu phương tiện: ${dataPhuongTien ? dataPhuongTien.length : 0} dòng`);
-    console.log(`⛽ Giá nhiên liệu trung bình: ${averageFuelPrice}`);
+    const loTrinhRows = (loTrinhRes.data.values || []).slice(1); // bỏ header
+    const ptRows = (ptRes.data.values || []).slice(1);
+    const xangRows = (xangRes.data.values || []).slice(1);
 
-    // Tạo map cho thông tin phương tiện - SỬA CỘT TÊN XE
-    const vehicleInfoMap = new Map();
-    if (dataPhuongTien && dataPhuongTien.length > 1) {
-      console.log("📋 Dữ liệu Data_phuong_tien:");
-      for (let i = 1; i < dataPhuongTien.length; i++) {
-        const row = dataPhuongTien[i];
-        if (row.length >= 8) {
-          const tenXe = row[3]; // Cột 4 (index 3) - Ten_phuong_tien
-          const dinhMucNhienLieu = parseFloat(row[6]) || 12; // Cột 7 - Dinh_mu_nhien_lieu
-          const dinhMucKhauHao = parseFloat(row[7]) || 2000; // Cột 8 - Dinh_muc_tien_km
-          
-          if (tenXe && tenXe.trim() !== "" && tenXe !== "Công ty" && tenXe !== "Thuê ngoài") {
-            vehicleInfoMap.set(tenXe.trim(), {
-              dinhMucNhienLieu,
-              dinhMucKhauHao
-            });
-            console.log(`🚗 Phương tiện: "${tenXe}", Định mức nhiên liệu: ${dinhMucNhienLieu}, Khấu hao: ${dinhMucKhauHao}`);
-          }
-        }
+    // Map: tên phương tiện → thông tin định mức
+    const phuongTienInfo = {};
+    ptRows.forEach(row => {
+      if (row[2]) {
+        const ten = row[2].trim();
+        phuongTienInfo[ten] = {
+          tenXe: ten,
+          dinhMucNL: parseFloat(row[6]) || 0,
+          dinhMucKH: parseFloat(row[7]) || 0,
+        };
       }
-    } else {
-      console.log("❌ Không có dữ liệu phương tiện");
-    }
-
-    // Xử lý dữ liệu lộ trình - SỬA CÁC CỘT THEO HEADER THỰC TẾ
-    const vehicleReport = new Map();
-    let totalKmCaNhan = 0;
-
-    if (loTrinhData && loTrinhData.length > 1) {
-  console.log("📋 Xử lý dữ liệu Lo_trinh_xe:");
-  let matchedCount = 0;
-  
-  // Thêm debug để xem có bao nhiêu dòng dữ liệu
-  console.log(`🔍 Tổng số dòng dữ liệu: ${loTrinhData.length - 1} (trừ header)`);
-  
-  for (let i = 1; i < loTrinhData.length; i++) {
-    const row = loTrinhData[i];
-    if (row.length < 15) {
-      console.log(`⚠️ Dòng ${i} không đủ 15 cột: ${row.length}`);
-      continue;
-    }
-
-    // Cột 1 (index 1) là Ngay_tao
-    const ngayTao = row[1];
-    if (!ngayTao) {
-      console.log(`⚠️ Dòng ${i} không có ngày tạo`);
-      continue;
-    }
-
-    // Kiểm tra ngày có thuộc tháng/năm được chọn
-    const dateParts = ngayTao.split('/');
-    if (dateParts.length !== 3) {
-      console.log(`❌ Dòng ${i}: Định dạng ngày không hợp lệ: "${ngayTao}"`);
-      continue;
-    }
-
-    const rowDay = parseInt(dateParts[0]);
-    const rowMonth = parseInt(dateParts[1]);
-    const rowYear = parseInt(dateParts[2]);
-
-    // Kiểm tra tháng/năm - THÊM DEBUG CHI TIẾT
-    if (rowMonth === month && rowYear === year) {
-      console.log(`✅ Dòng ${i} KHỚP tháng/năm: ${rowMonth}/${rowYear}`);
-      
-      const tenXe = row[2] ? row[2].trim() : "";
-      const mucDich = row[7] ? row[7].trim() : "";
-      const soKm = parseFloat(row[9]) || 0;
-      const tienEpass = parseFloat(row[14]) || 0;
-
-      console.log(`   Xe: "${tenXe}", Mục đích: "${mucDich}", Số km: ${soKm}`);
-
-      // Chỉ xử lý nếu là "Xe Quang Minh" hoặc "Cá nhân"
-      const isXeQuangMinh = tenXe.includes("Quang Minh") || tenXe === "Xe Quang Minh";
-      const isCaNhan = mucDich.includes("Cá nhân") || mucDich.includes("cá nhân");
-
-      if (isXeQuangMinh || isCaNhan) {
-        if (!vehicleReport.has(tenXe)) {
-          const vehicleInfo = vehicleInfoMap.get(tenXe) || { 
-            dinhMucNhienLieu: 12, 
-            dinhMucKhauHao: 2000 
-          };
-          
-          vehicleReport.set(tenXe, {
-            totalKm: 0,
-            totalEpass: 0,
-            info: vehicleInfo
-          });
-        }
-
-        const current = vehicleReport.get(tenXe);
-        current.totalKm += soKm;
-        current.totalEpass += tienEpass;
-        totalKmCaNhan += soKm;
-        matchedCount++;
-
-        console.log(`📈 Đã thêm: ${tenXe} - KM: ${soKm}, Tổng KM: ${current.totalKm}`);
-      } else {
-        console.log(`   ⚠️ Bỏ qua: không phải "Xe Quang Minh" hoặc "Cá nhân"`);
-      }
-    } else {
-      // Chỉ log một số dòng không khớp để tránh quá nhiều log
-      if (i <= 10 || i % 100 === 0) {
-        console.log(`❌ Dòng ${i} không khớp: ${rowMonth}/${rowYear} vs ${month}/${year}`);
-      }
-    }
-  }
-  console.log(`📈 Tổng số bản ghi phù hợp: ${matchedCount}`);
-  console.log(`📈 Các xe trong báo cáo:`, Array.from(vehicleReport.keys()));
-} else {
-  console.log("❌ Không có dữ liệu lộ trình");
-}
-
-    // TẠO DANH SÁCH BÁO CÁO CHO CÁC XE ĐÃ LỌC
-    const reportItems = [];
-    let totalTienKhauHao = 0;
-    let totalTienNhienLieu = 0;
-    let totalThanhTien = 0;
-    let totalTienEpass = 0;
-    let totalTongThanhTien = 0;
-
-    // Duyệt qua tất cả các xe có trong vehicleReport
-    for (const [tenXe, data] of vehicleReport.entries()) {
-      const tienKhauHao = data.totalKm * data.info.dinhMucKhauHao;
-      const tienNhienLieu = (data.totalKm * data.info.dinhMucNhienLieu / 100) * averageFuelPrice;
-      const thanhTien = tienKhauHao + tienNhienLieu;
-      const tongThanhTien = thanhTien + data.totalEpass;
-
-      reportItems.push({
-        tenXe,
-        totalKm: data.totalKm,
-        dinhMucKhauHao: data.info.dinhMucKhauHao,
-        dinhMucNhienLieu: data.info.dinhMucNhienLieu,
-        averageFuelPrice,
-        tienKhauHao,
-        tienNhienLieu,
-        thanhTien,
-        tienEpass: data.totalEpass,
-        tongThanhTien
-      });
-
-      totalTienKhauHao += tienKhauHao;
-      totalTienNhienLieu += tienNhienLieu;
-      totalThanhTien += thanhTien;
-      totalTienEpass += data.totalEpass;
-      totalTongThanhTien += tongThanhTien;
-
-      console.log(`💰 Tính toán cho "${tenXe}": KM=${data.totalKm}, Khấu hao=${tienKhauHao}, Nhiên liệu=${tienNhienLieu}`);
-    }
-
-    console.log(`📊 Tổng số xe trong báo cáo: ${reportItems.length}`);
-    console.log(`📊 Danh sách xe:`, reportItems.map(item => item.tenXe));
-
-    return {
-      reportItems,
-      totals: {
-        totalKmCaNhan,
-        totalTienKhauHao,
-        totalTienNhienLieu,
-        totalThanhTien,
-        totalTienEpass,
-        totalTongThanhTien
-      },
-      averageFuelPrice,
-      month,
-      year
-    };
-
-  } catch (error) {
-    console.error("❌ Lỗi khi tạo báo cáo lộ trình:", error);
-    throw error;
-  }
-}
-
-// Hàm hỗ trợ lấy dữ liệu từ sheet cho báo cáo lộ trình
-async function getSheetData(spreadsheetId, sheetName) {
-  try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: sheetName,
     });
-    const values = response.data.values || [];
-    console.log(`📋 Sheet ${sheetName}: ${values.length} dòng`);
-    if (values.length > 0) {
-      console.log(`📋 Header: ${values[0].join(' | ')}`);
+
+    // Tính đơn giá nhiên liệu trung bình trong tháng
+    let tongLit = 0, tongTienNL = 0;
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+
+    xangRows.forEach(row => {
+      const ngayDoStr = row[14];
+      if (!ngayDoStr) return;
+      const ngayDo = parseDate(ngayDoStr);
+      if (ngayDo >= start && ngayDo <= end) {
+        const lit = parseFloat(row[9]) || 0;
+        const gia = parseFloat(row[11]) || 0;
+        if (lit > 0 && gia > 0) {
+          tongLit += lit;
+          tongTienNL += lit * gia;
+        }
+      }
+    });
+    const donGiaTB = tongLit > 0 ? Math.round(tongTienNL / tongLit) : 0;
+
+    function parseDate(str) {
+      const parts = str.toString().trim().split(/[-\/]/);
+      if (parts.length !== 3) return null;
+      const d = parts[0], m = parts[1], y = parts[2];
+      if (y.length === 4) return new Date(y, m - 1, d);
+      return new Date(y, m - 1, d.padStart(2, '0'));
     }
-    return values;
-  } catch (error) {
-    console.error(`❌ Lỗi khi lấy dữ liệu từ sheet ${sheetName}:`, error);
-    return [];
+
+    // Lọc dữ liệu trong tháng
+    const records = loTrinhRows
+      .map(row => {
+        if (!row[0]) return null;
+        const ngay = parseDate(row[0]);
+        if (!ngay || ngay.getMonth() + 1 !== month || ngay.getFullYear() !== year) return null;
+
+        return {
+          phuongTien: row[2]?.trim() || "",
+          mucDich: row[7]?.trim() || "",
+          soKm: parseFloat(row[9]) || 0,
+          nguoiSD: row[12]?.trim() || "",
+          tienEpass: parseFloat(row[14]) || 0,
+        };
+      })
+      .filter(Boolean);
+
+    // Danh sách xe duy nhất có dữ liệu trong tháng
+    const danhSachXe = [...new Set(records.map(r => r.phuongTien))].filter(Boolean);
+
+    // Tổng hợp dữ liệu cho từng xe
+    const dataXe = {};
+
+    danhSachXe.forEach(tenXe => {
+      const info = phuongTienInfo[tenXe] || { dinhMucNL: 0, dinhMucKH: 0 };
+      dataXe[tenXe] = {
+        tenXe,
+        dinhMucNL: info.dinhMucNL,
+        dinhMucKH: info.dinhMucKH,
+        kmQuangMinh: 0,
+        kmCaNhan: 0,
+        nguoiSD_QuangMinh: new Set(),
+        nguoiSD_CaNhan: new Set(),
+        tienEpass: 0,
+      };
+    });
+
+    records.forEach(r => {
+      if (!dataXe[r.phuongTien]) return;
+      const xe = dataXe[r.phuongTien];
+      xe.tienEpass += r.tienEpass;
+
+      if (r.phuongTien === "Xe Quang Minh") {
+        xe.kmQuangMinh += r.soKm;
+        if (r.nguoiSD) xe.nguoiSD_QuangMinh.add(r.nguoiSD);
+      }
+      if (r.mucDich === "Cá nhân") {
+        xe.kmCaNhan += r.soKm;
+        if (r.nguoiSD) xe.nguoiSD_CaNhan.add(r.nguoiSD);
+      }
+    });
+
+    // Tính tiền
+    Object.values(dataXe).forEach(xe => {
+      const kmCaNhan = xe.kmCaNhan;
+      xe.tienKhauHao = Math.round(kmCaNhan * xe.dinhMucKH);
+      xe.tienNhienLieu = Math.round((kmCaNhan * xe.dinhMucNL / 100) * donGiaTB);
+      xe.thanhTien = xe.tienKhauHao + xe.tienNhienLieu;
+    });
+
+    const tongKmCaNhan = Object.values(dataXe).reduce((s, x) => s + x.kmCaNhan, 0);
+    const tongTienKhauHao = Object.values(dataXe).reduce((s, x) => s + x.tienKhauHao, 0);
+    const tongTienNhienLieu = Object.values(dataXe).reduce((s, x) => s + x.tienNhienLieu, 0);
+    const tongThanhTien = tongTienKhauHao + tongTienNhienLieu;
+    const tongEpass = Object.values(dataXe).reduce((s, x) => s + x.tienEpass, 0);
+    const tongCuoi = tongThanhTien + tongEpass;
+
+    const xeArray = Object.values(dataXe);
+
+    res.render("baocaolotrinh", {
+      data: {
+        thang: month,
+        nam: year,
+        donGiaTB,
+        xeArray,
+        tongKmCaNhan,
+        tongTienKhauHao,
+        tongTienNhienLieu,
+        tongThanhTien,
+        tongEpass,
+        tongCuoi,
+      },
+      logo: await loadDriveImageBase64(LOGO_FILE_ID),
+      watermark: await loadDriveImageBase64(WATERMARK_FILE_ID),
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Lỗi: " + err.message);
   }
-}
+});
 
 
 
