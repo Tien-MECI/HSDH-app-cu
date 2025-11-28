@@ -102,13 +102,13 @@
     <th rowspan="4" style="width:9%; vertical-align:middle; font-weight:normal;">
       Tên người<br>sử dụng xe
     </th>
-    <th style="width:6%; font-size:11px; font-weight:bold; background:#f4f4f4;">
+    <th style="width:6%; font-size:11px; font-weight:bold; background:#f4f4f4; line-height:1.3;">
       Khấu hao/<br>giá nhiên liệu TB
     </th>
     <% data.xeArray.forEach(function(xe){ %>
       <th colspan="2" style="font-size:11px; background:#fff; line-height:1.4; padding:4px;">
         Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
-        Giá nhiên liệu TB: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
+        Giá <%= xe.loaiNhienLieu %> TB: <%= (data.donGiaTB[xe.loaiNhienLieu] || 0).toLocaleString() %> đ/lít
       </th>
     <% }); %>
     <th rowspan="4" style="width:7%;">Tổng số km<br>sử dụng<br>cá nhân</th>
@@ -120,7 +120,7 @@
     <th rowspan="4" style="width:7%;">Ký<br>xác nhận</th>
   </tr>
 
-  <!-- DÒNG 2: Loại xe -->
+  <!-- DÒNG 2: Loại xe (tên xe) -->
   <tr style="height: 38px;">
     <th style="width:6%; font-size:11px; font-weight:bold; background:#f9f9f9;">
       Loại xe
@@ -132,7 +132,7 @@
     <% }); %>
   </tr>
 
-  <!-- DÒNG 3: Loại (QM thuê MECI | Cá nhân) -->
+  <!-- DÒNG 3: QM thuê MECI / MC thuê QM | Cá nhân -->
   <tr style="height: 28px;">
     <th style="width:6%; font-size:11px; background:#f4f4f4;">
       Loại
@@ -146,7 +146,7 @@
     <% }); %>
   </tr>
 
-  <!-- DÒNG 4: Định mức (lít/100km) + loại nhiên liệu -->
+  <!-- DÒNG 4: Định mức + Loại nhiên liệu -->
   <tr style="height: 28px;">
     <th style="width:6%; font-size:11px; background:#f9f9f9;">
       Định mức<br>(lít/100km)
