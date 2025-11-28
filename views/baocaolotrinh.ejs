@@ -97,34 +97,20 @@
 
   <table>
     <thead>
-  <!-- DÒNG 1 -->
-  <tr style="height: 52px;">
-    <th rowspan="4" style="width:9%; vertical-align: middle;">Tên người<br>sử dụng xe</th>
-
-    <!-- CỘT TRÁI – 4 Ô NHỎ CĂN CHUẨN TỪNG DÒNG -->
-    <th rowspan="4" style="width:6%; padding:0; font-size:11px;">
-      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px; background:#f4f4f4;">
-        <strong>Khấu hao/<br>giá nhiên liệu TB</strong>
-      </div>
-      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px; font-weight:bold; background:#f9f9f9;">
-        Loại xe
-      </div>
-      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px; background:#f4f4f4;">
-        Loại
-      </div>
-      <div style="height:25%; padding:4px 2px; background:#f9f9f9;">
-        Định mức<br>(lít/100km)
-      </div>
+  <!-- DÒNG 1: Khấu hao / giá nhiên liệu TB -->
+  <tr style="height: 48px;">
+    <th rowspan="4" style="width:9%; vertical-align:middle; font-weight:normal;">
+      Tên người<br>sử dụng xe
     </th>
-
-    <!-- Thông tin khấu hao + giá nhiên liệu của từng xe -->
+    <th style="width:6%; font-size:11px; font-weight:bold; background:#f4f4f4;">
+      Khấu hao/<br>giá nhiên liệu TB
+    </th>
     <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="background:#fff; border-bottom:none; font-size:11px; line-height:1.35; padding:4px 2px;">
+      <th colspan="2" style="font-size:11px; background:#fff; line-height:1.4; padding:4px;">
         Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
         Giá nhiên liệu TB: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
       </th>
     <% }); %>
-
     <th rowspan="4" style="width:7%;">Tổng số km<br>sử dụng<br>cá nhân</th>
     <th rowspan="4" style="width:7%;">Tiền<br>Khấu hao</th>
     <th rowspan="4" style="width:7%;">Tiền<br>nhiên liệu</th>
@@ -134,8 +120,11 @@
     <th rowspan="4" style="width:7%;">Ký<br>xác nhận</th>
   </tr>
 
-  <!-- DÒNG 2 – TÊN XE -->
+  <!-- DÒNG 2: Loại xe -->
   <tr style="height: 38px;">
+    <th style="width:6%; font-size:11px; font-weight:bold; background:#f9f9f9;">
+      Loại xe
+    </th>
     <% data.xeArray.forEach(function(xe){ %>
       <th colspan="2" style="font-weight:bold; font-size:14px; vertical-align:middle;">
         <%= xe.tenXe %>
@@ -143,8 +132,11 @@
     <% }); %>
   </tr>
 
-  <!-- DÒNG 3 – QM thuê MECI / MC thuê QM │ Cá nhân -->
+  <!-- DÒNG 3: Loại (QM thuê MECI | Cá nhân) -->
   <tr style="height: 28px;">
+    <th style="width:6%; font-size:11px; background:#f4f4f4;">
+      Loại
+    </th>
     <% data.xeArray.forEach(function(xe){ 
         const ten = (xe.tenXe || '').trim().toLowerCase();
         const isQuangMinh = ten.includes('quang minh') || ten === 'xe quang minh';
@@ -154,8 +146,11 @@
     <% }); %>
   </tr>
 
-  <!-- DÒNG 4 – ĐỊNH MỨC + LOẠI NHIÊN LIỆU -->
+  <!-- DÒNG 4: Định mức (lít/100km) + loại nhiên liệu -->
   <tr style="height: 28px;">
+    <th style="width:6%; font-size:11px; background:#f9f9f9;">
+      Định mức<br>(lít/100km)
+    </th>
     <% data.xeArray.forEach(function(xe){ %>
       <th style="font-size:11px;"><%= xe.dinhMucNL || '' %></th>
       <th style="font-size:11px;"><%= xe.loaiNhienLieu || 'DO' %></th>
