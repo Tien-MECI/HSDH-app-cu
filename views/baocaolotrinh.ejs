@@ -97,37 +97,33 @@
 
   <table>
     <thead>
-  <!-- Dòng 1: Thông tin khấu hao + giá nhiên liệu -->
-  <tr>
-    <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
-
-    <!-- CỘT ĐỊNH MỨC – CĂN ĐÚNG TỪNG DÒNG VỚI 4 DÒNG HEADER BÊN PHẢI -->
-    <th rowspan="4" style="width:6%; padding:0;">
-      <table style="width:100%; height:100%; border-collapse:collapse; font-size:11px; table-layout:fixed;">
-        <tbody>
-          <tr><td class="small bold"  style="border:1px solid #000; height:25%; padding:3px; background:#f8f8f8; line-height:1.3;">
-            Khấu hao/<br>giá nhiên liệu TB
-          </td></tr>
-          <tr><td class="small" style="border:1px solid #000; height:25%; padding:3px; font-weight:bold;">
-            Loại xe
-          </td></tr>
-          <tr><td class="small" style="border:1px solid #000; height:25%; padding:3px;">
-            Loại
-          </td></tr>
-          <tr><td class="small" style="border:1px solid #000; height:25%; padding:3px;">
-            Định mức<br>(lít/100km)
-          </td></tr>
-        </tbody>
-      </table>
+  <!-- ============================= DÒNG 1 ============================= -->
+  <tr style="height:52px;">
+    <th rowspan="4" style="width:9%; vertical-align:middle;">Tên người<br/>sử dụng xe</th>
+    
+    <!-- CỘT 4 DÒNG BÊN TRÁI – CĂN CHUẨN 100% -->
+    <th style="width:6%; padding:0; font-size:11px; line-height:1.2;">
+      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px; background:#f8f8f8;">
+        <strong>Khấu hao/<br>giá nhiên liệu TB</strong>
+      </div>
+      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px; font-weight:bold;">
+        Loại xe
+      </div>
+      <div style="height:25%; border-bottom:1px solid #000; padding:4px 2px;">
+        Loại
+      </div>
+      <div style="height:25%; padding:4px 2px;">
+        Định mức<br>(lít/100km)
+      </div46>  
+      Định mức<br>(lít/100km)
     </th>
 
-    <!-- Dòng 1: Thông tin khấu hao + nhiên liệu (giữ nguyên) -->
+    <!-- Thông tin khấu hao + giá NL của từng xe -->
     <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="background:#fff; border-bottom:none;">
-        <div class="small" style="line-height:1.4;">
-          Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
-          Giá nhiên liệu TB: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
-        </div>
+      <th colspan="2" style="background:#fff; border-bottom:none; font-size:11px; line-height:1.4;">
+        Giá khấu hao phương tiện: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+        Loại nhiên liệu: <%= (xe.loaiNhienLieu || 'DO') %><br>
+        Giá nhiên liệu tháng: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
       </th>
     <% }); %>
 
@@ -140,31 +136,31 @@
     <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
   </tr>
 
-  <!-- Dòng 2: Tên xe -->
-  <tr>
+  <!-- ============================= DÒNG 2 ============================= -->
+  <tr style="height:40px;">
     <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="font-weight:bold; font-size:14px; height:40px; vertical-align:middle;">
+      <th colspan="2" style="font-weight:bold; font-size:14px; vertical-align:middle;">
         <%= xe.tenXe %>
       </th>
     <% }); %>
   </tr>
 
-  <!-- Dòng 3: QM thuê MECI | Cá nhân   hoặc   MC thuê QM | Cá nhân -->
-  <tr>
+  <!-- ============================= DÒNG 3 ============================= -->
+  <tr style="height:30px;">
     <% data.xeArray.forEach(function(xe){ 
         const ten = (xe.tenXe || '').trim().toLowerCase();
         const isQuangMinh = ten.includes('quang minh') || ten === 'xe quang minh';
     %>
-      <th class="small"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
-      <th class="small">Cá nhân</th>
+      <th class="small" style="font-size:11px;"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
+      <th class="small" style="font-size:11px;">Cá nhân</th>
     <% }); %>
   </tr>
 
-  <!-- Dòng 4: Định mức + Loại nhiên liệu -->
-  <tr>
+  <!-- ============================= DÒNG 4 ============================= -->
+  <tr style="height:30px;">
     <% data.xeArray.forEach(function(xe){ %>
-      <th class="small"><%= xe.dinhMucNL || '' %></th>
-      <th class="small"><%= xe.loaiNhienLieu || 'DO' %></th>
+      <th class="small" style="font-size:11px;"><%= xe.dinhMucNL || '' %></th>
+      <th class="small" style="font-size:11px;"><%= xe.loaiNhienLieu || 'DO' %></th>
     <% }); %>
   </tr>
 </thead>
