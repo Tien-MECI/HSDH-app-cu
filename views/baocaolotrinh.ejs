@@ -98,53 +98,37 @@
   <table>
     <thead>
   <!-- Row 1 -->
-  <tr>
-    <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
+<tr>
+  <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
 
-    <!-- ←←←←←←←←←← ĐOẠN MỚI Ở ĐÂY (có 4 ô kẻ viền) ←←←←←←←←←← -->
-    <th style="width:6%; padding:0;">
-      <table style="width:100%; height:100%; border-collapse:collapse; font-size:11px;">
-        <tr>
-          <td class="small bold" style="border:1px solid #000; height:28px; background:#f0f0f0;">
-            Khấu hao/<br>giá nhiên liệu TB
-          </td>
-        </tr>
-        <tr>
-          <td class="small" style="border:1px solid #000; height:28px;">
-            Loại xe
-          </td>
-        </tr>
-        <tr>
-          <td class="small" style="border:1px solid #000; height:28px;">
-            Loại
-          </td>
-        </tr>
-        <tr>
-          <td class="small" style="border:1px solid #000; height:28px;">
-            Định mức<br>(lít/100km)
-          </td>
-        </tr>
-      </table>
+  <!-- CỘT ĐỊNH MỨC – CHIA 4 Ô NHỎ CÓ VIỀN, THẲNG HÀNG VỚI CỘT TÊN NGƯỜI -->
+  <th rowspan="4" style="width:6%; padding:0; border:1px solid #000;">
+    <table style="width:100%; height:100%; border-collapse:collapse; table-layout:fixed;">
+      <tr><td class="small bold"  style="border-bottom:1px solid #000; height:25%; padding:4px 2px; background:#f8f8f8;">Khấu hao/<br>giá nhiên liệu TB</td></tr>
+      <tr><td class="small"       style="border-bottom:1px solid #000; height:25%; padding:4px 2px;">Loại xe</td></tr>
+      <tr><td class="small"       style="border-bottom:1px solid #000; height:25%; padding:4px 2px;">Loại</td></tr>
+      <tr><td class="small"       style="height:25%; padding:4px 2px;">Định mức<br>(lít/100km)</td></tr>
+    </table>
+  </th>
+  <!-- HẾT PHẦN SỬA -->
+
+  <% data.xeArray.forEach(function(xe){ %>
+    <th colspan="2" style="background:#fff; border-bottom:none; padding:6px;">
+      <div class="small">
+        Giá khấu hao phương tiện: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+        Loại nhiên liệu: <%= (xe.loaiNhienLieu || 'DO') %><br>
+        Giá nhiên liệu tháng: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
+      </div>
     </th>
-    <!-- ←←←←←←←←←← KẾT THÚC ĐOẠN MỚI ←←←←←←←←←← -->
-
-    <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="background:#fff; border-bottom:none; padding:6px;">
-        <div class="small">
-          Giá khấu hao phương tiện: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
-          Loại nhiên liệu: <%= (xe.loaiNhienLieu || 'DO') %><br>
-          Giá nhiên liệu tháng: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
-        </div>
-      </th>
-    <% }); %>
-    <th rowspan="4" style="width:7%;">Tổng số km<br/>sử dụng<br/>cá nhân</th>
-    <th rowspan="4" style="width:7%;">Tiền<br/>Khấu hao</th>
-    <th rowspan="4" style="width:7%;">Tiền<br/>nhiên liệu</th>
-    <th rowspan="4" style="width:7%;">Thành tiền</th>
-    <th rowspan="4" style="width:7%;">Tiền<br/>Epass</th>
-    <th rowspan="4" style="width:7%;">Tổng<br/>thành tiền</th>
-    <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
-  </tr>
+  <% }); %>
+  <th rowspan="4" style="width:7%;">Tổng số km<br/>sử dụng<br/>cá nhân</th>
+  <th rowspan="4" style="width:7%;">Tiền<br/>Khấu hao</th>
+  <th rowspan="4" style="width:7%;">Tiền<br/>nhiên liệu</th>
+  <th rowspan="4" style="width:7%;">Thành tiền</th>
+  <th rowspan="4" style="width:7%;">Tiền<br/>Epass</th>
+  <th rowspan="4" style="width:7%;">Tổng<br/>thành tiền</th>
+  <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
+</tr>
 
   <!-- Row 2 – Tên xe -->
   <tr>
