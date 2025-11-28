@@ -97,15 +97,37 @@
 
   <table>
     <thead>
-  <!-- Row 1: Thông tin khấu hao + giá nhiên liệu chung (giữ nguyên) -->
+  <!-- Row 1 -->
   <tr>
     <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
-    <th rowspan="4" style="width:6%; line-height:1.35;">
-      <div class="small bold">Khấu hao/<br>giá nhiên liệu TB</div>
-      <div class="small">Lên xe</div>
-      <div class="small">Loại</div>
-      <div class="small">Định mức<br>(lít/100km)</div>
+
+    <!-- ←←←←←←←←←← ĐOẠN MỚI Ở ĐÂY (có 4 ô kẻ viền) ←←←←←←←←←← -->
+    <th style="width:6%; padding:0;">
+      <table style="width:100%; height:100%; border-collapse:collapse; font-size:11px;">
+        <tr>
+          <td class="small bold" style="border:1px solid #000; height:28px; background:#f0f0f0;">
+            Khấu hao/<br>giá nhiên liệu TB
+          </td>
+        </tr>
+        <tr>
+          <td class="small" style="border:1px solid #000; height:28px;">
+            Loại xe
+          </td>
+        </tr>
+        <tr>
+          <td class="small" style="border:1px solid #000; height:28px;">
+            Loại
+          </td>
+        </tr>
+        <tr>
+          <td class="small" style="border:1px solid #000; height:28px;">
+            Định mức<br>(lít/100km)
+          </td>
+        </tr>
+      </table>
     </th>
+    <!-- ←←←←←←←←←← KẾT THÚC ĐOẠN MỚI ←←←←←←←←←← -->
+
     <% data.xeArray.forEach(function(xe){ %>
       <th colspan="2" style="background:#fff; border-bottom:none; padding:6px;">
         <div class="small">
@@ -124,26 +146,25 @@
     <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
   </tr>
 
-  <!-- Row 2: Tên xe -->
+  <!-- Row 2 – Tên xe -->
   <tr>
     <% data.xeArray.forEach(function(xe){ %>
       <th colspan="2" style="font-weight:bold; font-size:14px;"><%= xe.tenXe %></th>
     <% }); %>
   </tr>
 
-  <!-- Row 3: QM thuê MECI hoặc MC thuê QM -->
+  <!-- Row 3 – QM thuê MECI | Cá nhân   hoặc   MC thuê QM | Cá nhân -->
   <tr>
     <% data.xeArray.forEach(function(xe){ 
         const ten = (xe.tenXe || '').trim().toLowerCase();
         const isQuangMinh = ten.includes('quang minh') || ten === 'xe quang minh';
     %>
-      <th colspan="2" class="small">
-        <%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %>
-      </th>
+      <th class="small"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
+      <th class="small">Cá nhân</th>
     <% }); %>
   </tr>
 
-  <!-- Row 4: Định mức + Loại nhiên liệu cho từng xe (đã sửa lỗi lệch) -->
+  <!-- Row 4 – Định mức + Loại nhiên liệu -->
   <tr>
     <% data.xeArray.forEach(function(xe){ %>
       <th class="small"><%= xe.dinhMucNL || '' %></th>
