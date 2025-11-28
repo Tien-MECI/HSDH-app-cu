@@ -97,69 +97,57 @@
 
   <table>
     <thead>
-  <!-- Row 1: Thông tin khấu hao + nhiên liệu chung -->
+  <!-- Row 1: Thông tin khấu hao + giá nhiên liệu chung (giữ nguyên) -->
   <tr>
-    <th rowspan="5" style="width:9%;">Tên người<br/>sử dụng xe</th>
-    <th rowspan="5" style="width:6%; line-height:1.2;">
+    <th rowspan="4" style="width:9%;">Tên người<br/>sử dụng xe</th>
+    <th rowspan="4" style="width:6%; line-height:1.35;">
       <div class="small bold">Khấu hao/<br>giá nhiên liệu TB</div>
       <div class="small">Lên xe</div>
       <div class="small">Loại</div>
       <div class="small">Định mức<br>(lít/100km)</div>
     </th>
     <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="background:#fff; border-bottom:none; padding:4px 2px;">
-        <div class="small" style="line-height:1.3;">
-          <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
-          <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít<br>
-          <%= xe.tenXe %><br>
-          <%= xe.loaiNhienLieu || 'DO' %><br>
-          <%= xe.dinhMucNL || '' %>
+      <th colspan="2" style="background:#fff; border-bottom:none; padding:6px;">
+        <div class="small">
+          Giá khấu hao phương tiện: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+          Loại nhiên liệu: <%= (xe.loaiNhienLieu || 'DO') %><br>
+          Giá nhiên liệu tháng: <%= (data.donGiaTB || 0).toLocaleString() %> đ/lít
         </div>
       </th>
     <% }); %>
-    <th rowspan="5" style="width:7%;">Tổng số km<br/>sử dụng<br/>cá nhân</th>
-    <th rowspan="5" style="width:7%;">Tiền<br/>Khấu hao</th>
-    <th rowspan="5" style="width:7%;">Tiền<br/>nhiên liệu</th>
-    <th rowspan="5" style="width:7%;">Thành tiền</th>
-    <th rowspan="5" style="width:7%;">Tiền<br/>Epass</th>
-    <th rowspan="5" style="width:7%;">Tổng<br/>thành tiền</th>
-    <th rowspan="5" style="width:7%;">Ký<br/>xác nhận</th>
+    <th rowspan="4" style="width:7%;">Tổng số km<br/>sử dụng<br/>cá nhân</th>
+    <th rowspan="4" style="width:7%;">Tiền<br/>Khấu hao</th>
+    <th rowspan="4" style="width:7%;">Tiền<br/>nhiên liệu</th>
+    <th rowspan="4" style="width:7%;">Thành tiền</th>
+    <th rowspan="4" style="width:7%;">Tiền<br/>Epass</th>
+    <th rowspan="4" style="width:7%;">Tổng<br/>thành tiền</th>
+    <th rowspan="4" style="width:7%;">Ký<br/>xác nhận</th>
   </tr>
 
   <!-- Row 2: Tên xe -->
   <tr>
     <% data.xeArray.forEach(function(xe){ %>
-      <th colspan="2" style="font-weight:bold; font-size:14px; height:40px;">
-        <%= xe.tenXe %>
-      </th>
+      <th colspan="2" style="font-weight:bold; font-size:14px;"><%= xe.tenXe %></th>
     <% }); %>
   </tr>
 
   <!-- Row 3: QM thuê MECI hoặc MC thuê QM -->
   <tr>
-    <% data.xeArray.forEach(function(xe){
-        const tenXe = (xe.tenXe || '').trim();
-        const isXeQuangMinh = tenXe.toLowerCase().includes('quang minh') || tenXe.toLowerCase() === 'xe quang minh';
+    <% data.xeArray.forEach(function(xe){ 
+        const ten = (xe.tenXe || '').trim().toLowerCase();
+        const isQuangMinh = ten.includes('quang minh') || ten === 'xe quang minh';
     %>
-      <th class="small" colspan="2">
-        <%= isXeQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %>
+      <th colspan="2" class="small">
+        <%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %>
       </th>
     <% }); %>
   </tr>
 
-  <!-- Row 4: Tiêu đề 2 cột con: MC mượn QM (giờ bỏ) và Cá nhân → thay bằng 2 cột trống để căn chỉnh -->
+  <!-- Row 4: Định mức + Loại nhiên liệu cho từng xe (đã sửa lỗi lệch) -->
   <tr>
-    <% data.xeArray.forEach(function(){ %>
-      <th class="small" style="width:3%;"></th>
-      <th class="small" style="width:3%;">Cá nhân</th>
-    <% }); %>
-  </tr>
-
-  <!-- Row 5: Trống để đủ 5 dòng cho cột định mức bên trái -->
-  <tr>
-    <% data.xeArray.forEach(function(){ %>
-      <th class="small"></th>
-      <th class="small"></th>
+    <% data.xeArray.forEach(function(xe){ %>
+      <th class="small"><%= xe.dinhMucNL || '' %></th>
+      <th class="small"><%= xe.loaiNhienLieu || 'DO' %></th>
     <% }); %>
   </tr>
 </thead>
