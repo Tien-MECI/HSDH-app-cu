@@ -2093,7 +2093,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
     console.log('▶️ Bắt đầu xuất KHNS (theo URL params)...');
 
     // 1. LẤY PARAM TỪ URL VÀ DECODE
-    const ngayYC = decodeURIComponent(req.params.ngayYC);
+    const ngayYC = decodeURIComponent(req.params.ngayYC);       // dd_mm_yyyy
     const tenNSTHValue = decodeURIComponent(req.params.tenNSTH);
     const phuongTienValue = decodeURIComponent(req.params.phuongTien);
     const giaTriE = decodeURIComponent(req.params.sofile);
@@ -2116,20 +2116,25 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
     const keHoachValues = keHoachRes.data.values || [];
 
-    // 4. HÀM PARSE DATE
+    // 4. HÀM PARSE DATE - HỖ TRỢ dd/mm/yyyy, dd-mm-yyyy, dd_mm_yyyy
     function parseSheetDate(val) {
       if (!val) return null;
+
       if (typeof val === "number") {
         const epoch = new Date(Date.UTC(1899, 11, 30));
         return new Date(epoch.getTime() + Math.round(val * 86400000));
       }
+
       const s = String(val).trim();
-      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+
+      // match dd/mm/yyyy, dd-mm-yyyy, dd_mm_yyyy
+      const m = s.match(/^(\d{1,2})[\/\-_](\d{1,2})[\/\-_](\d{2,4})$/);
       if (m) {
-        let [, dd, mm, yyyy, hh = "0", min = "0", ss = "0"] = m;
+        let [, dd, mm, yyyy] = m;
         if (yyyy.length === 2) yyyy = "20" + yyyy;
-        return new Date(+yyyy, +mm - 1, +dd, +hh, +min, +ss);
+        return new Date(+yyyy, +mm - 1, +dd);
       }
+
       const d = new Date(s);
       return isNaN(d) ? null : d;
     }
@@ -2150,9 +2155,12 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
       const ngayTHObj = parseSheetDate(row[1]);
       if (!ngayTHObj) continue;
 
-      const ngayTH_fmt = ngayTHObj.toLocaleDateString('vi-VN');
+      // So sánh bằng object Date
+      const condDate = ngayYCObj && ngayTHObj &&
+        ngayYCObj.getFullYear() === ngayTHObj.getFullYear() &&
+        ngayYCObj.getMonth() === ngayTHObj.getMonth() &&
+        ngayYCObj.getDate() === ngayTHObj.getDate();
 
-      const condDate = String(ngayTH_fmt) === String(ngayYC_fmt);
       const condTen = (row[26] || '') === tenNSTHValue;
       const condPT = (row[30] || '') === phuongTienValue;
 
@@ -2286,6 +2294,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
     res.status(500).send("Lỗi server: " + err.message);
   }
 });
+
 
 
 // --- Route Dashboard ---
