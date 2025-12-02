@@ -2092,14 +2092,14 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
   try {
     console.log('▶️ Bắt đầu xuất KHNS (theo URL params)...');
 
-    // 1. LẤY PARAM TỪ URL
-    const { ngayYC, tenNSTH, phuongTien, sofile, id } = req.params;
+    // 1. LẤY PARAM TỪ URL VÀ DECODE
+    const ngayYC = decodeURIComponent(req.params.ngayYC);
+    const tenNSTHValue = decodeURIComponent(req.params.tenNSTH);
+    const phuongTienValue = decodeURIComponent(req.params.phuongTien);
+    const giaTriE = decodeURIComponent(req.params.sofile);
+    const id = decodeURIComponent(req.params.id);
 
-    const tenNSTHValue = tenNSTH || "";
-    const phuongTienValue = phuongTien || "";
-    const giaTriE = sofile || "";
-
-    console.log("📌 Params:", req.params);
+    console.log("📌 Params (decoded):", { ngayYC, tenNSTHValue, phuongTienValue, giaTriE, id });
 
     // 2. LẤY LOGO & WATERMARK
     const [logoBase64, watermarkBase64] = await Promise.all([
@@ -2116,7 +2116,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
     const keHoachValues = keHoachRes.data.values || [];
 
-    // 4. HÀM PARSE DATE (giữ nguyên)
+    // 4. HÀM PARSE DATE
     function parseSheetDate(val) {
       if (!val) return null;
       if (typeof val === "number") {
@@ -2191,7 +2191,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
     const NSHotroStr = [...new Set(NSHotroArr)].join(" , ");
 
-    // 7. TRẢ KẾT QUẢ VỀ CLIENT ĐỂ IN PDF
+    // 7. RENDER CHO CLIENT
     const renderForClientData = {
       ngayYC: ngayYC_fmt,
       tenNSTHValue,
@@ -2210,14 +2210,9 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
     res.render('khns', renderForClientData);
 
-    // -------------------------------------------
-    // 8. GỌI GAS – TẠO FILE PDF – SAU ĐÓ MỚI ĐƯỢC TÌM ID & GHI SHEET
-    // -------------------------------------------
-
+    // 8. GỌI GAS → TẠO PDF → SAU ĐÓ MỚI ĐỌC SHEET → GHI ID
     (async () => {
       try {
-
-        // Render HTML gửi cho GAS
         const htmlToSend = await renderFileAsync(
           path.join(__dirname, 'views', 'khns.ejs'),
           { ...renderForClientData, autoPrint: false }
@@ -2230,7 +2225,6 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
         const gasUrl = process.env.GAS_WEBAPP_URL_KHNS;
 
-        // ---- GỌI GAS ----
         const resp = await fetch(gasUrl, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -2249,7 +2243,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
         const pathToFile = result.pathToFile || `KHNS/${result.fileName}`;
         console.log("📌 File đã tạo:", pathToFile);
 
-        // 🔥🔥🔥 SAU KHI TẠO FILE → ĐỌC LẠI SHEET ĐỂ TÌM ID 🔥🔥🔥
+        // SAU KHI CÓ pathToFile → ĐỌC LẠI SHEET → TÌM ID
         const fileRes2 = await sheets.spreadsheets.values.get({
           spreadsheetId: SPREADSHEET_ID,
           range: "File_KH_thuc_hien_NS",
@@ -2258,10 +2252,9 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
         const fileValues2 = fileRes2.data.values || [];
 
-        // ---- TÌM ID TRONG CỘT A ----
         let foundRow = -1;
         for (let i = 1; i < fileValues2.length; i++) {
-          if (String(fileValues2[i][0]).trim() === String(id).trim()) {
+          if (String(fileValues2[i][0]).trim() === id) {
             foundRow = i + 1;
             break;
           }
@@ -2274,7 +2267,6 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 
         const updateRange = `File_KH_thuc_hien_NS!F${foundRow}`;
 
-        // ---- GHI FILE PATH ----
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: updateRange,
@@ -2294,6 +2286,7 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
     res.status(500).send("Lỗi server: " + err.message);
   }
 });
+
 
 
 
