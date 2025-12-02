@@ -2288,8 +2288,6 @@ app.get('/khns/:ngayYC/:tenNSTH/:phuongTien/:sofile/:id', async (req, res) => {
 });
 
 
-
-
 // --- Route Dashboard ---
 
 import { format } from "date-fns";
