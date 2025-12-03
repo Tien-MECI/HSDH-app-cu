@@ -4,114 +4,615 @@
   <title>Dashboard Kinh Doanh</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: Arial, sans-serif; }
-    .filter-box { text-align:center; margin-bottom: 20px; }
-    .row { display:flex; flex-wrap:wrap; justify-content:center; gap:20px; }
-    .chart-container { flex:1; min-width:340px; max-width:700px; height:420px; position:relative; }
-    .full-width { max-width:1000px; }
-    canvas { width:100% !important; height:100% !important; }
+    /* Reset và base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+      padding: 15px;
+    }
+    
+    /* Container chính */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .header h1 {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+    }
+    
+    /* Filter box */
+    .filter-box {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    
+    .filter-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .filter-group label {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    
+    /* Button styles */
+    .btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: #3498db;
+      color: white;
+    }
+    
+    .btn-success {
+      background: #27ae60;
+      color: white;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* Row và chart container */
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .chart-container {
+      flex: 1;
+      min-width: 340px;
+      max-width: 700px;
+      height: 420px;
+      position: relative;
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+    
+    .full-width {
+      max-width: 1000px;
+      height: 500px;
+    }
+    
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    /* Card styles cho phần báo cáo bài đăng */
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .card-title {
+      font-size: 1.4rem;
+      color: #2c3e50;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .card-title i {
+      color: #667eea;
+    }
+    
+    /* Bảng styles */
+    .table-container {
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+    
+    thead tr {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    th:last-child {
+      border-right: none;
+    }
+    
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    tbody tr:hover {
+      background-color: #f1f8ff;
+    }
+    
+    /* Link styles */
+    .link-button {
+      color: #2980b9;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    
+    .link-button:hover {
+      background-color: #e3f2fd;
+      text-decoration: none;
+    }
+    
+    /* Pagination styles */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .pagination button {
+      min-width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .pagination .active {
+      background: #3498db;
+      color: white;
+      border-color: #3498db;
+    }
+    
+    .pagination-info {
+      margin-left: 15px;
+      color: #7f8c8d;
+      font-size: 14px;
+    }
+    
+    /* No data message */
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      color: #95a5a6;
+      font-style: italic;
+    }
+    
+    /* Control panel */
+    .control-panel {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    
+    .control-group {
+      flex: 1;
+      min-width: 250px;
+    }
+    
+    .control-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #34495e;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .chart-container {
+        min-width: 100%;
+        height: 350px;
+      }
+      
+      .full-width {
+        height: 400px;
+      }
+      
+      .control-row {
+        flex-direction: column;
+      }
+      
+      .control-group {
+        width: 100%;
+      }
+      
+      .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+    }
+    
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #e74c3c;
+      color: white;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1 style="text-align:center;">📊 Dashboard Kinh Doanh</h1>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1><i class="fas fa-chart-line"></i> Dashboard Kinh Doanh</h1>
+      <p>Tổng quan hoạt động kinh doanh</p>
+    </div>
 
-  <div class="filter-box">
-    <form method="GET" action="/dashboard" style="display:inline-flex; gap:8px; align-items:center;">
-      <label>Từ tháng:</label>
-      <select name="startMonth">
-        <option value="">Tất cả</option>
-        <% for (let m=1; m<=12; m++) { %>
-          <option value="<%= m %>" <%= startMonth==m ? 'selected' : '' %>>Tháng <%= m %></option>
-        <% } %>
-      </select>
-      <label>Đến tháng:</label>
-      <select name="endMonth">
-        <option value="">Tất cả</option>
-        <% for (let m=1; m<=12; m++) { %>
-          <option value="<%= m %>" <%= endMonth==m ? 'selected' : '' %>>Tháng <%= m %></option>
-        <% } %>
-      </select>
-      <button type="submit">Lọc</button>
-    </form>
-  </div>
+    <!-- Bộ lọc tháng -->
+    <div class="filter-box">
+      <form method="GET" action="/dashboard" class="filter-form">
+        <div class="filter-group">
+          <label>Từ tháng:</label>
+          <select name="startMonth">
+            <option value="">Tất cả</option>
+            <% for (let m=1; m<=12; m++) { %>
+              <option value="<%= m %>" <%= startMonth==m ? 'selected' : '' %>>Tháng <%= m %></option>
+            <% } %>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label>Đến tháng:</label>
+          <select name="endMonth">
+            <option value="">Tất cả</option>
+            <% for (let m=1; m<=12; m++) { %>
+              <option value="<%= m %>" <%= endMonth==m ? 'selected' : '' %>>Tháng <%= m %></option>
+            <% } %>
+          </select>
+        </div>
+        
+        <!-- Thêm các tham số ẩn để giữ bộ lọc bài đăng -->
+        <input type="hidden" name="baidangNhanVien" value="<%= baidangNhanVien || 'all' %>">
+        <input type="hidden" name="baidangPage" value="<%= baidangPage || 1 %>">
+        
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-filter"></i> Áp dụng bộ lọc
+        </button>
+      </form>
+    </div>
 
-  <!-- Hàng 1 -->
-  <div class="row">
-    <div class="chart-container">
-      <canvas id="salesChart"></canvas>
+    <!-- Hàng 1: Doanh số và tỷ lệ đơn -->
+    <div class="row">
+      <div class="chart-container">
+        <canvas id="salesChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <canvas id="statusChart"></canvas>
+      </div>
     </div>
-    <div class="chart-container">
-      <canvas id="statusChart"></canvas>
-    </div>
-  </div>
 
-  <!-- Hàng 2:  -->
-  <div class="row">
-    <div class="chart-container">
-      <canvas id="productChart"></canvas>
+    <!-- Hàng 2: Sản phẩm và CSKH -->
+    <div class="row">
+      <div class="chart-container">
+        <canvas id="productChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <canvas id="cskhChart"></canvas>
+      </div>
     </div>
-    <div class="chart-container">
-      <canvas id="cskhChart"></canvas>
-    </div>
-  </div>
-  <!-- Hàng 4: Báo cáo đăng bài mạng xã hội -->
-  <div class="row">
-    <div class="chart-container full-width">
-      <canvas id="baidangChart"></canvas>
-    </div>
-  </div>
 
-  <!-- Bảng danh sách link -->
-<div style="width: 90%; margin: 20px auto;">
-  <h3>🔗 Danh sách link bài đăng</h3>
-  <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-    <thead>
-      <tr>
-        <th>Nhân viên</th>
-        <th>Kênh - Bài</th>
-        <th>Link</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% if (linkList.length === 0) { %>
-        <tr><td colspan="3" style="text-align:center;">Không có dữ liệu</td></tr>
-      <% } else { %>
-        <% linkList.forEach(item => { %>
-          <tr>
-            <td><%= item.nhanVien %></td>
-            <td><%= item.kenhBai %></td>
-            <td><a href="<%= item.link %>" target="_blank" style="color:blue;">Xem bài</a></td>
-          </tr>
-        <% }) %>
+    <!-- Hàng 3: Báo cáo đăng bài mạng xã hội (Chart) -->
+    <div class="row">
+      <div class="chart-container full-width">
+        <canvas id="baidangChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Phần báo cáo bài đăng chi tiết -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <i class="fas fa-chart-bar"></i> Báo cáo bài đăng bán hàng
+        </h2>
+        <div>
+          <button onclick="exportBaidangExcel()" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Xuất Excel
+          </button>
+        </div>
+      </div>
+      
+      <!-- Bộ lọc và điều khiển -->
+      <div class="control-panel">
+        <div class="control-row">
+          <div class="control-group">
+            <label><i class="fas fa-user"></i> Lọc theo nhân viên:</label>
+            <select id="nhanVienFilter" class="form-control" onchange="applyBaidangFilter()">
+              <option value="all" <%= baidangNhanVien === 'all' ? 'selected' : '' %>>Tất cả nhân viên</option>
+              <% if (baidangNhanVienList && baidangNhanVienList.length > 0) { %>
+                <% baidangNhanVienList.forEach(nv => { %>
+                  <option value="<%= nv %>" <%= baidangNhanVien === nv ? 'selected' : '' %>>
+                    <%= nv %>
+                  </option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          
+          <div>
+            <button onclick="applyBaidangFilter()" class="btn btn-primary">
+              <i class="fas fa-search"></i> Áp dụng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bảng tổng hợp -->
+      <% if (baidangData && baidangData.length > 0) { %>
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #2c3e50; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+            <i class="fas fa-chart-pie"></i> Tổng hợp số bài đăng
+          </h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nhân viên</th>
+                  <th style="text-align: center;">Tổng số bài</th>
+                  <% 
+                    const allKenhBai = new Set();
+                    baidangData.forEach(item => {
+                      Object.keys(item).forEach(key => {
+                        if (key !== 'nhanVien' && key !== 'total') {
+                          allKenhBai.add(key);
+                        }
+                      });
+                    });
+                    const sortedKenhBai = Array.from(allKenhBai).sort();
+                    sortedKenhBai.forEach(kenh => { 
+                  %>
+                    <th style="text-align: center;"><%= kenh %></th>
+                  <% }) %>
+                </tr>
+              </thead>
+              <tbody>
+                <% baidangData.forEach(item => { %>
+                  <tr>
+                    <td><strong><%= item.nhanVien %></strong></td>
+                    <td style="text-align: center; font-weight: bold; color: #e74c3c;">
+                      <%= item.total || 0 %>
+                    </td>
+                    <% sortedKenhBai.forEach(kenh => { %>
+                      <td style="text-align: center;"><%= item[kenh] || 0 %></td>
+                    <% }) %>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
       <% } %>
-    </tbody>
-  </table>
-</div>
 
-<!-- Hàng 5: Báo cáo khách hàng mới -->
-<div class="row">
-  <div class="chart-container" style="width: 45%; display:inline-block;">
-    <canvas id="khachHangNguoiTaoChart"></canvas>
-  </div>
-  <div class="chart-container" style="width: 25%; display:inline-block;">
-    <canvas id="khachHangNguonChart"></canvas>
-  </div>
-  <div class="chart-container" style="width: 25%; display:inline-block;">
-    <canvas id="khachHangLoaiChart"></canvas>
-  </div>
-</div>
+      <!-- Bảng danh sách link -->
+      <div>
+        <h3 style="color: #2c3e50; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+          <i class="fas fa-link"></i> Danh sách link bài đăng
+          <% if (totalBaidangItems !== undefined) { %>
+            <span class="badge"><%= totalBaidangItems %> bài</span>
+          <% } %>
+        </h3>
+        
+        <% if (!linkList || linkList.length === 0) { %>
+          <div class="no-data">
+            <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px;"></i>
+            <p>Không có dữ liệu bài đăng nào</p>
+          </div>
+        <% } else { %>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 60px; text-align: center;">STT</th>
+                  <th>Nhân viên</th>
+                  <th>Kênh - Bài</th>
+                  <th>Link</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% linkList.forEach((item, index) => { 
+                  const stt = (baidangPage - 1) * baidangPerPage + index + 1;
+                %>
+                  <tr>
+                    <td style="text-align: center; color: #7f8c8d;"><%= stt %></td>
+                    <td><%= item.nhanVien %></td>
+                    <td><%= item.kenhBai %></td>
+                    <td>
+                      <% if (item.link) { %>
+                        <a href="<%= item.link %>" target="_blank" class="link-button">
+                          <i class="fas fa-external-link-alt"></i> Xem bài đăng
+                        </a>
+                      <% } else { %>
+                        <span style="color: #bdc3c7; font-style: italic;">Không có link</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
 
+          <!-- Phân trang -->
+          <% if (totalBaidangPages > 1) { %>
+            <div class="pagination">
+              <% if (baidangPage > 1) { %>
+                <button onclick="goToBaidangPage(1)" title="Trang đầu">
+                  <i class="fas fa-angle-double-left"></i>
+                </button>
+                <button onclick="goToBaidangPage(<%= baidangPage - 1 %>)" title="Trang trước">
+                  <i class="fas fa-angle-left"></i>
+                </button>
+              <% } %>
+              
+              <% 
+                let startPage = Math.max(1, baidangPage - 2);
+                let endPage = Math.min(totalBaidangPages, baidangPage + 2);
+                
+                for (let i = startPage; i <= endPage; i++) { 
+              %>
+                <button 
+                  onclick="goToBaidangPage(<%= i %>)"
+                  class="<%= i === baidangPage ? 'active' : '' %>"
+                >
+                  <%= i %>
+                </button>
+              <% } %>
+              
+              <% if (baidangPage < totalBaidangPages) { %>
+                <button onclick="goToBaidangPage(<%= baidangPage + 1 %>)" title="Trang sau">
+                  <i class="fas fa-angle-right"></i>
+                </button>
+                <button onclick="goToBaidangPage(<%= totalBaidangPages %>)" title="Trang cuối">
+                  <i class="fas fa-angle-double-right"></i>
+                </button>
+              <% } %>
+              
+              <span class="pagination-info">
+                Trang <%= baidangPage %> / <%= totalBaidangPages %>
+              </span>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
 
+    <!-- Hàng 5: Báo cáo khách hàng mới -->
+    <div class="row">
+      <div class="chart-container">
+        <canvas id="khachHangNguoiTaoChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <canvas id="khachHangNguonChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <canvas id="khachHangLoaiChart"></canvas>
+      </div>
+    </div>
+  </div>
 
   <script>
-    const sales = <%- JSON.stringify(sales) %>;
-    const soDonChot = <%= soDonChot %>;
-    const soDonHuy = <%= soDonHuy %>;
-    const topProducts = <%- JSON.stringify(topProducts) %>;
-    const watermarkBase64 = "<%= watermarkBase64 %>";
+    // Dữ liệu từ server
+    const sales = <%- JSON.stringify(sales) || '[]' %>;
+    const soDonChot = <%= soDonChot || 0 %>;
+    const soDonHuy = <%= soDonHuy || 0 %>;
+    const topProducts = <%- JSON.stringify(topProducts) || '[]' %>;
+    const watermarkBase64 = "<%= watermarkBase64 || '' %>";
+    const cskhData = <%- JSON.stringify(cskhData) || '[]' %>;
+    const hinhThucList = <%- JSON.stringify(hinhThucList) || '[]' %>;
+    const baidangData = <%- JSON.stringify(baidangData) || '[]' %>;
+    const kenhBaiArray = <%- JSON.stringify(kenhBaiArray) || '[]' %>;
+    const khNguoiTaoData = <%- JSON.stringify(khNguoiTaoData) || '[]' %>;
+    const khNguonData = <%- JSON.stringify(khNguonData) || '[]' %>;
+    const khLoaiData = <%- JSON.stringify(khLoaiData) || '[]' %>;
 
-    // watermark plugin (góc dưới phải)
+    // watermark plugin
     const watermarkPlugin = {
       id: 'watermark',
       beforeDraw: (chart) => {
@@ -131,322 +632,456 @@
     };
 
     // --- Sales by NV chart ---
-    // ✅ Tính tổng doanh số
-const totalDoanhSo = sales.reduce((sum, s) => sum + s.tongDoanhSo, 0);
-
-new Chart(document.getElementById("salesChart"), {
-  type: "bar",
-  data: {
-    labels: sales.map(s => s.nhanVien),
-    datasets: [{
-      // ✅ Gán label kèm tổng doanh số
-      label: `Tổng doanh số (${totalDoanhSo.toLocaleString("vi-VN")})`,
-      data: sales.map(s => Math.round(s.tongDoanhSo)),
-      backgroundColor: "rgba(54,162,235,0.75)",
-      maxBarThickness: 60
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      title: { display: true, text: "💼 Doanh số theo nhân viên", font: { size: 16 } },
-      datalabels: {
-        color: "#000",
-        anchor: "end",
-        align: "top",
-        formatter: v => v.toLocaleString("vi-VN"),
-        font: ctx => ({
-          size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, sales.length) * 0.6))
-        })
-      }
-    },
-    scales: {
-      x: { ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 } },
-      y: { ticks: { callback: v => v.toLocaleString("vi-VN") } }
+    const totalDoanhSo = sales.reduce((sum, s) => sum + (s.tongDoanhSo || 0), 0);
+    
+    if (sales.length > 0) {
+      new Chart(document.getElementById("salesChart"), {
+        type: "bar",
+        data: {
+          labels: sales.map(s => s.nhanVien),
+          datasets: [{
+            label: `Tổng doanh số (${totalDoanhSo.toLocaleString("vi-VN")})`,
+            data: sales.map(s => Math.round(s.tongDoanhSo || 0)),
+            backgroundColor: "rgba(54,162,235,0.75)",
+            maxBarThickness: 60
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "💼 Doanh số theo nhân viên", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              color: "#000",
+              anchor: "end",
+              align: "top",
+              formatter: v => v.toLocaleString("vi-VN"),
+              font: ctx => ({
+                size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, sales.length) * 0.6))
+              })
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { 
+                autoSkip: true, 
+                maxRotation: 45, 
+                minRotation: 0,
+                font: { size: 11 }
+              } 
+            },
+            y: { 
+              ticks: { 
+                callback: v => v.toLocaleString("vi-VN"),
+                font: { size: 11 }
+              } 
+            }
+          }
+        },
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
     }
-  },
-  plugins: [ChartDataLabels, watermarkPlugin]
-});
-
 
     // --- Status pie chart ---
-    new Chart(document.getElementById("statusChart"), {
-      type: "pie",
-      data: {
-        labels:["Đơn chốt","Đơn hủy"],
-        datasets:[{ data:[soDonChot, soDonHuy], backgroundColor:["#4CAF50","#F44336"] }]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{
-          title: { display:true, text: "📊 Tỷ lệ đơn chốt / hủy", font:{size:16} },
-          datalabels: {
-            color:"#fff",
-            formatter: (v, ctx) => {
-              const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
-              return total>0 ? ((v/total)*100).toFixed(1)+"%" : "0%";
+    if (soDonChot > 0 || soDonHuy > 0) {
+      new Chart(document.getElementById("statusChart"), {
+        type: "pie",
+        data: {
+          labels:["Đơn chốt","Đơn hủy"],
+          datasets:[{ 
+            data:[soDonChot, soDonHuy], 
+            backgroundColor:["#4CAF50","#F44336"] 
+          }]
+        },
+        options: {
+          responsive: true, 
+          maintainAspectRatio: false,
+          plugins:{
+            title: { 
+              display: true, 
+              text: "📊 Tỷ lệ đơn chốt / hủy", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
             },
-            font: ctx => ({ size: Math.max(10, Math.min(14, ctx.chart.width / 10)) })
+            datalabels: {
+              color:"#fff",
+              formatter: (v, ctx) => {
+                const total = ctx.chart.data.datasets[0].data.reduce((a,b)=>a+b,0);
+                return total>0 ? ((v/total)*100).toFixed(1)+"%" : "0%";
+              },
+              font: ctx => ({ 
+                size: Math.max(12, Math.min(16, ctx.chart.width / 10)) 
+              })
+            }
           }
-        }
-      },
-      plugins: [ChartDataLabels, watermarkPlugin]
-    });
+        },
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
+    }
 
-
-
-    // --- Top product chart: bar (soLuong) + line (doanhSo) ---
-    new Chart(document.getElementById("productChart"), {
-      type: "bar",
-      data: {
-        labels: topProducts.map(p => p.maSP),
-        datasets: [
-          {
-            label: "Số lượng",
-            data: topProducts.map(p => Math.round(p.soLuong)),
-            backgroundColor: "rgba(255,159,64,0.8)",
-            yAxisID: "y",
-            maxBarThickness: 60
-          },
-          {
-            label: "Doanh số",
-            data: topProducts.map(p => Math.round(p.doanhSo)),
-            borderColor: "rgba(54,162,235,0.9)",
-            backgroundColor: "rgba(54,162,235,0.2)",
-            type: "line",
-            yAxisID: "y1",
-            tension: 0.25,
-            pointRadius: 4
-          }
-        ]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins: {
-          title: { display:true, text: "🏆 Top 10 sản phẩm bán chạy nhất (theo Doanh số)", font:{size:16} },
-          datalabels: {
-            display: (ctx) => ctx.dataset.type !== 'line',
-            color: "#000",
-            anchor: "end",
-            align: "top",
-            formatter: (v, ctx) => {
-              const unit = topProducts[ctx.dataIndex]?.donVi || "";
-              return v.toLocaleString("vi-VN") + (unit ? " " + unit : "");
+    // --- Top product chart ---
+    if (topProducts.length > 0) {
+      new Chart(document.getElementById("productChart"), {
+        type: "bar",
+        data: {
+          labels: topProducts.map(p => p.maSP),
+          datasets: [
+            {
+              label: "Số lượng",
+              data: topProducts.map(p => Math.round(p.soLuong || 0)),
+              backgroundColor: "rgba(255,159,64,0.8)",
+              yAxisID: "y",
+              maxBarThickness: 60
             },
-            font: ctx => ({ size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, topProducts.length) * 0.6)) })
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                if (ctx.dataset.label === "Doanh số") {
-                  return ctx.dataset.label + ": " + ctx.parsed.y.toLocaleString("vi-VN") + " đ";
-                } else {
-                  const unit = topProducts[ctx.dataIndex]?.donVi || "";
-                  return ctx.dataset.label + ": " + ctx.parsed.y.toLocaleString("vi-VN") + (unit ? " " + unit : "");
+            {
+              label: "Doanh số",
+              data: topProducts.map(p => Math.round(p.doanhSo || 0)),
+              borderColor: "rgba(54,162,235,0.9)",
+              backgroundColor: "rgba(54,162,235,0.2)",
+              type: "line",
+              yAxisID: "y1",
+              tension: 0.25,
+              pointRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true, 
+          maintainAspectRatio: false,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "🏆 Top 10 sản phẩm bán chạy", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              display: (ctx) => ctx.dataset.type !== 'line',
+              color: "#000",
+              anchor: "end",
+              align: "top",
+              formatter: (v, ctx) => {
+                const unit = topProducts[ctx.dataIndex]?.donVi || "";
+                return v.toLocaleString("vi-VN") + (unit ? " " + unit : "");
+              },
+              font: ctx => ({ 
+                size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, topProducts.length) * 0.6)) 
+              })
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  if (ctx.dataset.label === "Doanh số") {
+                    return ctx.dataset.label + ": " + ctx.parsed.y.toLocaleString("vi-VN") + " đ";
+                  } else {
+                    const unit = topProducts[ctx.dataIndex]?.donVi || "";
+                    return ctx.dataset.label + ": " + ctx.parsed.y.toLocaleString("vi-VN") + (unit ? " " + unit : "");
+                  }
                 }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { 
+                autoSkip: false, 
+                maxRotation: 45, 
+                minRotation: 0,
+                font: { size: 11 }
+              },
+            },
+            y: {
+              position: "left",
+              title: { display: true, text: "Số lượng" },
+              beginAtZero: true,
+              ticks: { font: { size: 11 } }
+            },
+            y1: {
+              position: "right",
+              title: { display: true, text: "Doanh số (VND)" },
+              beginAtZero: true,
+              grid: { drawOnChartArea: false },
+              ticks: { 
+                callback: v => v.toLocaleString("vi-VN"),
+                font: { size: 11 }
               }
             }
           }
         },
-        scales: {
-          x: {
-            ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 },
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
+    }
+
+    // --- CSKH chart ---
+    if (cskhData.length > 0 && hinhThucList.length > 0) {
+      const cskhDatasets = hinhThucList.map((ht, idx) => ({
+        label: ht,
+        data: cskhData.map(item => item[ht] || 0),
+        backgroundColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`,
+        stack: "Stack 0"
+      }));
+
+      new Chart(document.getElementById("cskhChart"), {
+        type: "bar",
+        data: {
+          labels: cskhData.map(item => item.nhanVien),
+          datasets: cskhDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "📞 Báo cáo chăm sóc khách hàng", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            tooltip: {
+              callbacks: {
+                footer: (items) => {
+                  const nv = items[0].label;
+                  const total = cskhData.find(x => x.nhanVien === nv)?.total || 0;
+                  return `Tổng liên hệ: ${total}`;
+                }
+              }
+            },
+            datalabels: {
+              color: "#000",
+              anchor: "end",
+              align: "top",
+              formatter: v => v > 0 ? v : "",
+              font: ctx => ({ 
+                size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, cskhData.length) * 0.6)) 
+              })
+            }
           },
-          y: {
-            position: "left",
-            title: { display:true, text: "Số lượng" },
-            beginAtZero: true
-          },
-          y1: {
-            position: "right",
-            title: { display:true, text: "Doanh số (VND)" },
-            beginAtZero: true,
-            grid: { drawOnChartArea: false },
-            ticks: { callback: v => v.toLocaleString("vi-VN") }
-          }
-        }
-      },
-      plugins: [ChartDataLabels, watermarkPlugin]
-    });
-
-
-    // Dữ liệu CSKH
-  const cskhData = <%- JSON.stringify(cskhData) %>;
-  const hinhThucList = <%- JSON.stringify(hinhThucList) %>;
-
-  // Tạo datasets cho từng hình thức
-  const cskhDatasets = hinhThucList.map((ht, idx) => ({
-    label: ht,
-    data: cskhData.map(item => item[ht] || 0),
-    backgroundColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`, // tự sinh màu khác nhau
-    stack: "Stack 0"
-  }));
-
-  new Chart(document.getElementById("cskhChart"), {
-    type: "bar",
-    data: {
-      labels: cskhData.map(item => item.nhanVien),
-      datasets: cskhDatasets
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        title: { display: true, text: "📞 Báo cáo chăm sóc khách hàng", font: { size: 16 } },
-        tooltip: {
-          callbacks: {
-            footer: (items) => {
-              const nv = items[0].label;
-              const total = cskhData.find(x => x.nhanVien === nv)?.total || 0;
-              return `Tổng liên hệ: ${total}`;
+          scales: {
+            x: { 
+              stacked: true, 
+              ticks: { 
+                autoSkip: false, 
+                maxRotation: 45,
+                font: { size: 11 }
+              } 
+            },
+            y: { 
+              stacked: true, 
+              beginAtZero: true,
+              ticks: { font: { size: 11 } }
             }
           }
         },
-        datalabels: {
-          color: "#000",
-          anchor: "end",
-          align: "top",
-          formatter: v => v > 0 ? v : "",
-          font: ctx => ({ size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, cskhData.length) * 0.6)) })
-        }
-      },
-      scales: {
-        x: { stacked: true, ticks: { autoSkip: false, maxRotation: 45 } },
-        y: { stacked: true, beginAtZero: true }
-      }
-    },
-    plugins: [ChartDataLabels, watermarkPlugin]
-  });
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
+    }
 
-  const baidangData = <%- JSON.stringify(baidangData) %>;
-  const kenhBaiArray = <%- JSON.stringify(kenhBaiArray) %>;
+    // --- Bai dang chart ---
+    if (baidangData.length > 0 && kenhBaiArray.length > 0) {
+      const baidangDatasets = kenhBaiArray.map((k, idx) => ({
+        label: k,
+        data: baidangData.map(item => item[k] || 0),
+        backgroundColor: `hsl(${(idx * 50) % 360}, 70%, 60%)`,
+        stack: "Stack 0"
+      }));
 
-  // Datasets cho stacked bar
-  const baidangDatasets = kenhBaiArray.map((k, idx) => ({
-    label: k,
-    data: baidangData.map(item => item[k] || 0),
-    backgroundColor: `hsl(${(idx * 50) % 360}, 70%, 60%)`,
-    stack: "Stack 0"
-  }));
-
-  new Chart(document.getElementById("baidangChart"), {
-    type: "bar",
-    data: {
-      labels: baidangData.map(item => item.nhanVien),
-      datasets: baidangDatasets
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        title: { display: true, text: "📢 Báo cáo đăng bài mạng xã hội", font: { size: 16 } },
-        datalabels: {
-          color: "#000",
-          anchor: "end",
-          align: "top",
-          formatter: v => v > 0 ? v : "",
-          font: ctx => ({
-            size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, baidangData.length) * 0.6))
-          })
-        }
-      },
-      scales: {
-        x: { stacked: true, ticks: { autoSkip: false, maxRotation: 45 } },
-        y: { stacked: true, beginAtZero: true }
-      }
-    },
-    plugins: [ChartDataLabels, watermarkPlugin]
-  });
-
-  const khNguoiTaoData = <%- JSON.stringify(khNguoiTaoData) %>;
-  const khNguonData = <%- JSON.stringify(khNguonData) %>;
-  const khLoaiData = <%- JSON.stringify(khLoaiData) %>;
-
-  // Bar Chart: khách hàng mới theo người tạo
-  new Chart(document.getElementById("khachHangNguoiTaoChart"), {
-    type: "bar",
-    data: {
-      labels: khNguoiTaoData.map(x => x.nguoi),
-      datasets: [{
-        label: "Khách hàng mới",
-        data: khNguoiTaoData.map(x => x.count),
-        backgroundColor: "rgba(54, 162, 235, 0.7)"
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        title: { display: true, text: "👤 Khách hàng mới theo người tạo", font: { size: 16 } },
-        datalabels: {
-          color: "#000",
-          anchor: "end",
-          align: "top",
-          formatter: value => value,
-          font: ctx => ({
-            size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, khNguoiTaoData.length) * 0.6))
-          })
-        }
-      },
-      scales: {
-        y: { beginAtZero: true }
-      }
-    },
-    plugins: [ChartDataLabels, watermarkPlugin]
-  });
-
-  // Pie Chart: khách hàng theo nguồn
-  new Chart(document.getElementById("khachHangNguonChart"), {
-    type: "pie",
-    data: {
-      labels: khNguonData.map(x => x.nguon),
-      datasets: [{
-        data: khNguonData.map(x => x.count),
-        backgroundColor: khNguonData.map((_, i) => `hsl(${(i * 50) % 360}, 70%, 60%)`)
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        title: { display: true, text: "📌 Nguồn khách hàng", font: { size: 16 } },
-        datalabels: {
-          color: "#fff",
-          formatter: (value, ctx) => {
-            let total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-            return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0%";
+      new Chart(document.getElementById("baidangChart"), {
+        type: "bar",
+        data: {
+          labels: baidangData.map(item => item.nhanVien),
+          datasets: baidangDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "📢 Báo cáo đăng bài mạng xã hội", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              color: "#000",
+              anchor: "end",
+              align: "top",
+              formatter: v => v > 0 ? v : "",
+              font: ctx => ({
+                size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, baidangData.length) * 0.6))
+              })
+            }
+          },
+          scales: {
+            x: { 
+              stacked: true, 
+              ticks: { 
+                autoSkip: false, 
+                maxRotation: 45,
+                font: { size: 11 }
+              } 
+            },
+            y: { 
+              stacked: true, 
+              beginAtZero: true,
+              ticks: { font: { size: 11 } }
+            }
           }
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
+        },
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
+    }
 
-  // Pie Chart: khách hàng theo loại
-  new Chart(document.getElementById("khachHangLoaiChart"), {
-    type: "pie",
-    data: {
-      labels: khLoaiData.map(x => x.loai),
-      datasets: [{
-        data: khLoaiData.map(x => x.count),
-        backgroundColor: khLoaiData.map((_, i) => `hsl(${(i * 70) % 360}, 70%, 60%)`)
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        title: { display: true, text: "🏷️ Loại khách hàng", font: { size: 16 } },
-        datalabels: {
-          color: "#fff",
-          formatter: (value, ctx) => {
-            let total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-            return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0%";
+    // --- Khách hàng charts ---
+    // Bar Chart: khách hàng mới theo người tạo
+    if (khNguoiTaoData.length > 0) {
+      new Chart(document.getElementById("khachHangNguoiTaoChart"), {
+        type: "bar",
+        data: {
+          labels: khNguoiTaoData.map(x => x.nguoi),
+          datasets: [{
+            label: "Khách hàng mới",
+            data: khNguoiTaoData.map(x => x.count),
+            backgroundColor: "rgba(54, 162, 235, 0.7)"
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "👤 Khách hàng mới theo người tạo", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              color: "#000",
+              anchor: "end",
+              align: "top",
+              formatter: value => value,
+              font: ctx => ({
+                size: Math.max(10, Math.min(14, ctx.chart.width / Math.max(1, khNguoiTaoData.length) * 0.6))
+              })
+            }
+          },
+          scales: {
+            x: {
+              ticks: { font: { size: 11 } }
+            },
+            y: { 
+              beginAtZero: true,
+              ticks: { font: { size: 11 } }
+            }
           }
-        }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
+        },
+        plugins: [ChartDataLabels, watermarkPlugin]
+      });
+    }
+
+    // Pie Chart: khách hàng theo nguồn
+    if (khNguonData.length > 0) {
+      new Chart(document.getElementById("khachHangNguonChart"), {
+        type: "pie",
+        data: {
+          labels: khNguonData.map(x => x.nguon),
+          datasets: [{
+            data: khNguonData.map(x => x.count),
+            backgroundColor: khNguonData.map((_, i) => `hsl(${(i * 50) % 360}, 70%, 60%)`)
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "📌 Nguồn khách hàng", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              color: "#fff",
+              formatter: (value, ctx) => {
+                let total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0%";
+              }
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    // Pie Chart: khách hàng theo loại
+    if (khLoaiData.length > 0) {
+      new Chart(document.getElementById("khachHangLoaiChart"), {
+        type: "pie",
+        data: {
+          labels: khLoaiData.map(x => x.loai),
+          datasets: [{
+            data: khLoaiData.map(x => x.count),
+            backgroundColor: khLoaiData.map((_, i) => `hsl(${(i * 70) % 360}, 70%, 60%)`)
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { 
+              display: true, 
+              text: "🏷️ Loại khách hàng", 
+              font: { size: 16 },
+              padding: { bottom: 20 }
+            },
+            datalabels: {
+              color: "#fff",
+              formatter: (value, ctx) => {
+                let total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0%";
+              }
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    // Hàm áp dụng bộ lọc bài đăng
+    function applyBaidangFilter() {
+      const nhanVien = document.getElementById('nhanVienFilter').value;
+      const url = new URL(window.location.href);
+      
+      // Cập nhật tham số
+      url.searchParams.set('baidangNhanVien', nhanVien);
+      url.searchParams.set('baidangPage', 1); // Reset về trang 1
+      
+      window.location.href = url.toString();
+    }
+
+    // Hàm chuyển trang bài đăng
+    function goToBaidangPage(page) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('baidangPage', page);
+      window.location.href = url.toString();
+    }
+
+    // Hàm xuất Excel
+    function exportBaidangExcel() {
+      const nhanVien = document.getElementById('nhanVienFilter').value;
+      const url = new URL(window.location.href);
+      
+      // Thêm tham số export và giữ các tham số lọc
+      url.searchParams.set('export', 'baidang');
+      url.searchParams.set('baidangNhanVien', nhanVien);
+      
+      // Xóa các tham số không cần thiết cho export
+      url.searchParams.delete('baidangPage');
+      
+      window.open(url.toString(), '_blank');
+    }
   </script>
 </body>
 </html>

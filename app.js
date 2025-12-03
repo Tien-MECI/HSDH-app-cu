@@ -2309,6 +2309,11 @@ app.get("/dashboard", async (req, res) => {
     const startMonth = req.query.startMonth ? parseInt(req.query.startMonth, 10) : null;
     const endMonth = req.query.endMonth ? parseInt(req.query.endMonth, 10) : null;
 
+    // Lọc nhân viên và phân trang cho phần bài đăng
+    const baidangNhanVien = req.query.baidangNhanVien || 'all';
+    const baidangPage = parseInt(req.query.baidangPage) || 1;
+    const baidangPerPage = 10; // Mặc định 10 dòng/trang
+
     // load watermark (bạn đã có hàm loadDriveImageBase64)
     const [watermarkBase64] = await Promise.all([
       loadDriveImageBase64(WATERMARK_FILE_ID)
@@ -2384,72 +2389,70 @@ app.get("/dashboard", async (req, res) => {
     let soDonChot = 0, soDonHuy = 0;
 
     donHangRows.forEach(row => {
-  const nhanVien = row[2] || "Không xác định";        // C
-  const ngayDuyetRaw = row[49] || "";                 // AX
-  const trangThai = String(row[43] || "").trim();     // AR (giữ nguyên)
-  const baoGia = String(row[46] || "").trim();        // AU (giữ nguyên)
-  // parseMoney trả về number (nếu NaN thì xem như 0)
-  let giaTriDonHang = parseMoney(row[64]);
-  if (!isFinite(giaTriDonHang)) giaTriDonHang = 0;
+      const nhanVien = row[2] || "Không xác định";        // C
+      const ngayDuyetRaw = row[49] || "";                 // AX
+      const trangThai = String(row[43] || "").trim();     // AR (giữ nguyên)
+      const baoGia = String(row[46] || "").trim();        // AU (giữ nguyên)
+      // parseMoney trả về number (nếu NaN thì xem như 0)
+      let giaTriDonHang = parseMoney(row[64]);
+      if (!isFinite(giaTriDonHang)) giaTriDonHang = 0;
 
-  const ngayObj = parseSheetDate(ngayDuyetRaw);
-  if (startMonth && endMonth && ngayObj) {
-    const th = ngayObj.getMonth() + 1;
-    if (th < startMonth || th > endMonth) return;
-  }
+      const ngayObj = parseSheetDate(ngayDuyetRaw);
+      if (startMonth && endMonth && ngayObj) {
+        const th = ngayObj.getMonth() + 1;
+        if (th < startMonth || th > endMonth) return;
+      }
 
-  if (!salesByNV[nhanVien]) {
-    salesByNV[nhanVien] = {
-      nhanVien,
-      // 2 tổng phụ theo yêu cầu
-      doanhSoKeHoach: 0,     // trạng thái === "Kế hoạch sản xuất"
-      doanhSoSuaBanVe: 0,    // trạng thái === "Sửa bản vẽ"
-      // tổng hợp = 1 + 2 (luôn cập nhật)
-      tongDoanhSo: 0,
+      if (!salesByNV[nhanVien]) {
+        salesByNV[nhanVien] = {
+          nhanVien,
+          // 2 tổng phụ theo yêu cầu
+          doanhSoKeHoach: 0,     // trạng thái === "Kế hoạch sản xuất"
+          doanhSoSuaBanVe: 0,    // trạng thái === "Sửa bản vẽ"
+          // tổng hợp = 1 + 2 (luôn cập nhật)
+          tongDoanhSo: 0,
 
-      // counters
-      tongDon: 0,
-      soDonChot: 0,       // count "Kế hoạch sản xuất"
-      doanhSoChot: 0,     // giá trị chốt (tương tự doanhSoKeHoach)
-      soDonHuy: 0,
-      doanhSoHuy: 0,
-      soBaoGia: 0
-    };
-  }
+          // counters
+          tongDon: 0,
+          soDonChot: 0,       // count "Kế hoạch sản xuất"
+          doanhSoChot: 0,     // giá trị chốt (tương tự doanhSoKeHoach)
+          soDonHuy: 0,
+          doanhSoHuy: 0,
+          soBaoGia: 0
+        };
+      }
 
-  const nv = salesByNV[nhanVien];
-  nv.tongDon++;
+      const nv = salesByNV[nhanVien];
+      nv.tongDon++;
 
-  // Nếu trạng thái chính xác là "Kế hoạch sản xuất"
-  if (trangThai === "Kế hoạch sản xuất") {
-    nv.doanhSoKeHoach += giaTriDonHang;
-    nv.soDonChot++;
-    nv.doanhSoChot += giaTriDonHang;
-    soDonChot++;
-  }
+      // Nếu trạng thái chính xác là "Kế hoạch sản xuất"
+      if (trangThai === "Kế hoạch sản xuất") {
+        nv.doanhSoKeHoach += giaTriDonHang;
+        nv.soDonChot++;
+        nv.doanhSoChot += giaTriDonHang;
+        soDonChot++;
+      }
 
-  // Nếu trạng thái chính xác là "Sửa bản vẽ"
-  if (trangThai === "Sửa bản vẽ") {
-    nv.doanhSoSuaBanVe += giaTriDonHang;
-  }
+      // Nếu trạng thái chính xác là "Sửa bản vẽ"
+      if (trangThai === "Sửa bản vẽ") {
+        nv.doanhSoSuaBanVe += giaTriDonHang;
+      }
 
-  // Đơn hủy
-  if (trangThai === "Hủy đơn") {
-    nv.soDonHuy++;
-    nv.doanhSoHuy += giaTriDonHang;
-    soDonHuy++;
-  }
+      // Đơn hủy
+      if (trangThai === "Hủy đơn") {
+        nv.soDonHuy++;
+        nv.doanhSoHuy += giaTriDonHang;
+        soDonHuy++;
+      }
 
-  // Báo giá (so sánh chính xác)
-  if (baoGia === "Báo giá") {
-    nv.soBaoGia++;
-  }
+      // Báo giá (so sánh chính xác)
+      if (baoGia === "Báo giá") {
+        nv.soBaoGia++;
+      }
 
-  // Cập nhật tổng hợp = tổng 2 loại (kehoach + suabanve)
-  nv.tongDoanhSo = (nv.doanhSoKeHoach || 0) + (nv.doanhSoSuaBanVe || 0);
-});
-
-
+      // Cập nhật tổng hợp = tổng 2 loại (kehoach + suabanve)
+      nv.tongDoanhSo = (nv.doanhSoKeHoach || 0) + (nv.doanhSoSuaBanVe || 0);
+    });
 
     const sales = Object.values(salesByNV).sort((a,b) => b.tongDoanhSo - a.tongDoanhSo);
 
@@ -2488,158 +2491,334 @@ app.get("/dashboard", async (req, res) => {
       .sort((a,b) => b.doanhSo - a.doanhSo)
       .slice(0,10);
 
+    // ------------------ Cham_soc_khach_hang (Báo cáo CSKH) ------------------
+    const cskhRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Cham_soc_khach_hang",
+      valueRenderOption: "FORMATTED_VALUE"
+    });
 
-// ------------------ Cham_soc_khach_hang (Báo cáo CSKH) ------------------
-const cskhRes = await sheets.spreadsheets.values.get({
-  spreadsheetId: SPREADSHEET_ID,
-  range: "Cham_soc_khach_hang",
-  valueRenderOption: "FORMATTED_VALUE"
-});
+    const cskhValues = cskhRes.data.values || [];
+    const cskhRows = cskhValues.slice(1);
 
-const cskhValues = cskhRes.data.values || [];
-const cskhRows = cskhValues.slice(1);
+    const cskhMap = {}; // { nhanVien: { hinhThuc1: count, hinhThuc2: count, total: count } }
+    const allHinhThuc = new Set();
 
-const cskhMap = {}; // { nhanVien: { hinhThuc1: count, hinhThuc2: count, total: count } }
-const allHinhThuc = new Set();
+    cskhRows.forEach(row => {
+      const nhanVien = row[7] || "Không xác định";  // H cột nhân viên KD
+      const ngayTao = row[5] || "";                 // F ngày tạo
+      const hinhThuc = row[3] || "Không rõ";        // D hình thức liên hệ
 
-cskhRows.forEach(row => {
-  const nhanVien = row[7] || "Không xác định";  // H cột nhân viên KD
-  const ngayTao = row[5] || "";                 // F ngày tạo
-  const hinhThuc = row[3] || "Không rõ";        // D hình thức liên hệ
+      const ngayObj = parseSheetDate(ngayTao);
+      if (startMonth && endMonth && ngayObj) {
+        const th = ngayObj.getMonth() + 1;
+        if (th < startMonth || th > endMonth) return;
+      }
 
-  const ngayObj = parseSheetDate(ngayTao);
-  if (startMonth && endMonth && ngayObj) {
-    const th = ngayObj.getMonth() + 1;
-    if (th < startMonth || th > endMonth) return;
-  }
+      allHinhThuc.add(hinhThuc);
 
-  allHinhThuc.add(hinhThuc);
+      if (!cskhMap[nhanVien]) cskhMap[nhanVien] = { total: 0 };
+      cskhMap[nhanVien][hinhThuc] = (cskhMap[nhanVien][hinhThuc] || 0) + 1;
+      cskhMap[nhanVien].total++;
+    });
 
-  if (!cskhMap[nhanVien]) cskhMap[nhanVien] = { total: 0 };
-  cskhMap[nhanVien][hinhThuc] = (cskhMap[nhanVien][hinhThuc] || 0) + 1;
-  cskhMap[nhanVien].total++;
-});
+    const cskhData = Object.entries(cskhMap).map(([nhanVien, data]) => ({
+      nhanVien,
+      ...data
+    }));
 
-const cskhData = Object.entries(cskhMap).map(([nhanVien, data]) => ({
-  nhanVien,
-  ...data
-}));
+    // Lưu danh sách tất cả hình thức để vẽ stacked chart
+    const hinhThucList = Array.from(allHinhThuc);
 
-// Lưu danh sách tất cả hình thức để vẽ stacked chart
-const hinhThucList = Array.from(allHinhThuc);
+    // ------------------ Bao_cao_bai_dang_ban_hang (Báo cáo đăng bài MXH) ------------------
+    const baidangRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Bao_cao_bai_dang_ban_hang",
+      valueRenderOption: "FORMATTED_VALUE"
+    });
 
-// ------------------ Bao_cao_bai_dang_ban_hang (Báo cáo đăng bài MXH) ------------------
-const baidangRes = await sheets.spreadsheets.values.get({
-  spreadsheetId: SPREADSHEET_ID,
-  range: "Bao_cao_bai_dang_ban_hang",
-  valueRenderOption: "FORMATTED_VALUE"
-});
+    const baidangValues = baidangRes.data.values || [];
+    const baidangRows = baidangValues.slice(1);
 
-const baidangValues = baidangRes.data.values || [];
-const baidangRows = baidangValues.slice(1);
+    // Tổng hợp dữ liệu
+    const baidangMap = {};
+    const kenhBaiList = new Set();
+    const allLinkList = [];
+    const baidangNhanVienList = new Set();
 
-const baidangMap = {}; // { nv: { 'kênh-bài': count, total: count } }
-const kenhBaiList = new Set();
-const linkList = [];
+    baidangRows.forEach(row => {
+      const nhanVien = row[2] || "Không xác định"; // C
+      const ngayTao = row[3] || "";               // D
+      const kenhBai = row[4] || "Không rõ";       // E
+      const link = row[5] || "";                  // F
 
-baidangRows.forEach(row => {
-  const nhanVien = row[2] || "Không xác định"; // C
-  const ngayTao = row[3] || "";               // D
-  const kenhBai = row[4] || "Không rõ";       // E
-  const link = row[5] || "";                  // F
+      const ngayObj = parseSheetDate(ngayTao);
+      if (startMonth && endMonth && ngayObj) {
+        const th = ngayObj.getMonth() + 1;
+        if (th < startMonth || th > endMonth) return;
+      }
 
-  const ngayObj = parseSheetDate(ngayTao);
-  if (startMonth && endMonth && ngayObj) {
-    const th = ngayObj.getMonth() + 1;
-    if (th < startMonth || th > endMonth) return;
-  }
+      baidangNhanVienList.add(nhanVien);
+      kenhBaiList.add(kenhBai);
 
-  kenhBaiList.add(kenhBai);
+      if (!baidangMap[nhanVien]) {
+        baidangMap[nhanVien] = { total: 0 };
+      }
+      baidangMap[nhanVien][kenhBai] = (baidangMap[nhanVien][kenhBai] || 0) + 1;
+      baidangMap[nhanVien].total++;
 
-  if (!baidangMap[nhanVien]) baidangMap[nhanVien] = { total: 0 };
-  baidangMap[nhanVien][kenhBai] = (baidangMap[nhanVien][kenhBai] || 0) + 1;
-  baidangMap[nhanVien].total++;
+      if (link) {
+        allLinkList.push({ 
+          nhanVien, 
+          kenhBai, 
+          link,
+          ngayTao 
+        });
+      }
+    });
 
-  if (link) {
-    linkList.push({ nhanVien, kenhBai, link });
-  }
-});
+    // Lọc theo nhân viên nếu có
+    let filteredLinkList = allLinkList;
+    if (baidangNhanVien !== 'all') {
+      filteredLinkList = allLinkList.filter(item => item.nhanVien === baidangNhanVien);
+    }
 
-const baidangData = Object.entries(baidangMap).map(([nhanVien, data]) => ({
-  nhanVien,
-  ...data
-}));
+    // Phân trang
+    const totalBaidangItems = filteredLinkList.length;
+    const totalBaidangPages = Math.ceil(totalBaidangItems / baidangPerPage);
+    const startIndex = (baidangPage - 1) * baidangPerPage;
+    const endIndex = startIndex + baidangPerPage;
+    
+    const paginatedLinkList = filteredLinkList.slice(startIndex, endIndex);
 
-const kenhBaiArray = Array.from(kenhBaiList);
+    // Chuẩn bị dữ liệu tổng hợp
+    const baidangData = Object.entries(baidangMap).map(([nv, data]) => {
+      const result = { nhanVien: nv };
+      const kenhBaiArray = Array.from(kenhBaiList);
+      
+      kenhBaiArray.forEach(kenh => {
+        result[kenh] = data[kenh] || 0;
+      });
+      result.total = data.total;
+      
+      return result;
+    });
 
-// ------------------ Data_khach_hang (Báo cáo khách hàng mới) ------------------
-const dataKHRes = await sheets.spreadsheets.values.get({
-  spreadsheetId: SPREADSHEET_ID,
-  range: "Data_khach_hang",
-  valueRenderOption: "FORMATTED_VALUE"
-});
+    // Lọc baidangData nếu chọn nhân viên cụ thể
+    let filteredBaidangData = baidangData;
+    if (baidangNhanVien !== 'all') {
+      filteredBaidangData = baidangData.filter(item => item.nhanVien === baidangNhanVien);
+    }
 
-const dataKHValues = dataKHRes.data.values || [];
-const khRows = dataKHValues.slice(1);
+    const kenhBaiArray = Array.from(kenhBaiList);
 
-const khMapByNguoiTao = {}; // đếm số khách theo người tạo
-const nguonKHMap = {};      // đếm theo nguồn khách
-const loaiKHMap = {};       // đếm theo loại khách
+    // ------------------ Data_khach_hang (Báo cáo khách hàng mới) ------------------
+    const dataKHRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Data_khach_hang",
+      valueRenderOption: "FORMATTED_VALUE"
+    });
 
-khRows.forEach(row => {
-  const loaiKH = row[3] || "Không xác định";  // Cột D
-  const nguonKH = row[28] || "Không rõ";      // Cột AC
-  const ngayTao = row[32] || "";              // Cột AG
-  const nguoiTao = row[33] || "Không xác định"; // Cột AH
+    const dataKHValues = dataKHRes.data.values || [];
+    const khRows = dataKHValues.slice(1);
 
-  const ngayObj = parseSheetDate(ngayTao);
-  if (startMonth && endMonth && ngayObj) {
-    const th = ngayObj.getMonth() + 1;
-    if (th < startMonth || th > endMonth) return;
-  }
+    const khMapByNguoiTao = {}; // đếm số khách theo người tạo
+    const nguonKHMap = {};      // đếm theo nguồn khách
+    const loaiKHMap = {};       // đếm theo loại khách
 
-  // Đếm theo người tạo
-  khMapByNguoiTao[nguoiTao] = (khMapByNguoiTao[nguoiTao] || 0) + 1;
+    khRows.forEach(row => {
+      const loaiKH = row[3] || "Không xác định";  // Cột D
+      const nguonKH = row[28] || "Không rõ";      // Cột AC
+      const ngayTao = row[32] || "";              // Cột AG
+      const nguoiTao = row[33] || "Không xác định"; // Cột AH
 
-  // Đếm theo nguồn khách
-  nguonKHMap[nguonKH] = (nguonKHMap[nguonKH] || 0) + 1;
+      const ngayObj = parseSheetDate(ngayTao);
+      if (startMonth && endMonth && ngayObj) {
+        const th = ngayObj.getMonth() + 1;
+        if (th < startMonth || th > endMonth) return;
+      }
 
-  // Đếm theo loại khách
-  loaiKHMap[loaiKH] = (loaiKHMap[loaiKH] || 0) + 1;
-});
+      // Đếm theo người tạo
+      khMapByNguoiTao[nguoiTao] = (khMapByNguoiTao[nguoiTao] || 0) + 1;
 
-// Chuyển thành mảng để vẽ chart
-const khNguoiTaoData = Object.entries(khMapByNguoiTao).map(([nguoi, count]) => ({ nguoi, count }));
-const khNguonData = Object.entries(nguonKHMap).map(([nguon, count]) => ({ nguon, count }));
-const khLoaiData = Object.entries(loaiKHMap).map(([loai, count]) => ({ loai, count }));
+      // Đếm theo nguồn khách
+      nguonKHMap[nguonKH] = (nguonKHMap[nguonKH] || 0) + 1;
 
+      // Đếm theo loại khách
+      loaiKHMap[loaiKH] = (loaiKHMap[loaiKH] || 0) + 1;
+    });
+
+    // Chuyển thành mảng để vẽ chart
+    const khNguoiTaoData = Object.entries(khMapByNguoiTao).map(([nguoi, count]) => ({ nguoi, count }));
+    const khNguonData = Object.entries(nguonKHMap).map(([nguon, count]) => ({ nguon, count }));
+    const khLoaiData = Object.entries(loaiKHMap).map(([loai, count]) => ({ loai, count }));
+
+    // Kiểm tra nếu có yêu cầu xuất Excel
+    if (req.query.export === 'baidang') {
+      return await exportBaiDangToExcel(res, baidangMap, allLinkList, kenhBaiList, baidangNhanVien);
+    }
 
     // render view: sales (NV), topProducts, watermarkBase64, months
-   res.render("dashboard", {
-  sales,
-  startMonth,
-  endMonth,
-  soDonChot,
-  soDonHuy,
-  topProducts,
-  cskhData,
-  hinhThucList,
-  baidangData,
-  kenhBaiArray,
-  linkList,
-  khNguoiTaoData,  // ✅ số liệu khách hàng theo người tạo
-  khNguonData,     // ✅ nguồn khách
-  khLoaiData,      // ✅ loại khách
-  watermarkBase64
-});
-
-
+    res.render("dashboard", {
+      sales,
+      startMonth,
+      endMonth,
+      soDonChot,
+      soDonHuy,
+      topProducts,
+      cskhData,
+      hinhThucList,
+      baidangData: filteredBaidangData,
+      kenhBaiArray,
+      linkList: paginatedLinkList,
+      khNguoiTaoData,
+      khNguonData,
+      khLoaiData,
+      watermarkBase64,
+      // Thêm dữ liệu cho phân trang và lọc
+      baidangNhanVien,
+      baidangPage,
+      baidangPerPage,
+      totalBaidangPages,
+      totalBaidangItems,
+      baidangNhanVienList: Array.from(baidangNhanVienList).sort()
+    });
 
   } catch (err) {
     console.error("❌ Lỗi khi xử lý Dashboard:", err);
     res.status(500).send("Lỗi khi tạo Dashboard");
   }
 });
+
+// Hàm xuất Excel cho bài đăng
+async function exportBaiDangToExcel(res, baidangMap, allLinkList, kenhBaiList, filterNhanVien) {
+  try {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    
+    // Sheet 1: Tổng hợp theo nhân viên
+    const summarySheet = workbook.addWorksheet('Tổng hợp');
+    
+    // Tạo header
+    const headers = ['Nhân viên', 'Tổng số bài'];
+    const kenhBaiArray = Array.from(kenhBaiList);
+    kenhBaiArray.forEach(kenh => {
+      headers.push(kenh);
+    });
+    
+    summarySheet.addRow(headers);
+    
+    // Lọc dữ liệu nếu có
+    let dataToExport = baidangMap;
+    if (filterNhanVien !== 'all') {
+      dataToExport = { [filterNhanVien]: baidangMap[filterNhanVien] || {} };
+    }
+    
+    // Thêm dữ liệu
+    Object.entries(dataToExport).forEach(([nv, data]) => {
+      const row = [nv, data.total || 0];
+      kenhBaiArray.forEach(kenh => {
+        row.push(data[kenh] || 0);
+      });
+      summarySheet.addRow(row);
+    });
+    
+    // Định dạng header
+    const headerRow = summarySheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '4F81BD' }
+    };
+    headerRow.alignment = { horizontal: 'center' };
+    
+    // Đặt độ rộng cột
+    summarySheet.columns = [
+      { width: 25 }, // Nhân viên
+      { width: 15 }, // Tổng số bài
+      ...kenhBaiArray.map(() => ({ width: 20 })) // Các kênh
+    ];
+    
+    // Sheet 2: Danh sách chi tiết
+    const detailSheet = workbook.addWorksheet('Chi tiết');
+    detailSheet.addRow(['STT', 'Nhân viên', 'Ngày tạo', 'Kênh - Bài', 'Link']);
+    
+    // Lọc danh sách link nếu cần
+    let linkListToExport = allLinkList;
+    if (filterNhanVien !== 'all') {
+      linkListToExport = allLinkList.filter(item => item.nhanVien === filterNhanVien);
+    }
+    
+    // Thêm dữ liệu chi tiết
+    linkListToExport.forEach((item, index) => {
+      detailSheet.addRow([
+        index + 1,
+        item.nhanVien,
+        item.ngayTao,
+        item.kenhBai,
+        item.link
+      ]);
+    });
+    
+    // Định dạng header sheet chi tiết
+    const detailHeaderRow = detailSheet.getRow(1);
+    detailHeaderRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+    detailHeaderRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '8064A2' }
+    };
+    detailHeaderRow.alignment = { horizontal: 'center' };
+    
+    // Đặt độ rộng cột cho sheet chi tiết
+    detailSheet.columns = [
+      { width: 8 },  // STT
+      { width: 25 }, // Nhân viên
+      { width: 20 }, // Ngày tạo
+      { width: 25 }, // Kênh - Bài
+      { width: 50 }  // Link
+    ];
+    
+    // Tạo link có hyperlink
+    detailSheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // Bỏ qua header
+        const linkCell = row.getCell(5); // Cột link
+        const linkValue = linkCell.value;
+        if (linkValue && (linkValue.startsWith('http://') || linkValue.startsWith('https://'))) {
+          linkCell.value = {
+            text: 'Xem bài',
+            hyperlink: linkValue,
+            tooltip: linkValue
+          };
+          linkCell.font = { color: { argb: '0000FF' }, underline: true };
+        }
+      }
+    });
+    
+    // Đặt tên file
+    const fileName = filterNhanVien !== 'all' 
+      ? `Bao-cao-bai-dang-${filterNhanVien}.xlsx`
+      : 'Bao-cao-bai-dang-tat-ca.xlsx';
+    
+    // Gửi file về client
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`
+    );
+    
+    await workbook.xlsx.write(res);
+    res.end();
+    
+  } catch (error) {
+    console.error('❌ Lỗi xuất Excel:', error);
+    res.status(500).send('Lỗi khi xuất file Excel');
+  }
+}
 
 
 // xuatkhovt.js (đã cập nhật cho /xuatkhovt-mã đơn hàng)
