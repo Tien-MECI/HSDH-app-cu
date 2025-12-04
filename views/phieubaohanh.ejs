@@ -7,191 +7,256 @@
 
 <style>
   @page { 
-  size: A4 landscape;
-  margin: 0;
-}
+    size: A4 landscape; 
+    margin: 0; 
+  }
 
-html, body {
-  width: 297mm;
-  height: 210mm;
-  margin: 0;
-  padding: 0;
-  font-family: "Times New Roman", Times, serif;
-  font-size: 12px;
-  line-height: 1.1;
-}
+  html, body {
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    padding: 0;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 13px;
+    line-height: 1.4;
+    background: #fff;
+    color: #000;
+  }
 
-/* WATERMARK */
-.watermark {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 297mm;
-  height: 210mm;
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-}
-.watermark img{
-  width: 100%;
-  height: 100%;
-}
+  /* WATERMARK - CHỈ LÀM NỀN, KHÔNG ĐÈ CHỮ */
+  .watermark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 297mm;
+    height: 210mm;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.8; /* RẤT MỜ KHI XEM, IN RA SẼ ĐẬM HƠN */
+    background: url('<%= watermarkBase64 %>') center center no-repeat;
+    background-size: 90% auto; /* Thu nhỏ một chút để không chạm mép chữ */
+  }
 
-/* KHUNG A4 */
-.container {
-  position: relative;
-  width: 297mm;
-  height: 210mm;
-  display: flex;
-  padding: 0;
-  z-index: 1;
-}
+  @media print {
+    .watermark {
+      opacity: 0.25 !important; /* In ra đậm hơn, nhưng vẫn không che chữ */
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
 
-/* CỘT TRÁI = CHUẨN THEO PDF */
-.left-column {
-  width: 128mm;    /* CHUẨN PDF */
-  height: 210mm;
-  padding: 6mm;
-  border-right: 1px solid #000;
-  box-sizing: border-box;
-}
+  /* CONTAINER CHÍNH - ĐÈ LÊN WATERMARK */
+  .container {
+    position: relative;
+    z-index: 10; /* Cao hơn watermark */
+    width: 297mm;
+    height: 210mm;
+    display: flex;
+  }
 
-/* CỘT PHẢI = CHUẨN THEO PDF */
-.right-column {
-  width: calc(297mm - 128mm); /*=169mm*/
-  height: 210mm;
-  padding: 6mm;
-  box-sizing: border-box;
-}
+  /* 2 CỘT - CÁCH MÉP 15mm ĐỂ TRÁNH WATERMARK ĐÈ CHỮ */
+  .left-column, .right-column {
+    padding: 15mm 12mm 15mm 15mm; /* Cách đều, tránh vùng watermark đè */
+    box-sizing: border-box;
+    height: 100%;
+    width: 50%;
+    position: relative;
+    z-index: 11;
+  }
 
-/* HEADER */
-.header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4mm;
-}
-.company-logo { height: 14mm; }
-.company-name {
-  text-align: center;
-  font-size: 16px;
-  font-weight: bold;
-}
+  .left-column {
+    border-right: 2px solid #000;
+    padding-right: 14mm;
+  }
 
-/* TITLE */
-.warranty-title,
-.terms-title {
-  text-align: center;
-  font-size: 16px;
-  font-weight: bold;
-  margin: 2mm 0 1mm;
-}
+  .right-column {
+    padding-left: 14mm;
+  }
 
-/* BOX SỐ PHIẾU */
-.ticket-number-box {
-  border: 1px solid #000;
-  padding: 2mm;
-  margin-bottom: 3mm;
-}
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8mm;
+  }
 
-/* BẢNG SẢN PHẨM */
-.product-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.product-table th,
-.product-table td {
-  border: 1px solid #000;
-  padding: 1.5mm;
-}
+  .company-logo {
+    height: 14mm;
+    width: auto;
+  }
 
-/* BOX */
-.commitment-box,
-.quality-commitment-box,
-.notice-box {
-  border: 1px solid #000;
-  padding: 2mm;
-  margin: 3mm 0;
-  text-align: justify;
-}
+  .company-name {
+    font-size: 17px;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: right;
+  }
 
+  /* TIÊU ĐỀ */
+  .warranty-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 5mm 0 3mm 0;
+  }
+
+  .warranty-date {
+    text-align: center;
+    font-style: italic;
+    margin-bottom: 8mm;
+  }
+
+  /* SỐ PHIẾU */
+  .ticket-number-box {
+    border: 2px solid #000;
+    padding: 4mm;
+    text-align: center;
+    font-weight: bold;
+    font-size: 15px;
+    margin-bottom: 8mm;
+  }
+
+  /* THÔNG TIN KHÁCH HÀNG - DẠNG BẢNG */
+  .customer-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8mm;
+    font-size: 13px;
+  }
+
+  .customer-table td {
+    border: 1px solid #000;
+    padding: 3mm 4mm;
+    vertical-align: top;
+  }
+
+  .customer-table td:first-child {
+    width: 38%;
+    font-weight: bold;
+    background-color: #f0f0f0;
+  }
+
+  /* CAM KẾT */
+  .commitment-box {
+    border: 2px solid #000;
+    padding: 6mm;
+    text-align: justify;
+    font-weight: bold;
+    margin: 10mm 0;
+    background: #fff;
+  }
+
+  /* BẢNG SẢN PHẨM */
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8mm 0;
+    font-size: 12.5px;
+  }
+
+  .product-table th, .product-table td {
+    border: 1px solid #000;
+    padding: 3mm 4mm;
+    text-align: center;
+  }
+
+  .product-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+  }
+
+  .product-table td:nth-child(2) {
+    text-align: left;
+  }
+
+  /* ĐIỀU KHOẢN BÊN PHẢI */
+  .terms-title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 10mm;
+  }
+
+  .quality-commitment-box {
+    border: 2px solid #000;
+    padding: 6mm;
+    margin-bottom: 10mm;
+    font-weight: bold;
+    text-align: justify;
+    background: #fff;
+  }
+
+  .section-title {
+    font-weight: bold;
+    margin: 10mm 0 4mm 0;
+    text-decoration: underline;
+  }
+
+  .notice-box {
+    border: 2px solid #000;
+    padding: 6mm;
+    margin-top: 12mm;
+    font-size: 12.5px;
+    text-align: justify;
+    background: #fff;
+  }
+
+  .contact-info {
+    margin-top: 12mm;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  @media print {
+    body { background: white; }
+    .watermark { opacity: 0.25 !important; }
+    .left-column { border-right: 2px solid #000 !important; }
+  }
 </style>
 </head>
 
 <body>
-  <!-- WATERMARK -->
+
+  <!-- WATERMARK LÀM NỀN MỜ -->
   <% if (watermarkBase64) { %>
-    <div class="watermark">
-      <img src="<%= watermarkBase64 %>" alt="watermark">
-    </div>
+    <div class="watermark"></div>
   <% } %>
 
-  <!-- CONTAINER 2 CỘT -->
+  <!-- NỘI DUNG CHÍNH - ĐÈ LÊN WATERMARK -->
   <div class="container">
     
-    <!-- CỘT TRÁI: PHIẾU BẢO HÀNH -->
+    <!-- CỘT TRÁI -->
     <div class="left-column">
-      
-      <!-- HEADER VỚI LOGO BÊN TRÁI VÀ TÊN CÔNG TY BÊN PHẢI -->
       <div class="header">
-        <div class="logo-container">
-          <% if (logoBase64) { %>
-            <img src="<%= logoBase64 %>" alt="logo" class="company-logo">
-          <% } %>
-        </div>
-        <div class="company-name">
-          CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I
-        </div>
+        <% if (logoBase64) { %>
+          <img src="<%= logoBase64 %>" alt="logo" class="company-logo">
+        <% } %>
+        <div class="company-name">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
       </div>
 
-      <!-- TIÊU ĐỀ PHIẾU BẢO HÀNH -->
       <div class="warranty-title">PHIẾU BẢO HÀNH</div>
       <div class="warranty-date">Ngày ......... tháng ......... năm ............</div>
 
-      <!-- SỐ PHIẾU -->
       <div class="ticket-number-box">
-        <span class="ticket-number-label">Số phiếu:</span>
-        <span class="ticket-number-value"> <%= order.madh %></span>
-      </div>
-      
-      <!-- THÔNG TIN KHÁCH HÀNG TRONG KHUNG -->
-      <div class="customer-info-box">
-        <div class="info-line">
-          <span class="info-label">Thông tin khách hàng:</span>
-          <span class="info-value"><%= order.companyName %></span>
-        </div>
-        
-        <div class="info-line">
-          <span class="info-label">Địa chỉ:</span>
-          <span class="info-value"><%= order.address %></span>
-        </div>
-        
-        <div class="info-line">
-          <span class="info-label">Điện thoại:</span>
-          <span class="info-value"><%= order.phone %></span>
-        </div>
-        
-        <div class="info-line">
-          <span class="info-label">Địa chỉ lắp đặt:</span>
-          <span class="info-value"><%= order.diaChiLapDat %></span>
-        </div>
-        
-        <div class="info-line">
-          <span class="info-label">Ngày bàn giao sản phẩm:</span>
-          <span class="info-value">......... tháng ......... năm ............</span>
-        </div>
-        
-        <div class="info-line">
-          <span class="info-label">Thời hạn bảo hành:</span>
-          <span class="info-value">12 tháng</span>
-        </div>
+        Số phiếu: <%= order.madh %>
       </div>
 
-      <!-- CAM KẾT -->
+      <table class="customer-table">
+        <tr><td>Thông tin khách hàng</td><td><%= order.companyName %></td></tr>
+        <tr><td>Địa chỉ</td><td><%= order.address %></td></tr>
+        <tr><td>Điện thoại</td><td><%= order.phone %></td></tr>
+        <tr><td>Địa chỉ lắp đặt</td><td><%= order.diaChiLapDat %></td></tr>
+        <tr><td>Ngày bàn giao sản phẩm</td><td>......... tháng ......... năm ............</td></tr>
+        <tr><td>Thời hạn bảo hành</td><td>12 tháng</td></tr>
+      </table>
+
       <div class="commitment-box">
         Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
       </div>
 
-      <!-- BẢNG SẢN PHẨM -->
       <table class="product-table">
         <thead>
           <tr>
@@ -203,69 +268,53 @@ html, body {
         </thead>
         <tbody>
           <% if (products && products.length) { %>
-            <% products.forEach(function(p) { %>
+            <% products.forEach(function(p, index) { %>
               <tr>
-                <td><%= p.stt %></td>
-                <td><%= p.description %></td>
+                <td><%= index +, index + 1 %></td>
+                <td style="text-align:left"><%= p.description %></td>
                 <td><%= p.unit %></td>
                 <td><%= p.quantity %></td>
               </tr>
             <% }) %>
-          <% } else { %>
-            <tr>
-              <td colspan="4" style="text-align: center;">Không có sản phẩm</td>
-            </tr>
           <% } %>
         </tbody>
       </table>
 
-      <!-- THÔNG TIN LIÊN HỆ -->
       <div class="contact-info">
-        <div class="contact-line">Xin cảm ơn sự quan tâm và ứng hộ cho Quý khách hàng.</div>
-        <div class="contact-line">Khi có sự cố, sửa chữa khách hàng vai lòng thông báo ngay cho chúng tôi theo thông tin:</div>
-        <div class="contact-line">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
-        <div class="contact-line">Phòng dịch vụ sau bản hàng: 0902 227 007</div>
-        <div class="contact-line">Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội</div>
-        <div class="contact-line">Website: www.meci.vn | Email: cskh@meci.vn</div>
+        <strong>Xin cảm ơn sự quan tâm và ủng hộ của Quý khách hàng.</strong><br>
+        Khi có sự cố, vui lòng thông báo ngay cho chúng tôi theo thông tin:<br><br>
+        <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</strong><br>
+        Phòng dịch vụ sau bán hàng: 0902 227 007<br>
+        Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội<br>
+        Website: www.meci.vn | Email: cskh@meci.vn
       </div>
-
     </div>
 
-    <!-- CỘT PHẢI: ĐIỀU KHOẢN BẢO HÀNH -->
+    <!-- CỘT PHẢI -->
     <div class="right-column">
-      
-      <!-- TIÊU ĐỀ ĐIỀU KHOẢN -->
       <div class="terms-title">ĐIỀU KHOẢN BẢO HÀNH SẢN PHẨM</div>
 
-      <!-- KHUNG CHO CAM KẾT CHẤT LƯỢNG -->
       <div class="quality-commitment-box">
-        <strong>Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.</strong>
+        Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.
       </div>
 
-      <!-- NỘI DUNG ĐIỀU KHOẢN -->
-      <div class="terms-content">
-        <div class="section-title">1. Thời hạn bảo hành</div>
-        <p>Tất cả các sản phẩm được bảo hành miễn phí 12 tháng kể từ ngày bàn giao sản phẩm.</p>
+      <div class="section-title">1. Thời hạn bảo hành</div>
+      <p>Tất cả các sản phẩm được bảo hành miễn phí 12 tháng kể từ ngày bàn giao sản phẩm.</p>
 
-        <div class="section-title">2. Điều kiện bảo hành và phạm vi bảo hành</div>
-        <p>Sản phẩm yêu cầu bảo hành phải có thời hạn bảo hành và không thuộc trường hợp ngoài phạm vi bảo hành.</p>
-        <p>Sản phẩm có thể sẽ thay mới toàn toàn hoặc giới hạn trong việc sửa chữa, thay thế phụ tăng tùy theo trường hợp cụ thể.</p>
-        <p>Bảo hành áp dụng đối với những lỗi giáy ra do nhà sản xuất trong quá trình sản xuất như: lỗi kỹ thuật, hoặc do tuy nghề công nhân sản xuất.</p>
+      <div class="section-title">2. Điều kiện bảo hành và phạm vi bảo hành</div>
+      <p>Sản phẩm yêu cầu bảo hành phải có thời hạn bảo hành và không thuộc trường hợp ngoài phạm vi bảo hành.</p>
+      <p>Sản phẩm có thể sẽ thay mới toàn bộ hoặc giới hạn trong việc sửa chữa, thay thế phụ tùng tùy theo trường hợp cụ thể.</p>
+      <p>Bảo hành áp dụng đối với những lỗi gây ra do nhà sản xuất trong quá trình sản xuất như: lỗi kỹ thuật, hoặc do tay nghề công nhân sản xuất.</p>
 
-        <div class="section-title">3. Trường hợp ngoài phạm vi bảo hành:</div>
-          <p>Sản phẩm kết thời hạn bảo hành.</p>
-          <p>Lỗi đó chủ quan của người sử dụng như: lỗi do tuy ý thảo lập, sửa chữa, thay thế, chuyển đổi vị trí...</p>
-          <p>Hỏng do nguyên nhân khí khả kháng như: thiên tai, là lụt, hóa hoạn...</p>
+      <div class="section-title">3. Trường hợp ngoài phạm vi bảo hành:</div>
+      <p>Sản phẩm hết thời hạn bảo hành.</p>
+      <p>Lỗi do chủ quan của người sử dụng như: lỗi do tự ý tháo lắp, sửa chữa, thay thế, chuyển đổi vị trí...</p>
+      <p>Hỏng do nguyên nhân bất khả kháng như: thiên tai, lũ lụt, hỏa hoạn...</p>
 
-        <!-- KHUNG CHO THÔNG BÁO -->
-        <div class="notice-box">
-          <p>Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm kết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí nhập nhất có thể.</p>
-        </div>
-
+      <div class="notice-box">
+        Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.
       </div>
-
     </div>
-
   </div>
 </body>
 </html>
