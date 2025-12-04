@@ -3172,36 +3172,30 @@ export default app;
 app.get("/phieubaohanh-:madh", async (req, res) => {
   try {
     const { madh } = req.params;
-    if (!madh) return res.status(400).send("Thiếu mã đơn hàng");
+    if (!madh) return res.status(400).send("Thiếu mã đơn");
 
-    const donhangRes = await sheets.spreadsheets.values.get({
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Lấy đơn hàng
+    const dhRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: "Don_hang!A1:AD",
     });
-    const rows = donhangRes.data.values || [];
-    if (rows.length < 2) return res.status(404).send("Không có dữ liệu");
+    const dhRows = dhRes.data.values || [];
 
-    const col = c => c.toUpperCase().split("").reduce((a, l) => a * 26 + l.charCodeAt(0) - 64, 0) - 1;
+    const col = c => c.toUpperCase().split("").reduce((a,l) => a*26 + l.charCodeAt(0)-64, 0)-1;
 
-    const madhIdx       = col("G");
-    const tenKHIdx      = col("J");
-    const phoneIdx      = col("H");
-    const diaChiIdx     = col("L");
-    const loaiDCIdx     = col("X");   // 1/2/3
-    const dc1Idx        = col("Y");
-    const dc2Idx        = col("AA");
-    const dc3Idx        = col("AC");
+    const row = dhRows.find(r => (r[col("G")] || "").trim() === madh.trim());
+    if (!row) return res.status(404).send("Không tìm thấy đơn hàng");
 
-    const orderRow = rows.find(r => (r[madhIdx] || "").trim() === madh.trim());
-    if (!orderRow) return res.status(404).send("Không tìm thấy đơn hàng");
-
+    // Địa chỉ lắp đặt theo loại
     let installAddress = "";
-    const type = orderRow[loaiDCIdx] || "";
-    if (type === "1") installAddress = orderRow[dc1Idx] || "";
-    else if (type === "2") installAddress = orderRow[dc2Idx] || "";
-    else if (type === "3") installAddress = orderRow[dc3Idx] || "";
+    const type = row[col("X")] || "";
+    if (type === "1") installAddress = row[col("Y")] || "";
+    else if (type === "2") installAddress = row[col("AA")] || "";
+    else if (type === "3") installAddress = row[col("AC")] || "";
 
-    // Lấy chi tiết sản phẩm
+    // Chi tiết sản phẩm
     const ctRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: "Don_hang_PVC_ct!A1:AB",
@@ -3212,8 +3206,8 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
       .filter(r => (r[col("B")] || "").trim() === madh.trim())
       .map((r, i) => ({
         description: r[col("J")] || "",
-        unit:       r[col("W")] || "",
-        quantity:   parseInt(r[col("V")] || 0),
+        unit: r[col("W")] || "",
+        quantity: Number(r[col("V")]) || 0
       }));
 
     // Load ảnh
@@ -3221,24 +3215,24 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     try {
       logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
       watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEBAOHANH_ID);
-    } catch (e) { console.warn("Load ảnh lỗi:", e.message); }
+    } catch (e) {}
 
     res.render("phieubaohanh", {
       madh,
       order: {
-        companyName: orderRow[tenKHIdx] || "",
-        address:     orderRow[diaChiIdx] || "",
-        phone:       orderRow[phoneIdx] || "",
-        installAddress,
+        companyName: row[col("J")] || "",
+        address:     row[col("L")] || "",
+        phone:      row[col("H")] || "",
+        installAddress
       },
       products,
       logoBase64,
-      watermarkBase64,
+      watermarkBase64
     });
 
   } catch (err) {
-    console.error("Lỗi phiếu bảo hành:", err);
-    res.status(500).send("Lỗi server");
+    console.error(err);
+    res.status(500).send("Lỗi");
   }
 });
 

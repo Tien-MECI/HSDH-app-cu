@@ -1,130 +1,143 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>PHIẾU BẢO HÀNH - M.E.C.I</title>
-  <style>
-    @page { size: A4 portrait; margin: 5mm; }
-    * { box-sizing: border-box; }
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 210mm;
-      height: 297mm;
-      font-family: "Times New Roman", Times, serif;
-      font-size: 13px;
-      background: #fff;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .page {
-      width: 210mm;
-      height: 297mm;
-      position: relative;
-    }
-    .ticket {
-      width: 198mm;
-      height: 140mm;
-      margin: 0 auto;
-      border: 2px solid #000;
-      padding: 8mm 6mm 6mm 6mm;
-      position: relative;
-    }
-    .ticket-top { margin-top: 6mm; }
-    .ticket-bottom { margin-top: 12mm; } /* cách nhau để có chỗ cắt */
-    .cut-line {
-      position: absolute;
-      top: 148.5mm;
-      left: 10mm;
-      width: 190mm;
-      border-top: 2px dashed #000;
-      text-align: center;
-      font-size: 11px;
-      line-height: 1;
-    }
-    .cut-line span {
-      background: #fff;
-      padding: 0 12px;
-    }
-    .watermark {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-      opacity: 0.12;
-      z-index: 0;
-    }
-    .watermark img { width: 100%; height: 100%; object-fit: cover; }
-    .content { position: relative; z-index: 1; }
-    .header { text-align: center; line-height: 1.3; }
-    .logo { width: 95px; height: auto; margin-bottom: 3px; }
-    .company { font-weight: bold; font-size: 16px; }
-    .title { font-size: 22px; font-weight: bold; text-transform: uppercase; margin: 5px 0 3px; }
-    .date-example { font-size: 12px; font-style: italic; }
-    .date-handwrite { font-style: italic; margin: 8px 0 10px; }
-    .serial { font-weight: bold; margin-top: 5px; }
-    table.info { width: 100%; border-collapse: collapse; margin: 8px 0 10px; font-size: 12.5px; line-height: 1.leading-5; }
-    table.info td:first-child { width: 105px; font-weight: bold; padding: 3px 0; }
-    table.info td:last-child { padding: 3px 0; }
-    table.product {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      font-size: 12px;
-    }
-    table.product th, table.product td {
-      border: 1px solid #000;
-      padding: 5px 4px;
-      text-align: center;
-    }
-    table.product th { background: #f0f0f0; font-weight: bold; }
-    table.product td.left { text-align: left; padding-left: 8px; }
-    .conditions {
-      font-size: 11.5px;
-      line-height: 1.45;
-      margin-top: 8px;
-    }
-    .conditions h3 {
-      text-align: center;
-      font-size: 13.5px;
-      text-decoration: underline;
-      margin: 8px 0 5px;
-    }
-    .signature {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 12px;
-      font-weight: bold;
-      font-size: 12.5px;
-    }
-    @media print {
-      body { margin: 0; }
-      .cut-line { border-top: 2px dashed #000 !important; }
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Phiếu Bảo Hành - M.E.C.I</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  body, html {
+    margin: 0;
+    padding: 0;
+    width: 210mm;
+    height: 297mm;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 13px;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+  }
+  /* Watermark xoay 90 độ vì file gốc là A4 ngang */
+  .watermark {
+    position: absolute;
+    top: 0; left: 0;
+    width: 297mm;
+    height: 210mm;
+    transform: 0;
+    opacity: 0.12;
+    transform: rotate(90deg) translate(40mm, 40mm);
+    transform-origin: center;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .watermark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .ticket {
+    position: absolute;
+    width: 198mm;
+    height: 140mm;
+    left: 6mm;
+    border: 2px solid #000;
+    padding: 7mm 6mm;
+    box-sizing: border-box;
+    background: #fff;
+    z-index: 1;
+  }
+  .ticket-top { top: 6mm; }
+  .ticket-bottom { top: 151mm; }
+  .cut-line {
+    position: absolute;
+    top: 148mm;
+    left: 6mm;
+    width: 198mm;
+    border-top: 2px dashed #000;
+    text-align: center;
+    z-index: 2;
+  }
+  .cut-line span {
+    background: #fff;
+    padding: 0 15px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  /* Nội dung phiếu */
+  .header { text-align: center; line-height: 1.4; }
+  .logo { width: 100px; margin-bottom: 4px; }
+  .company { font-size: 17px; font-weight: bold; }
+  .title { font-size: 23px; font-weight: bold; text-transform: uppercase; margin: 6px 0 4px; }
+  .date-example { font-size: 12.5px; font-style: italic; }
+  .date-hand { font-style: italic; margin: 10px 0 8px; }
+  .serial { font-weight: bold; font-size: 14px; }
+  .info td { padding: 3.5px 0; font-size: 13px; }
+  .info td:first-child { width: 105px; font-weight: bold; }
+  .table-product {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 8px;
+    font-size: 12.5px;
+  }
+  .table-product th,
+  .table-product td {
+    border: 1px solid #000;
+    padding: 6px 5px;
+    text-align: center;
+  }
+  .table-product th { background: #f5f5f5; font-weight: bold; }
+  .table-product td.left { text-align: left; padding-left: 8px; }
+  .conditions {
+    font-size: 11.8px;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .conditions h3 {
+    text-align: center;
+    font-size: 14px;
+    text-decoration: underline;
+    margin: 8px 0 6px;
+  }
+  .signature {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 13px;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; }
+    .cut-line span { background: white !important; }
+  }
+</style>
 </head>
 <body>
-  <div class="page">
+<div class="page">
 
-  <!-- Watermark toàn trang -->
+  <!-- Watermark xoay 90 độ -->
   <% if (watermarkBase64) { %>
     <div class="watermark">
       <img src="<%= watermarkBase64 %>" alt="watermark">
     </div>
   <% } %>
 
-  <!-- PHIẾU 1 - NỬA TRÊN -->
+  <!-- PHIẾU 1 -->
   <div class="ticket ticket-top">
     <%- include('phieubaohanh-content') %>
   </div>
 
   <!-- Đường cắt -->
-  <div class="cut-line"><span>CẮT THEO ĐƯỜNG NÀY</span></div>
+  <div class="cut-line"><span>✂ CẮT THEO ĐƯỜNG NÀY ✂</span></div>
 
-  <!-- PHIẾU 2 - NỬA DƯỚI (giống hệt phiếu 1) -->
+  <!-- PHIẾU 2 (giống hệt phiếu 1) -->
   <div class="ticket ticket-bottom">
     <%- include('phieubaohanh-content') %>
   </div>
 
- </div>
+</div>
 </body>
 </html>

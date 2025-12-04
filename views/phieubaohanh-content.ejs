@@ -1,67 +1,49 @@
-<div class="content">
+<div style="position:relative; height:100%;">
   <div class="header">
     <% if (logoBase64) { %>
-      <img class="logo" src="<%= logoBase64 %>" alt="Logo">
+      <img class="logo" src="<%= logoBase64 %>" alt="M.E.C.I">
     <% } %>
     <div class="company">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
     <div class="title">PHIẾU BẢO HÀNH</div>
     <div class="date-example">Ngày 01 tháng 03 năm 2023</div>
-    <div class="date-handwrite">Ngày ..... tháng ..... năm .....</div>
+    <div class="date-hand">Ngày …… tháng …… năm ……</div>
     <div class="serial">Số phiếu: <%= madh %></div>
   </div>
 
-  <table class="info">
-    <tr>
-      <td>Thông tin khách hàng:</td>
-      <td><%= order.companyName || "...................................................................................." %></td>
-    </tr>
-    <tr>
-      <td>Địa chỉ:</td>
-      <td><%= order.address || "...................................................................................." %></td>
-    </tr>
-    <tr>
-      <td>Điện thoại:</td>
-      <td><%= order.phone || "...................................................................................." %></td>
-    </tr>
-    <tr>
-      <td>Địa chỉ lắp đặt:</td>
-      <td><%= order.installAddress || "...................................................................................." %></td>
-    </tr>
-    <tr>
-      <td>Ngày bàn giao sản phẩm:</td>
-      <td>..... tháng ..... năm .....</td>
-    </tr>
-    <tr>
-      <td>Thời hạn bảo hành:</td>
-      <td><strong>12 tháng</strong></td>
-    </tr>
+  <table class="info" style="width:100%; border-collapse:collapse;">
+    <tr><td>Thông tin khách hàng:</td><td><%= order.companyName || "" %></td></tr>
+    <tr><td>Địa chỉ:</td><td><%= order.address || "" %></td></tr>
+    <tr><td>Điện thoại:</td><td><%= order.phone || "" %></td></tr>
+    <tr><td>Địa chỉ lắp đặt:</td><td><%= order.installAddress || "" %></td></tr>
+    <tr><td>Ngày bàn giao sản phẩm:</td><td>… tháng … năm …</td></tr>
+    <tr><td>Thời hạn bảo hành:</td><td><strong>12 tháng</strong></td></tr>
   </table>
 
-  <table class="product">
+  <table class="table-product">
     <thead>
       <tr>
-        <th width="10%">STT</th>
-        <th width="60%">Diễn giải sản phẩm</th>
+        <th width="8%">STT</th>
+        <th width="62%">Diễn giải sản phẩm</th>
         <th width="15%">Đơn vị</th>
         <th width="15%">Số lượng</th>
       </tr>
     </thead>
     <tbody>
-      <% if (products && products.length > 0) { %>
+      <% if (products && products.length) { %>
         <% products.forEach((p, i) => { %>
           <tr>
-            <td><%= i + 1 %></td>
-            <td class="left"><%= p.description || "" %></td>
-            <td><%= p.unit || "" %></td>
-            <td><%= p.quantity || 0 %></td>
+            <td><%= i+1 %></td>
+            <td class="left"><%= p.description %></td>
+            <td><%= p.unit %></td>
+            <td><%= p.quantity %></td>
           </tr>
         <% }) %>
-        <% for (let i = products.length; i < 8; i++) { %>
-          <tr><td><%= i + 1 %></td><td class="left"></td><td></td><td></td></tr>
+        <% for(let i=products.length; i<9; i++) { %>
+          <tr><td><%= i+1 %></td><td class="left"></td><td></td><td></td></tr>
         <% } %>
       <% } else { %>
-        <% for (let i = 0; i < 8; i++) { %>
-          <tr><td><%= i + 1 %></td><td class="left"></td><td></td><td></td></tr>
+        <% for(let i=0; i<9; i++) { %>
+          <tr><td><%= i+1 %></td><td class="left"></td><td></td><td></td></tr>
         <% } %>
       <% } %>
     </tbody>
@@ -79,7 +61,7 @@
     Sản phẩm hết thời hạn bảo hành.<br>
     Lỗi do quá trình người sử dụng: lỗi do tự ý tháo lắp, sửa chữa, thay thế, chuyển đổi vị trí ...<br>
     Hỏng do nguyên nhân bất khả kháng như thiên tai, lũ lụt, hỏa hoạn...</p>
-    <p>Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những phát sinh trong quá trình sử dụng. Do vậy trong trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.</p>
+    <p>Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh... chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.</p>
   </div>
 
   <div class="signature">
