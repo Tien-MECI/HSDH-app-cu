@@ -2,231 +2,198 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<title>Phiếu Bảo Hành - M.E.C.I</title>
+<title>Phiếu Bảo Hành M.E.C.I</title>
 <style>
   @page { size: A4 landscape; margin: 0; }
-  body, html {
-    margin: 0; padding: 0;
-    width: 297mm; height: 210mm;
-    font-family: "Times New Roman", serif;
-    font-size: 11.5pt; /* chuẩn như phiếu thật */
-    line-height: 1.15;
-    background: #fff;
+  html, body {
+    margin:0; padding:0; width:297mm; height:210mm;
+    font-family:"Times New Roman",serif;
+    font-size:11pt;               /* chuẩn phiếu thật */
+    line-height:1.18;
+    background:#fff;
   }
 
-  /* WATERMARK CHỈ LÀM NỀN MỜ - KHÔNG ĐÈ CHỮ */
+  /* WATERMARK – NHẠT, KHÔNG CHE CHỮ */
   .watermark {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: url('<%= watermarkBase64 %>') center center no-repeat;
-    background-size: 96% auto;
-    opacity: 0.13;
-    pointer-events: none;
-    z-index: 1;
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:url('<%= watermarkBase64 %>') center/contain no-repeat;
+    opacity:0.11;
+    pointer-events:none;
+    z-index:1;
   }
-  @media print { .watermark { opacity: 0.22; } }
+  @media print { .watermark { opacity:0.19; } }
 
   .container {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    height: 100%;
+    position:relative; z-index:2;
+    display:flex; height:100%;
   }
 
-  .left-column, .right-column {
-    width: 50%;
-    padding: 9mm 8mm 10mm 10mm; /* sát mép như phiếu thật */
-    box-sizing: border-box;
-    position: relative;
+  /* 2 CỘT – CHỈNH CHÍNH XÁC THEO VỊ TRÍ PHIẾU THẬT */
+  .left, .right {
+    width:50%; box-sizing:border-box;
+    padding:11mm 9mm 11mm 11mm;   /* cực kỳ sát như phiếu thật */
   }
+  .left { border-right:1px solid #000; }
 
-  .left-column { border-right: 1px solid #000; }
-
-  /* HEADER */
+  /* HEADER – LOGO VÀ TÊN CÔNG TY */
   .header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 2mm;
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:1.5mm;
   }
-  .company-logo { height: 11mm; }
+  .company-logo { height:10mm; width:auto; }
   .company-name {
-    font-size: 15pt; font-weight: bold; text-transform: uppercase;
-    text-align: right; line-height: 1.1;
+    font-size:14pt; font-weight:bold; text-transform:uppercase;
+    text-align:right; line-height:1.1;
   }
 
-  .warranty-title {
-    text-align: center; font-size: 17pt; font-weight: bold;
-    text-transform: uppercase; margin: 1mm 0 1mm;
+  .title {
+    text-align:center; font-size:17pt; font-weight:bold;
+    text-transform:uppercase; margin:0.5mm 0 1mm;
   }
-  .warranty-date {
-    text-align: center; font-style: italic; margin-bottom: 3mm;
-  }
-
-  /* SỐ PHIẾU */
-  .ticket-number-box {
-    border: 1px solid #000; padding: 2.5mm 5mm;
-    text-align: center; font-weight: bold; font-size: 12pt;
-    margin-bottom: 4mm;
+  .date {
+    text-align:center; font-style:italic; margin-bottom:2.5mm;
   }
 
-  /* BẢNG THÔNG TIN KHÁCH HÀNG - CHUẨN NHƯ ẢNH */
-  .customer-table {
-    width: 100%; border-collapse: collapse; margin-bottom: 4mm;
-    font-size: 11.5pt;
-  }
-  .customer-table td {
-    border: 1px solid #000; padding: 2.2mm 3mm; vertical-align: top;
-  }
-  .customer-table td:first-child {
-    width: 35%; font-weight: bold; background: #f8f8f8;
+  /* SỐ PHIẾU – CĂN GIỮA HOÀN HẢO */
+  .ticket-no {
+    border:1px solid #000; padding:2.5mm 0;
+    text-align:center; font-weight:bold; font-size:12pt;
+    margin-bottom:3mm;
   }
 
-  /* CAM KẾT */
-  .commitment-box {
-    border: 1px solid #000; padding: 3mm; margin: 4mm 0;
-    font-size: 11pt; line-height: 1.2; text-align: justify;
+  /* BẢNG THÔNG TIN KHÁCH HÀNG – CÓ NỀN XÁM CỘT TRÁI */
+  .info-table td {
+    border:1px solid #000; padding:2.1mm 3mm; vertical-align:top;
+    font-size:11pt;
+  }
+  .info-table td:first-child {
+    width:35%; font-weight:bold;
+    background:#f2f2f2 !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .commitment {
+    border:1px solid #000; padding:3mm; margin:3.5mm 0;
+    font-size:10.8pt; line-height:1.22; text-align:justify;
   }
 
   /* BẢNG SẢN PHẨM */
-  .product-table {
-    width: 100%; border-collapse: collapse; margin: 4mm 0;
-    font-size: 11pt;
+  .prod-table {
+    width:100%; border-collapse:collapse; margin:3mm 0;
+    font-size:10.8pt;
   }
-  .product-table th, .product-table td {
-    border: 1px solid #000; padding: 2mm 3mm; text-align: center;
+  .prod-table th, .prod-table td {
+    border:1px solid #000; padding:2mm 3mm; text-align:center;
   }
-  .product-table th { font-weight: bold; }
-  .product-table td:nth-child(2) { text-align: left; }
+  .prod-table th { font-weight:bold; }
+  .prod-table td:nth-child(2) { text-align:left; padding-left:5px; }
 
   /* CỘT PHẢI */
   .terms-title {
-    text-align: center; font-size: 16pt; font-weight: bold;
-    text-transform: uppercase; margin: 0 0 4mm 0;
+    text-align:center; font-size:16pt; font-weight:bold;
+    text-transform:uppercase; margin:0 0 3mm 0;
   }
-
-  .quality-commitment-box {
-    border: 1px solid #000; padding: 3mm; margin-bottom: 4mm;
-    font-weight: bold; font-size: 11.5pt; line-height: 1.2;
+  .quality-box {
+    border:1px solid #000; padding:3mm; margin-bottom:3mm;
+    font-weight:bold; font-size:11pt; line-height:1.22;
   }
-
-  .section-title {
-    font-weight: bold; margin: 5mm 0 2mm 0; font-size: 11.5pt;
+  .section { font-weight:bold; margin:4mm 0 1.5mm 0; }
+  .notice {
+    border:1px solid #000; padding:3mm; margin-top:5mm;
+    font-size:10.8pt; line-height:1.22; text-align:justify;
   }
-
-  .notice-box {
-    border: 1px solid #000; padding: 3mm; margin-top: 6mm;
-    font-size: 11pt; line-height: 1.2; text-align: justify;
-  }
-
-  p { margin: 1.5mm 0; text-align: justify; }
+  p { margin:1.3mm 0; text-align:justify; }
 
   @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .left-column { border-right: 1px solid #000 !important; }
+    body { background:white; }
+    .left { border-right:1px solid #000 !important; }
   }
 </style>
 </head>
-
 <body>
 
-  <!-- WATERMARK LÀM NỀN MỜ -->
-  <% if (watermarkBase64) { %>
-    <div class="watermark"></div>
-  <% } %>
+<% if (watermarkBase64) { %>
+  <div class="watermark"></div>
+<% } %>
 
-  <!-- NỘI DUNG CHÍNH - ĐÈ LÊN WATERMARK -->
-  <div class="container">
-    
-    <!-- CỘT TRÁI -->
-    <div class="left-column">
-      <div class="header">
-        <% if (logoBase64) { %>
-          <img src="<%= logoBase64 %>" alt="logo" class="company-logo">
-        <% } %>
-        <div class="company-name">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
-      </div>
+<div class="container">
 
-      <div class="warranty-title">PHIẾU BẢO HÀNH</div>
-      <div class="warranty-date">Ngày ......... tháng ......... năm ............</div>
-
-      <div class="ticket-number-box">
-        Số phiếu: <%= order.madh %>
-      </div>
-
-      <table class="customer-table">
-        <tr><td>Thông tin khách hàng</td><td><%= order.companyName %></td></tr>
-        <tr><td>Địa chỉ</td><td><%= order.address %></td></tr>
-        <tr><td>Điện thoại</td><td><%= order.phone %></td></tr>
-        <tr><td>Địa chỉ lắp đặt</td><td><%= order.diaChiLapDat %></td></tr>
-        <tr><td>Ngày bàn giao sản phẩm</td><td>......... tháng ......... năm ............</td></tr>
-        <tr><td>Thời hạn bảo hành</td><td>12 tháng</td></tr>
-      </table>
-
-      <div class="commitment-box">
-        Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
-      </div>
-
-      <table class="product-table">
-        <thead>
-          <tr>
-            <th>STT</th>
-            <th>Diễn giải sản phẩm</th>
-            <th>Đơn vị</th>
-            <th>Số lượng</th>
-          </tr>
-        </thead>
-        <tbody>
-  <% if (products && products.length) { %>
-    <% products.forEach(function(p, index) { %>
-      <tr>
-        <td><%= index + 1 %></td>
-        <td style="text-align:left"><%= p.description %></td>
-        <td><%= p.unit %></td>
-        <td><%= p.quantity %></td>
-      </tr>
-    <% }) %>
-  <% } else { %>
-    <tr>
-      <td colspan="4" style="text-align: center;">Không có sản phẩm</td>
-    </tr>
-  <% } %>
-</tbody>
-      </table>
-
-      <div class="contact-info">
-        <strong>Xin cảm ơn sự quan tâm và ủng hộ của Quý khách hàng.</strong><br>
-        Khi có sự cố, vui lòng thông báo ngay cho chúng tôi theo thông tin:<br><br>
-        <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</strong><br>
-        Phòng dịch vụ sau bán hàng: 0902 227 007<br>
-        Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội<br>
-        Website: www.meci.vn | Email: cskh@meci.vn
-      </div>
+  <!-- CỘT TRÁI -->
+  <div class="left">
+    <div class="header">
+      <% if (logoBase64) { %><img src="<%= logoBase64 %>" class="company-logo" alt="logo"><% } %>
+      <div class="company-name">CÔNG TY CỔ PHẦN CÔNG NGHIỆP<br>M.E.C.I</div>
     </div>
 
-    <!-- CỘT PHẢI -->
-    <div class="right-column">
-      <div class="terms-title">ĐIỀU KHOẢN BẢO HÀNH SẢN PHẨM</div>
+    <div class="title">PHIẾU BẢO HÀNH</div>
+    <div class="date">Ngày ......... tháng ......... năm .........</div>
 
-      <div class="quality-commitment-box">
-        Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.
-      </div>
+    <div class="ticket-no">Số phiếu: <%= order.madh %></div>
 
-      <div class="section-title">1. Thời hạn bảo hành</div>
-      <p>Tất cả các sản phẩm được bảo hành miễn phí 12 tháng kể từ ngày bàn giao sản phẩm.</p>
+    <table class="info-table" width="100%" cellspacing="0">
+      <tr><td>Thông tin khách hàng</td><td><%= order.companyName %></td></tr>
+      <tr><td>Địa chỉ</td><td><%= order.address %></td></tr>
+      <tr><td>Điện thoại</td><td><%= order.phone %></td></tr>
+      <tr><td>Địa chỉ lắp đặt</td><td><%= order.diaChiLapDat %></td></tr>
+      <tr><td>Ngày bàn giao sản phẩm</td><td>......... tháng ......... năm .........</td></tr>
+      <tr><td>Thời hạn bảo hành</td><td>12 tháng</td></tr>
+    </table>
 
-      <div class="section-title">2. Điều kiện bảo hành và phạm vi bảo hành</div>
-      <p>Sản phẩm yêu cầu bảo hành phải có thời hạn bảo hành và không thuộc trường hợp ngoài phạm vi bảo hành.</p>
-      <p>Sản phẩm có thể sẽ thay mới toàn bộ hoặc giới hạn trong việc sửa chữa, thay thế phụ tùng tùy theo trường hợp cụ thể.</p>
-      <p>Bảo hành áp dụng đối với những lỗi gây ra do nhà sản xuất trong quá trình sản xuất như: lỗi kỹ thuật, hoặc do tay nghề công nhân sản xuất.</p>
+    <div class="commitment">
+      Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
+    </div>
 
-      <div class="section-title">3. Trường hợp ngoài phạm vi bảo hành:</div>
-      <p>Sản phẩm hết thời hạn bảo hành.</p>
-      <p>Lỗi do chủ quan của người sử dụng như: lỗi do tự ý tháo lắp, sửa chữa, thay thế, chuyển đổi vị trí...</p>
-      <p>Hỏng do nguyên nhân bất khả kháng như: thiên tai, lũ lụt, hỏa hoạn...</p>
+    <table class="prod-table" cellspacing="0">
+      <thead><tr><th>STT</th><th>Diễn giải sản phẩm</th><th>Đơn vị</th><th>Số lượng</th></tr></thead>
+      <tbody>
+        <% products.forEach((p, i) => { %>
+          <tr>
+            <td><%= i + 1 %></td>
+            <td style="text-align:left"><%= p.description %></td>
+            <td><%= p.unit %></td>
+            <td><%= p.quantity %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
 
-      <div class="notice-box">
-        Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.
-      </div>
+    <div style="margin-top:4mm; font-size:10.8pt; line-height:1.25;">
+      Xin cảm ơn sự quan tâm và ủng hộ của Quý khách hàng.<br>
+      Khi có sự cố, vui lòng thông báo ngay cho chúng tôi theo thông tin:<br><br>
+      <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</strong><br>
+      Phòng dịch vụ sau bán hàng: 0902 227 007<br>
+      Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội<br>
+      Website: www.meci.vn | Email: cskh@meci.vn
     </div>
   </div>
+
+  <!-- CỘT PHẢI -->
+  <div class="right">
+    <div class="terms-title">ĐIỀU KHOẢN BẢO HÀNH SẢN PHẨM</div>
+
+    <div class="quality-box">
+      Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.
+    </div>
+
+    <div class="section">1. Thời hạn bảo hành</div>
+    <p>Tất cả các sản phẩm được bảo hành miễn phí 12 tháng kể từ ngày bàn giao sản phẩm.</p>
+
+    <div class="section">2. Điều kiện bảo hành và phạm vi bảo hành</div>
+    <p>Sản phẩm yêu cầu bảo hành phải có thời hạn bảo hành và không thuộc trường hợp ngoài phạm vi bảo hành.</p>
+    <p>Sản phẩm có thể sẽ thay mới toàn bộ hoặc giới hạn trong việc sửa chữa, thay thế phụ tùng tùy theo trường hợp cụ thể.</p>
+    <p>Bảo hành áp dụng đối với những lỗi gây ra do nhà sản xuất trong quá trình sản xuất như: lỗi kỹ thuật, hoặc do tay nghề công nhân sản xuất.</p>
+
+    <div class="section">3. Trường hợp ngoài phạm vi bảo hành:</div>
+    <p>Sản phẩm hết thời hạn bảo hành.</p>
+    <p>Lỗi do chủ quan của người sử dụng như: lỗi do tự ý tháo lắp, sửa chữa, thay thế, chuyển đổi vị trí...</p>
+    <p>Hỏng do nguyên nhân bất khả kháng như: thiên tai, lũ lụt, hỏa hoạn...</p>
+
+    <div class="notice">
+      Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.
+    </div>
+  </div>
+
+</div>
 </body>
 </html>
