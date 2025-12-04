@@ -6,196 +6,143 @@
 <title>Hóa đơn giá trị gia tăng</title>
 
 <style>
-  @page { size: A4 landscape; margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
 
   html, body {
-    width: 297mm;
-    height: 210mm;
-    margin: 0;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto;
     padding: 0;
-    font-family: "Times New Roman", serif;
-    font-size: 11.5pt;
-    line-height: 1.2;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12px;
+    line-height: 1.3;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
     background: #fff;
   }
 
-  /* WATERMARK FULL TRANG - CĂN CHÍNH GIỮA, KHÔNG ĐÈ CHỮ */
+  /* WATERMARK full trang, căn giữa */
   .watermark {
     position: fixed;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 297mm;
-    height: 210mm;
+    width: 210mm;
+    height: 297mm;
     z-index: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     pointer-events: none;
-    opacity: 0.85; /* nhẹ khi xem */
+    opacity: 0.8; /* nhẹ hơn để không che nội dung */
   }
   .watermark img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
-  }
-  @media print {
-    .watermark { opacity: 0.22 !important; }
+    object-fit: cover;
   }
 
-  /* KHUNG CHÍNH - GIỐNG HÓA ĐƠN: CÓ VIỀN, CÁCH MÉP, NỘI DUNG GỌN TRONG NÀY */
-  .container {
+  /*
+    CONTAINER:
+    - border: 1mm solid black
+    - padding (khoảng cách giữa nội dung và khung): 1mm theo yêu cầu
+    - margin-top: 10mm để không chồng lên watermark viền trên (nếu watermark có họa tiết sát mép)
+  */
+    .container {
     position: relative;
-    z-index: 10;
-    width: 277mm;           /* 297 - 20mm (10mm mỗi bên) */
-    height: 190mm;          /* 210 - 20mm */
-    margin: 10mm auto;      /* cách đều 10mm 4 phía */
-    padding: 8mm 10mm;      /* khoảng cách nội dung đến viền */
-    border: 1.5mm solid #000;  /* viền đỏ đậm giống phiếu thật */
+    z-index: 1;
+    width: 190mm;
+    margin: 10mm auto;              /* cách mép trên và dưới 10mm */
+    padding: 1mm;                   /* <<< khoảng cách nội dung tới khung = 1mm */
     box-sizing: border-box;
-    background: #fff;       /* nền trắng để đè lên watermark */
+    border: 1mm solid #000;         /* viền đen 1mm */
+    background: transparent;
+    /* đảm bảo không vượt quá trang in (297mm) trừ margin trên/dưới */
+    height: 270mm;
+    overflow: visible;              /* nếu bạn muốn nội dung tràn sang trang sau, để visible */
   }
 
-  .content {
-    display: flex;
-    height: 100%;
-  }
-
-  .left, .right {
-    width: 50%;
-    padding: 0 8mm;
-    box-sizing: border-box;
-  }
-  .left { border-right: 1px solid #000; }
-
-  /* HEADER */
+  /* Header */
   .header {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 3mm;
+    border-bottom: 1px solid #000;
+    padding-bottom: 6px;
   }
-  .company-logo { height: 11mm; }
-  .company-name {
-    font-size: 15pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    text-align: right;
-    line-height: 1.1;
-  }
+  .logo { width: 120px; height: auto; }
+  .header-center { flex: 1; text-align: center; }
+  .invoice-title { font-size: 18px; font-weight: 700; text-transform: uppercase; }
+  .invoice-sub { font-style: italic; font-size: 13px; }
+  .invoice-date { font-size: 12px; margin-top: 4px; }
+  .header-right { text-align: right; font-size: 12px; line-height: 1.25; }
 
-  .title {
-    text-align: center;
-    font-size: 18pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin: 2mm 0 1mm;
-  }
-  .date {
-    text-align: center;
-    font-style: italic;
-    margin-bottom: 4mm;
-    font-size: 11pt;
-  }
-
-  .ticket {
-    border: 1px solid #000;
-    padding: 3mm 0;
-    text-align: center;
-    font-weight: bold;
-    font-size: 13pt;
-    margin-bottom: 5mm;
-  }
-
-  /* BẢNG THÔNG TIN KHÁCH HÀNG - CHỈ KHUNG, KHÔNG NỀN */
-  .info-box {
-    border: 1px solid #000;
-    margin-bottom: 5mm;
-    font-size: 11pt;
-  }
-  .info-box table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .info-box td {
-    border: 1px solid #000;
-    padding: 2.3mm 4mm;
-    vertical-align: top;
-  }
-  .info-box td:first-child {
-    width: 36%;
-    font-weight: bold;
-  }
-
-  .commitment {
-    border: 1px solid #000;
-    padding: 4mm;
-    margin: 5mm 0;
-    font-size: 11pt;
-    line-height: 1.25;
-    text-align: justify;
-  }
-
-  .prod-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 5mm 0;
-    font-size: 11pt;
-  }
-  .prod-table th, .prod-table td {
-    border: 1px solid #000;
-    padding: 2.5mm 4mm;
-    text-align: center;
-  }
-  .prod-table th { font-weight: bold; }
-  .prod-table td:nth-child(2) { text-align: left; padding-left: 6mm; }
-
-  /* CỘT PHẢI */
-  .terms-title {
-    text-align: center;
-    font-size: 17pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 5mm;
-  }
-  .quality-box {
-    border: 1px solid #000;
-    padding: 4mm;
-    margin-bottom: 5mm;
-    font-weight: bold;
-    font-size: 11.5pt;
-    line-height: 1.25;
-  }
+  /* Seller/Buyer blocks */
   .section {
-    font-weight: bold;
-    margin: 6mm 0 3mm 0;
-    font-size: 11.5pt;
-  }
-  .notice {
     border: 1px solid #000;
-    padding: 4mm;
-    margin-top: 8mm;
-    font-size: 11pt;
-    line-height: 1.25;
-    text-align: justify;
+    padding: 6px;
+    margin-top: 8px;
+    background: #fff;
+    line-height: 1.6;
   }
-  p { margin: 2mm 0; text-align: justify; font-size: 11pt; }
 
-  .contact {
-    margin-top: 6mm;
-    font-size: 11pt;
-    line-height: 1.3;
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 6px;
+    font-size: 12px;
+    vertical-align: middle;
+  }
+  thead th {
+    font-weight: bold;
+    text-align: center;
+  }
+  th em {
+    display: block;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  td.right { text-align: right; }
+
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .summary-table th, .summary-table td {
+    border: 1px solid #000;
+    padding: 6px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .amount-in-words { margin-top: 12px; font-style: italic; }
+
+  .signature {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 25px;
+  }
+  .signature div {
+    width: 45%;
+    text-align: center;
   }
 
   @media print {
-    body, html { background: white; }
-    .container { 
-      border: 1.5mm solid #000 !important;
+    .watermark { opacity: 0.25 !important; }
+    .container {
+      border: 1mm solid #000;
       margin: 10mm auto;
-      padding: 8mm 10mm;
+      padding: 1mm;
+      max-height: calc(297mm - 20mm);
     }
-    .watermark { opacity: 0.22 !important; }
-    .left { border-right: 1px solid #000 !important; }
   }
 </style>
 </head>
