@@ -3176,7 +3176,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
 
     const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A1:AD1000",
+      range: "Don_hang!A1:AD",
     });
     const rows = donhangRes.data.values || [];
     if (rows.length < 2) return res.status(404).send("Không có dữ liệu");
