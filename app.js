@@ -32,6 +32,7 @@ const __dirname = dirname(__filename);
 const LOGO_FILE_ID = "1Rwo4pJt222dLTXN9W6knN3A5LwJ5TDIa";
 const WATERMARK_FILE_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
 const WATERMARK_FILEHOADON_ID = "1skm9AI1_rrx7ngZrgsyEuy_YbnOXVMIK";
+const WATERMARK_FILEBAOHANH_ID = "1hwTP3Vmghybml3eT6ZGG8pGVmP6fnfvJ";
 
 
 // --- ENV ---
@@ -3001,8 +3002,6 @@ app.get("/copy-:madh", async (req, res) => {
 
 //===TẠO NHÁP HÓA ĐƠN====
 
-
-// 🔥 Route chính
 app.get("/taohoadon-:madh", async (req, res) => {
   try {
     const { madh } = req.params;
@@ -3167,6 +3166,82 @@ app.get("/taohoadon-:madh", async (req, res) => {
 });
 
 export default app;
+
+//// Tạo phiếu bảo hành
+const WATERMARK_FILEBAOHANH_ID = "1hwTP3Vmghybml3eT6ZGG8pGVmP6fnfvJ";
+
+app.get("/phieubaohanh-:madh", async (req, res) => {
+  try {
+    const { madh } = req.params;
+    if (!madh) return res.status(400).send("Thiếu mã đơn hàng");
+
+    const donhangRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Don_hang!A1:AD1000",
+    });
+    const rows = donhangRes.data.values || [];
+    if (rows.length < 2) return res.status(404).send("Không có dữ liệu");
+
+    const col = c => c.toUpperCase().split("").reduce((a, l) => a * 26 + l.charCodeAt(0) - 64, 0) - 1;
+
+    const madhIdx       = col("G");
+    const tenKHIdx      = col("J");
+    const phoneIdx      = col("H");
+    const diaChiIdx     = col("L");
+    const loaiDCIdx     = col("X");   // 1/2/3
+    const dc1Idx        = col("Y");
+    const dc2Idx        = col("AA");
+    const dc3Idx        = col("AC");
+
+    const orderRow = rows.find(r => (r[madhIdx] || "").trim() === madh.trim());
+    if (!orderRow) return res.status(404).send("Không tìm thấy đơn hàng");
+
+    let installAddress = "";
+    const type = orderRow[loaiDCIdx] || "";
+    if (type === "1") installAddress = orderRow[dc1Idx] || "";
+    else if (type === "2") installAddress = orderRow[dc2Idx] || "";
+    else if (type === "3") installAddress = orderRow[dc3Idx] || "";
+
+    // Lấy chi tiết sản phẩm
+    const ctRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: "Don_hang_PVC_ct!A1:AB",
+    });
+    const ctRows = ctRes.data.values || [];
+
+    const products = ctRows
+      .filter(r => (r[col("B")] || "").trim() === madh.trim())
+      .map((r, i) => ({
+        description: r[col("J")] || "",
+        unit:       r[col("W")] || "",
+        quantity:   parseInt(r[col("V")] || 0),
+      }));
+
+    // Load ảnh
+    let logoBase64 = "", watermarkBase64 = "";
+    try {
+      logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+      watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEBAOHANH_ID);
+    } catch (e) { console.warn("Load ảnh lỗi:", e.message); }
+
+    res.render("phieubaohanh", {
+      madh,
+      order: {
+        companyName: orderRow[tenKHIdx] || "",
+        address:     orderRow[diaChiIdx] || "",
+        phone:       orderRow[phoneIdx] || "",
+        installAddress,
+      },
+      products,
+      logoBase64,
+      watermarkBase64,
+    });
+
+  } catch (err) {
+    console.error("Lỗi phiếu bảo hành:", err);
+    res.status(500).send("Lỗi server");
+  }
+});
 
 //// === TẠO BẢNG CHẤM CÔNG
 app.get("/bangchamcong", async (req, res) => {
