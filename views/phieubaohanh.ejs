@@ -7,311 +7,161 @@
 
 <style>
   :root {
-    /* Khoảng an toàn bên trong watermark - điều chỉnh nếu cần (vd: 8mm, 10mm, 12mm) */
-    --page-safe: 8mm;
-  }
+  --page-safe: 0mm; /* bỏ padding tự thêm làm lệch */
+}
 
-  @page { 
-    size: A4 landscape; 
-    margin: 15; 
-  }
+@page { 
+  size: A4 landscape; 
+  margin: 0;
+}
 
-  html, body {
-    width: 297mm;
-    height: 210mm;
-    margin: 0 auto;
-    padding: 0;
-    font-family: "Times New Roman", Times, serif;
-    font-size: 12px; /* GIẢM XUỐNG 12px */
-    line-height: 1.1; /* SÁT HƠN */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    background: #fff;
-  }
+html, body {
+  width: 297mm;
+  height: 210mm;
+  margin: 0;
+  padding: 0;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12px;
+  line-height: 1.1;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background: #fff;
+}
 
-  /* WATERMARK A4 NGANG - ĐẬM HƠN */
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 297mm;
-    height: 210mm;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.8; /* ĐẬM HƠN */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .watermark img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
+/* WATERMARK */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 297mm;
+  height: 210mm;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18 !important; /* đúng như mẫu */
+}
+.watermark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
-  /* CONTAINER CHÍNH - 2 CỘT */
-  .container {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    width: 297mm;
-    height: 210mm;
-    background: transparent;
+/* CONTAINER CHIA ĐÚNG 2 NỬA A4 */
+.container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 297mm;
+  height: 210mm;
+  box-sizing: border-box;
+  padding: 0; /* KHÔNG ĐƯỢC THÊM PADDING */
+}
 
-    /* thêm padding an toàn để nội dung nằm trong khung watermark */
-    padding: var(--page-safe);
-    box-sizing: border-box;
-  }
+/* CỘT TRÁI - ĐÚNG NỬA A4 */
+.left-column {
+  width: 148.5mm;  /* đúng 1/2 A4 chiều ngang */
+  height: 210mm;
+  border-right: 1px solid #000;
+  padding: 6mm; /* padding vừa như mẫu */
+  box-sizing: border-box;
+}
 
-  /* CỘT TRÁI - PHIẾU BẢO HÀNH */
-  .left-column {
-    /* đổi width sang 50% và dùng box-sizing để không tràn */
-    width: 50%;
-    height: 200mm;
-    padding: 4mm 6mm; /* GIẢM PADDING */
-    box-sizing: border-box;
-    border-right: 1px solid #000;
-    overflow: hidden;
-  }
+/* CỘT PHẢI - ĐÚNG NỬA A4 */
+.right-column {
+  width: 148.5mm;
+  height: 210mm;
+  padding: 6mm;
+  box-sizing: border-box;
+}
 
-  /* CỘT PHẢI - ĐIỀU KHOẢN */
-  .right-column {
-    /* đổi width sang 50% và dùng box-sizing để không tràn */
-    width: 50%;
-    height: 200mm;
-    padding: 4mm 6mm; /* GIẢM PADDING */
-    box-sizing: border-box;
-  }
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4mm;
+}
+.company-logo {
+  height: 14mm;
+}
+.company-name {
+  flex-grow: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
 
-  /* HEADER VỚI LOGO VÀ TÊN CÔNG TY */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 3mm; /* GIẢM */
-  }
-  
-  .logo-container {
-    display: flex;
-    align-items: center;
-  }
-  
-  .company-logo {
-    height: 12mm; /* THU NHỎ LOGO */
-    width: auto;
-  }
-  
-  .company-name {
-    flex-grow: 1;
-    text-align: right;
-    font-size: 16px; /* GIẢM */
-    font-weight: bold;
-    text-transform: uppercase;
-    line-height: 1.2;
-  }
+/* TITLE */
+.warranty-title,
+.terms-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  margin: 2mm 0 1mm 0;
+}
 
-  /* TIÊU ĐỀ PHIẾU BẢO HÀNH */
-  .warranty-title {
-    text-align: center;
-    font-size: 16px; /* GIẢM */
-    font-weight: bold;
-    text-transform: uppercase;
-    margin: 3mm 0 1mm 0; /* GIẢM */
-  }
+/* DATE */
+.warranty-date {
+  text-align: center;
+  margin-bottom: 3mm;
+}
 
-  .warranty-date {
-    text-align: center;
-    font-size: 12px;
-    margin-bottom: 3mm; /* GIẢM */
-  }
+/* BOX SỐ PHIẾU */
+.ticket-number-box {
+  border: 1px solid #000;
+  padding: 2mm;
+  margin-bottom: 3mm;
+}
 
-  /* SỐ PHIẾU - KHÔNG CĂN GIỮA, KHÔNG MÀU */
-  .ticket-number-box {
-    border: 1px solid #000;
-    padding: 2mm;
-    margin-bottom: 3mm; /* GIẢM */
-  }
-  
-  .ticket-number-label {
-    font-weight: bold;
-  }
-  
-  .ticket-number-value {
-    font-weight: bold;
-  }
+/* BẢNG SẢN PHẨM */
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.product-table th,
+.product-table td {
+  border: 1px solid #000;
+  padding: 1.5mm;
+  line-height: 1.2;
+}
+.product-table th {
+  text-align: center;
+}
 
-  /* THÔNG TIN KHÁCH HÀNG DẠNG BẢNG 2 CỘT */
-  .customer-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 3mm; /* GIẢM */
-    border: 1px solid #000;
-  }
-  
-  .customer-table td {
-    border: 1px solid #000;
-    padding: 2mm;
-    vertical-align: top;
-    line-height: 1.2;
-  }
-  
-  .customer-table td:first-child {
-    width: 35%;
-    font-weight: bold;
-  }
-  
-  .customer-table td:last-child {
-    width: 65%;
-  }
+/* BOX CAM KẾT */
+.commitment-box {
+  border: 1px solid #000;
+  padding: 2mm;
+  font-weight: bold;
+  text-align: center;
+  margin: 3mm 0;
+}
 
-  /* CAM KẾT */
-  .commitment-box {
-    border: 1px solid #000;
-    padding: 2mm;
-    margin: 3mm 0; /* GIẢM */
-    text-align: center;
-    font-weight: bold;
-    line-height: 1.2;
-  }
+/* BOX CAM KẾT CHẤT LƯỢNG + NOTICE */
+.quality-commitment-box,
+.notice-box {
+  border: 1px solid #000;
+  padding: 2mm;
+  text-align: justify;
+  margin-bottom: 3mm;
+}
 
-  /* BẢNG SẢN PHẨM */
-  .product-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 3mm 0; /* GIẢM */
-    border: 1px solid #000;
-  }
+/* CĂN LẠI TIÊU ĐỀ MỤC */
+.section-title {
+  font-weight: bold;
+  margin-top: 2mm;
+}
 
-  .product-table th,
-  .product-table td {
-    border: 1px solid #000;
-    padding: 1mm 2mm;
-    vertical-align: top;
-    line-height: 1.2;
-  }
+/* THÔNG TIN LIÊN HỆ */
+.contact-info {
+  margin-top: 4mm;
+  line-height: 1.25;
+}
 
-  .product-table th {
-    font-weight: bold;
-    text-align: center;
-  }
+@media print {
+  .watermark { opacity: 0.15 !important; }
+}
 
-  .product-table td:first-child,
-  .product-table th:first-child {
-    width: 8%;
-    text-align: center;
-  }
-
-  .product-table td:nth-child(2),
-  .product-table th:nth-child(2) {
-    width: 67%;
-    text-align: left;
-  }
-
-  .product-table td:nth-child(3),
-  .product-table th:nth-child(3) {
-    width: 15%;
-    text-align: center;
-  }
-
-  .product-table td:nth-child(4),
-  .product-table th:nth-child(4) {
-    width: 10%;
-    text-align: center;
-  }
-
-  /* THÔNG TIN LIÊN HỆ */
-  .contact-info {
-    margin-top: 5mm; /* GIẢM */
-    line-height: 1.2;
-  }
-  
-  .contact-line {
-    margin-bottom: 0.5mm; /* GIẢM */
-  }
-  
-  .contact-company {
-    font-weight: bold;
-    text-align: center;
-    margin: 1mm 0; /* GIẢM */
-  }
-
-  /* ĐIỀU KHOẢN BẢO HÀNH */
-  .terms-title {
-    text-align: center;
-    font-size: 16px; /* GIẢM */
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-bottom: 3mm; /* GIẢM */
-  }
-
-  /* KHUNG CHO CAM KẾT CHẤT LƯỢNG */
-  .quality-commitment-box {
-    border: 1px solid #000;
-    padding: 2mm;
-    margin-bottom: 3mm; /* GIẢM */
-    text-align: justify;
-    line-height: 1.2;
-  }
-
-  /* KHUNG CHO THÔNG BÁO */
-  .notice-box {
-    border: 1px solid #000;
-    padding: 2mm;
-    margin-top: 3mm; /* GIẢM */
-    text-align: justify;
-    line-height: 1.2;
-  }
-
-  .section-title {
-    font-size: 12px;
-    font-weight: bold;
-    margin-top: 2mm; /* GIẢM */
-    margin-bottom: 1mm; /* GIẢM */
-  }
-
-  .terms-content {
-    line-height: 1.2;
-    text-align: justify;
-  }
-
-  .terms-list {
-    margin-left: 5mm;
-    margin-top: 1mm;
-    margin-bottom: 1mm;
-  }
-
-  .terms-list li {
-    margin-bottom: 0.5mm; /* GIẢM */
-  }
-
-  /* CHỮ KÝ */
-  .signature {
-    text-align: center;
-    margin-top: 5mm; /* GIẢM */
-    font-style: italic;
-    line-height: 1.2;
-  }
-
-  @media print {
-    .watermark { 
-      opacity: 0.3 !important; /* ĐẬM HƠN KHI IN */
-    }
-    body {
-      width: 297mm;
-      height: 210mm;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .container {
-      width: 297mm;
-      height: 210mm;
-    }
-    .left-column {
-      border-right: 1px solid #000;
-    }
-  }
 </style>
 </head>
 
