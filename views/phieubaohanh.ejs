@@ -6,6 +6,11 @@
 <title>Phiếu Bảo Hành</title>
 
 <style>
+  :root {
+    /* Khoảng an toàn bên trong watermark - điều chỉnh nếu cần (vd: 8mm, 10mm, 12mm) */
+    --page-safe: 8mm;
+  }
+
   @page { 
     size: A4 landscape; 
     margin: 15; 
@@ -54,20 +59,27 @@
     width: 297mm;
     height: 210mm;
     background: transparent;
+
+    /* thêm padding an toàn để nội dung nằm trong khung watermark */
+    padding: var(--page-safe);
+    box-sizing: border-box;
   }
 
   /* CỘT TRÁI - PHIẾU BẢO HÀNH */
   .left-column {
-    width: 140.5mm;
+    /* đổi width sang 50% và dùng box-sizing để không tràn */
+    width: 50%;
     height: 200mm;
     padding: 4mm 6mm; /* GIẢM PADDING */
     box-sizing: border-box;
     border-right: 1px solid #000;
+    overflow: hidden;
   }
 
   /* CỘT PHẢI - ĐIỀU KHOẢN */
   .right-column {
-    width: 140.5mm;
+    /* đổi width sang 50% và dùng box-sizing để không tràn */
+    width: 50%;
     height: 200mm;
     padding: 4mm 6mm; /* GIẢM PADDING */
     box-sizing: border-box;
