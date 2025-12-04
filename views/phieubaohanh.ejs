@@ -24,21 +24,26 @@
     background: #fff;
   }
 
-  /* WATERMARK A4 NGANG */
+  /* WATERMARK A4 NGANG - ĐẬM HƠN VÀ CĂN GIỮA */
   .watermark {
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 297mm;
     height: 210mm;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.08;
+    opacity: 0.15; /* ĐẬM HƠN */
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
+  
   .watermark img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* ĐẢM BẢO KHÔNG BỊ CẮT */
   }
 
   /* CONTAINER CHÍNH - 2 CỘT */
@@ -48,37 +53,49 @@
     display: flex;
     width: 297mm;
     height: 210mm;
+    background: transparent;
   }
 
   /* CỘT TRÁI - PHIẾU BẢO HÀNH */
   .left-column {
     width: 148.5mm;
     height: 210mm;
-    padding: 10mm 5mm;
+    padding: 5mm 8mm;
     box-sizing: border-box;
-    border-right: 1px dashed #ccc;
+    border-right: 1px solid #000;
   }
 
   /* CỘT PHẢI - ĐIỀU KHOẢN */
   .right-column {
     width: 148.5mm;
     height: 210mm;
-    padding: 10mm 5mm;
+    padding: 5mm 8mm;
     box-sizing: border-box;
   }
 
-  /* LOGO VÀ TIÊU ĐỀ CÔNG TY */
-  .company-header {
-    text-align: center;
-    margin-bottom: 8mm;
+  /* HEADER VỚI LOGO VÀ TÊN CÔNG TY */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5mm;
+    border-bottom: 2px solid #000;
+    padding-bottom: 3mm;
+  }
+  
+  .logo-container {
+    display: flex;
+    align-items: center;
   }
   
   .company-logo {
-    height: 30px;
-    margin-bottom: 2mm;
+    height: 25mm;
+    width: auto;
   }
   
   .company-name {
+    flex-grow: 1;
+    text-align: right;
     font-size: 16px;
     font-weight: bold;
     text-transform: uppercase;
@@ -87,111 +104,130 @@
   /* TIÊU ĐỀ PHIẾU BẢO HÀNH */
   .warranty-title {
     text-align: center;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
     text-transform: uppercase;
-    margin-bottom: 2mm;
+    margin: 5mm 0 2mm 0;
   }
 
   .warranty-date {
     text-align: center;
     font-size: 14px;
-    margin-bottom: 6mm;
-  }
-
-  /* SỐ PHIẾU */
-  .ticket-number {
-    text-align: center;
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 8mm;
-  }
-
-  /* THÔNG TIN KHÁCH HÀNG */
-  .customer-info {
     margin-bottom: 5mm;
   }
 
-  .info-line {
-    margin-bottom: 3mm;
-    line-height: 1.5;
+  /* SỐ PHIẾU TRONG KHUNG */
+  .ticket-number-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin-bottom: 5mm;
+    background-color: #f0f0f0;
   }
-
-  .info-label {
+  
+  .ticket-number-label {
     font-weight: bold;
     display: inline-block;
-    min-width: 130px;
+    width: 60mm;
+  }
+  
+  .ticket-number-value {
+    font-weight: bold;
+    color: #000;
   }
 
+  /* THÔNG TIN KHÁCH HÀNG TRONG KHUNG */
+  .customer-info-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin-bottom: 5mm;
+    background-color: #fff;
+  }
+  
+  .info-line {
+    margin-bottom: 2mm;
+    display: flex;
+  }
+  
+  .info-label {
+    font-weight: bold;
+    width: 45mm;
+    min-width: 45mm;
+  }
+  
   .info-value {
-    display: inline-block;
-    border-bottom: 1px solid #000;
-    min-width: 250px;
-    padding-bottom: 1px;
+    flex-grow: 1;
+  }
+
+  /* CAM KẾT TRONG KHUNG */
+  .commitment-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin: 5mm 0;
+    background-color: #fff;
+    text-align: center;
+    font-weight: bold;
   }
 
   /* BẢNG SẢN PHẨM */
   .product-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 5mm;
-    margin-bottom: 5mm;
+    margin: 5mm 0;
     font-size: 12px;
+    border: 1px solid #000;
   }
 
   .product-table th,
   .product-table td {
     border: 1px solid #000;
-    padding: 6px 4px;
-    text-align: left;
+    padding: 2mm;
     vertical-align: top;
   }
 
   .product-table th {
     font-weight: bold;
     text-align: center;
-    background-color: #f5f5f5;
+    background-color: #f0f0f0;
   }
 
   .product-table td:first-child,
   .product-table th:first-child {
-    width: 8%;
+    width: 10%;
     text-align: center;
   }
 
   .product-table td:nth-child(2),
   .product-table th:nth-child(2) {
-    width: 67%;
+    width: 65%;
+    text-align: left;
   }
 
   .product-table td:nth-child(3),
   .product-table th:nth-child(3) {
-    width: 10%;
+    width: 15%;
     text-align: center;
   }
 
   .product-table td:nth-child(4),
   .product-table th:nth-child(4) {
-    width: 15%;
+    width: 10%;
     text-align: center;
-  }
-
-  /* NỘI DUNG CAM KẾT */
-  .commitment-text {
-    text-align: center;
-    font-weight: bold;
-    margin: 8mm 0 3mm 0;
-    font-size: 14px;
   }
 
   /* THÔNG TIN LIÊN HỆ */
   .contact-info {
     margin-top: 10mm;
-    line-height: 1.6;
+    line-height: 1.4;
   }
-
+  
   .contact-line {
-    margin-bottom: 2px;
+    margin-bottom: 1mm;
+  }
+  
+  .contact-company {
+    font-weight: bold;
+    text-align: center;
+    margin: 2mm 0;
   }
 
   /* ĐIỀU KHOẢN BẢO HÀNH */
@@ -200,65 +236,73 @@
     font-size: 18px;
     font-weight: bold;
     text-transform: uppercase;
-    margin-bottom: 8mm;
+    margin-bottom: 5mm;
     text-decoration: underline;
   }
 
-  .terms-content {
-    line-height: 1.6;
-    text-align: justify;
+  /* KHUNG CHO CAM KẾT CHẤT LƯỢNG */
+  .quality-commitment-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin-bottom: 5mm;
+    background-color: #fff;
+  }
+
+  /* KHUNG CHO THÔNG BÁO */
+  .notice-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin-top: 5mm;
+    background-color: #fff;
   }
 
   .section-title {
     font-size: 14px;
     font-weight: bold;
-    margin-top: 6mm;
-    margin-bottom: 3mm;
+    margin-top: 4mm;
+    margin-bottom: 2mm;
+  }
+
+  .terms-content {
+    line-height: 1.5;
+    text-align: justify;
   }
 
   .terms-list {
-    margin-left: 15px;
-    margin-top: 2mm;
-    margin-bottom: 2mm;
+    margin-left: 5mm;
+    margin-top: 1mm;
+    margin-bottom: 1mm;
   }
 
   .terms-list li {
-    margin-bottom: 2mm;
+    margin-bottom: 1mm;
   }
 
-  /* GẠCH CHÂN CHO CHỮ KÝ */
-  .signature-line {
-    width: 120px;
-    border-bottom: 1px solid #000;
-    margin: 20mm auto 5mm auto;
-    padding-bottom: 2px;
-  }
-
-  .signature-label {
+  /* DÒNG KẺ ĐƠN Ở CUỐI */
+  .bottom-line {
+    border-top: 1px solid #000;
+    margin-top: 10mm;
+    padding-top: 2mm;
     text-align: center;
     font-style: italic;
-    font-size: 12px;
-  }
-
-  /* PHẦN CHỮ NHỎ Ở CUỐI */
-  .footer-note {
-    margin-top: 15mm;
-    line-height: 1.6;
-    font-size: 12px;
   }
 
   @media print {
-    .watermark { opacity: 0.5 !important; }
+    .watermark { 
+      opacity: 0.8 !important; /* ĐẬM HƠN KHI IN */
+    }
     body {
       width: 297mm;
       height: 210mm;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .container {
       width: 297mm;
       height: 210mm;
     }
     .left-column {
-      border-right: 1px dashed #ccc;
+      border-right: 1px solid #000;
     }
   }
 </style>
@@ -278,25 +322,28 @@
     <!-- CỘT TRÁI: PHIẾU BẢO HÀNH -->
     <div class="left-column">
       
-      <!-- LOGO VÀ TÊN CÔNG TY -->
-      <div class="company-header">
-        <% if (logoBase64) { %>
-          <img src="<%= logoBase64 %>" alt="logo" class="company-logo">
-        <% } %>
+      <!-- HEADER VỚI LOGO BÊN TRÁI VÀ TÊN CÔNG TY BÊN PHẢI -->
+      <div class="header">
+        <div class="logo-container">
+          <% if (logoBase64) { %>
+            <img src="<%= logoBase64 %>" alt="logo" class="company-logo">
+          <% } %>
+        </div>
         <div class="company-name">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
       </div>
 
       <!-- TIÊU ĐỀ PHIẾU BẢO HÀNH -->
       <div class="warranty-title">PHIẾU BẢO HÀNH</div>
-      <div class="warranty-date">Ngày ..... tháng ..... năm ............</div>
+      <div class="warranty-date">Ngày ......... tháng ......... năm ............</div>
 
-      <!-- SỐ PHIẾU -->
-      <div class="ticket-number">
-        <strong>Số phiếu:</strong> <%= order.madh %>
+      <!-- SỐ PHIẾU TRONG KHUNG -->
+      <div class="ticket-number-box">
+        <span class="ticket-number-label">Số phiếu:</span>
+        <span class="ticket-number-value"><%= order.madh %></span>
       </div>
 
-      <!-- THÔNG TIN KHÁCH HÀNG -->
-      <div class="customer-info">
+      <!-- THÔNG TIN KHÁCH HÀNG TRONG KHUNG -->
+      <div class="customer-info-box">
         <div class="info-line">
           <span class="info-label">Thông tin khách hàng:</span>
           <span class="info-value"><%= order.companyName %></span>
@@ -319,7 +366,7 @@
         
         <div class="info-line">
           <span class="info-label">Ngày bàn giao sản phẩm:</span>
-          <span class="info-value">..... tháng ..... năm ............</span>
+          <span class="info-value">......... tháng ......... năm ............</span>
         </div>
         
         <div class="info-line">
@@ -328,8 +375,8 @@
         </div>
       </div>
 
-      <!-- NỘI DUNG CAM KẾT -->
-      <div class="commitment-text">
+      <!-- CAM KẾT TRONG KHUNG -->
+      <div class="commitment-box">
         Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
       </div>
 
@@ -365,11 +412,12 @@
       <div class="contact-info">
         <div class="contact-line">Xin cảm ơn sự quan tâm và ứng hộ cho Quý khách hàng.</div>
         <div class="contact-line">Khi có sự cố, sửa chữa khách hàng vai lòng thông báo ngay cho chúng tôi theo thông tin:</div>
-        <div class="contact-line"><strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</strong></div>
+        <div class="contact-line">CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</div>
         <div class="contact-line">Phòng dịch vụ sau bản hàng: 0902 227 007</div>
         <div class="contact-line">Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội</div>
         <div class="contact-line">Website: www.meci.vn | Email: cskh@meci.vn</div>
       </div>
+
 
     </div>
 
@@ -379,12 +427,13 @@
       <!-- TIÊU ĐỀ ĐIỀU KHOẢN -->
       <div class="terms-title">ĐIỀU KHOẢN BẢO HÀNH SẢN PHẨM</div>
 
+      <!-- KHUNG CHO CAM KẾT CHẤT LƯỢNG -->
+      <div class="quality-commitment-box">
+        <strong>Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.</strong>
+      </div>
+
       <!-- NỘI DUNG ĐIỀU KHOẢN -->
       <div class="terms-content">
-        <p>
-          <strong>Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.</strong>
-        </p>
-
         <div class="section-title">1. Thời hạn bảo hành</div>
         <p>Tất cả các sản phẩm được bảo hành miễn phí 12 tháng kể từ ngày bàn giao sản phẩm.</p>
 
@@ -400,20 +449,14 @@
           <li>Hỏng do nguyên nhân khí khả kháng như: thiên tai, là lụt, hóa hoạn...</li>
         </ul>
 
-        <p>
-          Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm kết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí nhập nhất có thể.
-        </p>
+        <!-- KHUNG CHO THÔNG BÁO -->
+        <div class="notice-box">
+          <p>Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm kết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí nhập nhất có thể.</p>
+        </div>
 
-        <!-- CHỮ KÝ -->
-        <div class="signature-line"></div>
-        <div class="signature-label">(Ký, ghi rõ họ tên, đóng dấu)</div>
-
-        <!-- CHÚ THÍCH CUỐI -->
-        <div class="footer-note">
-          <p><strong>Lưu ý:</strong></p>
-          <p>1. Phiếu bảo hành có giá trị khi có đầy đủ thông tin và chữ ký xác nhận của đại diện công ty.</p>
-          <p>2. Khách hàng cần giữ phiếu bảo hành này để được hỗ trợ khi cần thiết.</p>
-          <p>3. Mọi thông tin thay đổi về địa chỉ, số điện thoại cần thông báo kịp thời cho công ty.</p>
+        <!-- DÒNG KẺ ĐƠN Ở CUỐI -->
+        <div class="bottom-line">
+          (Ký, ghi rõ họ tên, đóng dấu)
         </div>
 
       </div>
