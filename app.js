@@ -3172,67 +3172,128 @@ export default app;
 app.get("/phieubaohanh-:madh", async (req, res) => {
   try {
     const { madh } = req.params;
-    if (!madh) return res.status(400).send("Thiếu mã đơn");
+    console.log("➡️ Nhận yêu cầu tạo phiếu bảo hành cho mã:", madh);
 
-    const sheets = google.sheets({ version: "v4", auth });
+    if (!madh) return res.status(400).send("Thiếu mã đơn hàng (madh)");
 
-    // Lấy đơn hàng
-    const dhRes = await sheets.spreadsheets.values.get({
+    // === 1️⃣ Lấy dữ liệu đơn hàng ===
+    console.log("📄 Đang lấy sheet Don_hang...");
+    const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A1:AD",
+      range: "Don_hang!A1:Z",
     });
-    const dhRows = dhRes.data.values || [];
 
-    const col = c => c.toUpperCase().split("").reduce((a,l) => a*26 + l.charCodeAt(0)-64, 0)-1;
+    const donhangData = donhangRes.data.values;
+    if (!donhangData || donhangData.length < 2) {
+      console.error("❌ Sheet Don_hang trống hoặc không có dữ liệu.");
+      return res.status(404).send("Không có dữ liệu đơn hàng");
+    }
 
-    const row = dhRows.find(r => (r[col("G")] || "").trim() === madh.trim());
-    if (!row) return res.status(404).send("Không tìm thấy đơn hàng");
+    // === Hàm chuyển cột sang index ===
+    const colToIndex = (col) =>
+      col
+        .toUpperCase()
+        .split("")
+        .reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
 
-    // Địa chỉ lắp đặt theo loại
-    let installAddress = "";
-    const type = row[col("X")] || "";
-    if (type === "1") installAddress = row[col("Y")] || "";
-    else if (type === "2") installAddress = row[col("AA")] || "";
-    else if (type === "3") installAddress = row[col("AC")] || "";
+    const madhIndex = colToIndex("G");
+    const companyNameIndex = colToIndex("J");
+    const addressIndex = colToIndex("L");
+    const phoneIndex = colToIndex("H");
+    const diadiem1Index = colToIndex("Y");
+    const diadiem2Index = colToIndex("AA");
+    const diadiem3Index = colToIndex("AC");
+    const loaiDiaChiIndex = colToIndex("X");
 
-    // Chi tiết sản phẩm
-    const ctRes = await sheets.spreadsheets.values.get({
+    console.log("📊 Tìm đơn hàng có mã:", madh);
+    const orderRow = donhangData.find(
+      (r) => (r[madhIndex] || "").trim() === madh.trim()
+    );
+
+    if (!orderRow) {
+      console.error("❌ Không tìm thấy đơn hàng:", madh);
+      return res.status(404).send("Không tìm thấy đơn hàng");
+    }
+
+    // === Xác định địa chỉ lắp đặt ===
+    let diaChiLapDat = "";
+    const loaiDiaChi = orderRow[loaiDiaChiIndex] || "";
+    
+    if (loaiDiaChi === "1") {
+      diaChiLapDat = orderRow[diadiem1Index] || "";
+    } else if (loaiDiaChi === "2") {
+      diaChiLapDat = orderRow[diadiem2Index] || "";
+    } else if (loaiDiaChi === "3") {
+      diaChiLapDat = orderRow[diadiem3Index] || "";
+    }
+
+    // === 2️⃣ Lấy chi tiết sản phẩm ===
+    console.log("📄 Đang lấy sheet Don_hang_PVC_ct...");
+    const detailRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
       range: "Don_hang_PVC_ct!A1:AB",
     });
-    const ctRows = ctRes.data.values || [];
 
-    const products = ctRows
-      .filter(r => (r[col("B")] || "").trim() === madh.trim())
-      .map((r, i) => ({
-        description: r[col("J")] || "",
-        unit: r[col("W")] || "",
-        quantity: Number(r[col("V")]) || 0
-      }));
+    const detailData = detailRes.data.values;
+    if (!detailData || detailData.length < 2) {
+      console.error("❌ Sheet Don_hang_PVC_ct trống hoặc không có dữ liệu.");
+      return res.status(404).send("Không có dữ liệu chi tiết đơn hàng");
+    }
 
-    // Load ảnh
-    let logoBase64 = "", watermarkBase64 = "";
+    const madhDetailIndex = colToIndex("B");
+    const descriptionIndex = colToIndex("J");
+    const quantityIndex = colToIndex("V");
+    const unitIndex = colToIndex("W");
+
+    const orderDetails = detailData.filter(
+      (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
+    );
+
+    if (orderDetails.length === 0) {
+      console.error("⚠️ Không có chi tiết cho đơn hàng:", madh);
+      return res.status(404).send("Không có chi tiết cho đơn hàng này");
+    }
+
+    console.log(`✅ Có ${orderDetails.length} dòng chi tiết sản phẩm.`);
+
+    // === 3️⃣ Xử lý dữ liệu sản phẩm ===
+    const products = orderDetails.map((row, i) => {
+      return {
+        stt: i + 1,
+        description: row[descriptionIndex] || "",
+        unit: row[unitIndex] || "",
+        quantity: parseFloat(row[quantityIndex]) || 0,
+      };
+    });
+
+    // === 4️⃣ Load Logo & Watermark ===
+    let logoBase64 = "";
+    let watermarkBase64 = "";
     try {
       logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
       watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEBAOHANH_ID);
-    } catch (e) {}
+    } catch (err) {
+      console.warn("⚠️ Không thể tải logo hoặc watermark:", err.message);
+    }
 
+    // === 5️⃣ Render EJS ===
+    console.log("🧾 Đang render phiếu bảo hành EJS...");
     res.render("phieubaohanh", {
-      madh,
-      order: {
-        companyName: row[col("J")] || "",
-        address:     row[col("L")] || "",
-        phone:      row[col("H")] || "",
-        installAddress
-      },
       products,
+      order: {
+        madh,
+        companyName: orderRow[companyNameIndex] || "",
+        address: orderRow[addressIndex] || "",
+        phone: orderRow[phoneIndex] || "",
+        diaChiLapDat: diaChiLapDat,
+      },
       logoBase64,
-      watermarkBase64
+      watermarkBase64,
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Lỗi");
+    console.error("❌ Lỗi khi tạo phiếu bảo hành:", err);
+    res.status(500).send("Internal Server Error");
   }
 });
 
