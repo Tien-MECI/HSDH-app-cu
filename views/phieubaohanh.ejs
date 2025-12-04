@@ -212,7 +212,7 @@
 <body>
 
 <% if (watermarkBase64) { %>
-  <div class="watermark"></div>
+  <div class="watermark" style="background-image:url('<%= watermarkBase64 %>')"></div>
 <% } %>
 
 <div class="container">
@@ -232,14 +232,37 @@
       <span class="ticket-number-value"><%= order.madh %></span>
     </div>
 
-    <div class="customer-info-box">
-      <div class="info-line"><span class="info-label">Thông tin khách hàng: </span><%= order.companyName %></div>
-      <div class="info-line"><span class="info-label">Địa chỉ: </span><%= order.address %></div>
-      <div class="info-line"><span class="info-label">Điện thoại: </span><%= order.phone %></div>
-      <div class="info-line"><span class="info-label">Địa chỉ lắp đặt: </span><%= order.diaChiLapDat %></div>
-      <div class="info-line"><span class="info-label">Ngày bàn giao sản phẩm: </span>......... tháng ......... năm ............</div>
-      <div class="info-line"><span class="info-label">Thời hạn bảo hành: </span>12 tháng</div>
-    </div>
+      <div class="customer-info-box">
+        <div class="info-line">
+          <span class="info-label">Thông tin khách hàng:</span>
+          <span class="info-value"><%= order.companyName %></span>
+        </div>
+        
+        <div class="info-line">
+          <span class="info-label">Địa chỉ:</span>
+          <span class="info-value"><%= order.address %></span>
+        </div>
+        
+        <div class="info-line">
+          <span class="info-label">Điện thoại:</span>
+          <span class="info-value"><%= order.phone %></span>
+        </div>
+        
+        <div class="info-line">
+          <span class="info-label">Địa chỉ lắp đặt:</span>
+          <span class="info-value"><%= order.diaChiLapDat %></span>
+        </div>
+        
+        <div class="info-line">
+          <span class="info-label">Ngày bàn giao sản phẩm:</span>
+          <span class="info-value">......... tháng ......... năm ............</span>
+        </div>
+        
+        <div class="info-line">
+          <span class="info-label">Thời hạn bảo hành:</span>
+          <span class="info-value">12 tháng</span>
+        </div>
+      </div>
 
     <div class="commitment">
       Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
