@@ -3180,7 +3180,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     console.log("📄 Đang lấy sheet Don_hang...");
     const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A1:Z",
+      range: "Don_hang!A1:AD",
     });
 
     const donhangData = donhangRes.data.values;
