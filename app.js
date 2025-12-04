@@ -3168,7 +3168,6 @@ app.get("/taohoadon-:madh", async (req, res) => {
 export default app;
 
 //// Tạo phiếu bảo hành
-const WATERMARK_FILEBAOHANH_ID = "1hwTP3Vmghybml3eT6ZGG8pGVmP6fnfvJ";
 
 app.get("/phieubaohanh-:madh", async (req, res) => {
   try {
