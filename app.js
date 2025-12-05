@@ -3169,50 +3169,33 @@ export default app;
 
 //// Tạo phiếu bảo hành
 
-// Hàm làm sạch dữ liệu cực mạnh (xử lý mọi ký tự thừa, xuống dòng, space, Unicode ẩn...)
-const cleanString = (str) => {
-  if (str === null || str === undefined) return "";
-  return str
-    .toString()
-    .replace(/[\r\n\t\f\v\u200B-\u200D\uFEFF]/g, "") // xóa xuống dòng + ký tự ẩn Unicode
-    .replace(/\s+/g, " ") // nhiều space → 1 space
-    .trim();
-};
-
-// Hàm chuyển cột chữ → index (A=0, B=1, ..., Z=25, AA=26...)
-const colToIndex = (col) =>
-  col
-    .toUpperCase()
-    .split("")
-    .reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
-
-// Route hoàn chỉnh – chạy ổn định cả localhost & production
 app.get("/phieubaohanh-:madh", async (req, res) => {
   try {
     const { madh } = req.params;
-    const searchMadh = cleanString(madh); // làm sạch mã từ URL luôn
+    console.log("➡️ Nhận yêu cầu tạo phiếu bảo hành cho mã:", madh);
 
-    console.log("Nhận yêu cầu phiếu bảo hành cho mã:", madh, "→ cleaned:", searchMadh);
+    if (!madh) return res.status(400).send("Thiếu mã đơn hàng (madh)");
 
-    if (!searchMadh) {
-      return res.status(400).send("Thiếu mã đơn hàng (madh)");
-    }
-
-    // === 1. Lấy dữ liệu từ sheet Don_hang ===
-    console.log("Đang lấy sheet Don_hang...");
+    // === 1️⃣ Lấy dữ liệu đơn hàng ===
+    console.log("📄 Đang lấy sheet Don_hang...");
     const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A1:AD1000", // thêm giới hạn để nhanh hơn (tùy chỉnh nếu cần)
+      range: "Don_hang!A1:AD",
     });
 
-    const donhangData = donhangRes.data.values || [];
-    if (donhangData.length < 2) {
-      console.error("Sheet Don_hang trống hoặc không có dữ liệu.");
+    const donhangData = donhangRes.data.values;
+    if (!donhangData || donhangData.length < 2) {
+      console.error("❌ Sheet Don_hang trống hoặc không có dữ liệu.");
       return res.status(404).send("Không có dữ liệu đơn hàng");
     }
 
-    // Chỉ lấy dòng header để xác định cột (dòng 1)
-    const header = donhangData[0];
+    // === Hàm chuyển cột sang index ===
+    const colToIndex = (col) =>
+      col
+        .toUpperCase()
+        .split("")
+        .reduce((acc, c) => acc * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
+
     const madhIndex = colToIndex("G");
     const companyNameIndex = colToIndex("J");
     const addressIndex = colToIndex("L");
@@ -3222,34 +3205,39 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     const diadiem3Index = colToIndex("AC");
     const loaiDiaChiIndex = colToIndex("X");
 
-    // Tìm đơn hàng (so sánh đã clean)
-    const orderRow = donhangData
-      .slice(1) // bỏ header
-      .find((row) => cleanString(row[madhIndex]) === searchMadh);
+    console.log("📊 Tìm đơn hàng có mã:", madh);
+    const orderRow = donhangData.find(
+      (r) => (r[madhIndex] || "").trim() === madh.trim()
+    );
 
     if (!orderRow) {
-      console.error("Không tìm thấy đơn hàng với mã (sau khi clean):", searchMadh);
-      return res.status(404).send(`Không tìm thấy đơn hàng: ${madh}`);
+      console.error("❌ Không tìm thấy đơn hàng:", madh);
+      return res.status(404).send("Không tìm thấy đơn hàng");
     }
 
-    // Xác định địa chỉ lắp đặt
-    const loaiDiaChi = cleanString(orderRow[loaiDiaChiIndex]) || "";
+    // === Xác định địa chỉ lắp đặt ===
     let diaChiLapDat = "";
-    if (loaiDiaChi === "1") diaChiLapDat = cleanString(orderRow[diadiem1Index]);
-    else if (loaiDiaChi === "2") diaChiLapDat = cleanString(orderRow[diadiem2Index]);
-    else if (loaiDiaChi === "3") diaChiLapDat = cleanString(orderRow[diadiem3Index]);
+    const loaiDiaChi = orderRow[loaiDiaChiIndex] || "";
+    
+    if (loaiDiaChi === "1") {
+      diaChiLapDat = orderRow[diadiem1Index] || "";
+    } else if (loaiDiaChi === "2") {
+      diaChiLapDat = orderRow[diadiem2Index] || "";
+    } else if (loaiDiaChi === "3") {
+      diaChiLapDat = orderRow[diadiem3Index] || "";
+    }
 
-    // === 2. Lấy chi tiết sản phẩm ===
-    console.log("Đang lấy sheet Don_hang_PVC_ct...");
+    // === 2️⃣ Lấy chi tiết sản phẩm ===
+    console.log("📄 Đang lấy sheet Don_hang_PVC_ct...");
     const detailRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang_PVC_ct!A1:AB1000",
+      range: "Don_hang_PVC_ct!A1:AB",
     });
 
-    const detailData = detailRes.data.values || [];
-    if (detailData.length < 2) {
-      console.error("Sheet Don_hang_PVC_ct trống.");
-      return res.status(404).send("Không có chi tiết sản phẩm");
+    const detailData = detailRes.data.values;
+    if (!detailData || detailData.length < 2) {
+      console.error("❌ Sheet Don_hang_PVC_ct trống hoặc không có dữ liệu.");
+      return res.status(404).send("Không có dữ liệu chi tiết đơn hàng");
     }
 
     const madhDetailIndex = colToIndex("B");
@@ -3257,54 +3245,55 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     const quantityIndex = colToIndex("V");
     const unitIndex = colToIndex("W");
 
-    const orderDetails = detailData
-      .slice(1)
-      .filter((row) => cleanString(row[madhDetailIndex]) === searchMadh);
+    const orderDetails = detailData.filter(
+      (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
+    );
 
     if (orderDetails.length === 0) {
-      console.warn("Không có chi tiết sản phẩm cho đơn hàng:", searchMadh);
-      return res.status(404).send("Không có sản phẩm trong đơn hàng này");
+      console.error("⚠️ Không có chi tiết cho đơn hàng:", madh);
+      return res.status(404).send("Không có chi tiết cho đơn hàng này");
     }
 
-    // === 3. Chuẩn bị danh sách sản phẩm ===
-    const products = orderDetails.map((row, i) => ({
-      stt: i + 1,
-      description: cleanString(row[descriptionIndex]) || "Không có mô tả",
-      quantity: parseFloat(row[quantityIndex]) || 0,
-      unit: cleanString(row[unitIndex]) || "Cái",
-    }));
+    console.log(`✅ Có ${orderDetails.length} dòng chi tiết sản phẩm.`);
 
-    // === 4. Tải Logo + Watermark ===
+    // === 3️⃣ Xử lý dữ liệu sản phẩm ===
+    const products = orderDetails.map((row, i) => {
+      return {
+        stt: i + 1,
+        description: row[descriptionIndex] || "",
+        unit: row[unitIndex] || "",
+        quantity: parseFloat(row[quantityIndex]) || 0,
+      };
+    });
+
+    // === 4️⃣ Load Logo & Watermark ===
     let logoBase64 = "";
     let watermarkBase64 = "";
     try {
-      [logoBase64, watermarkBase64] = await Promise.all([
-        loadDriveImageBase64(LOGO_FILE_ID),
-        loadDriveImageBase64(WATERMARK_FILEBAOHANH_ID),
-      ]);
+      logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+      watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILEBAOHANH_ID);
     } catch (err) {
-      console.warn("Không tải được logo/watermark:", err.message);
+      console.warn("⚠️ Không thể tải logo hoặc watermark:", err.message);
     }
 
-    // === 5. Render phiếu bảo hành ===
-    console.log("Đang render phiếu bảo hành cho đơn hàng:", searchMadh);
+    // === 5️⃣ Render EJS ===
+    console.log("🧾 Đang render phiếu bảo hành EJS...");
     res.render("phieubaohanh", {
       products,
       order: {
-        madh: searchMadh,
-        companyName: cleanString(orderRow[companyNameIndex]) || "Khách lẻ",
-        address: cleanString(orderRow[addressIndex]),
-        phone: cleanString(orderRow[phoneIndex]),
-        diaChiLapDat: diaChiLapDat || "Không xác định",
+        madh,
+        companyName: orderRow[companyNameIndex] || "",
+        address: orderRow[addressIndex] || "",
+        phone: orderRow[phoneIndex] || "",
+        diaChiLapDat: diaChiLapDat,
       },
       logoBase64,
       watermarkBase64,
-      today: new Date().toLocaleDateString("vi-VN"),
     });
 
   } catch (err) {
-    console.error("Lỗi server khi tạo phiếu bảo hành:", err);
-    res.status(500).send("Lỗi hệ thống. Vui lòng thử lại sau.");
+    console.error("❌ Lỗi khi tạo phiếu bảo hành:", err);
+    res.status(500).send("Internal Server Error");
   }
 });
 
