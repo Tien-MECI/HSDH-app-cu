@@ -3245,19 +3245,33 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     const quantityIndex = colToIndex("V");
     const unitIndex = colToIndex("W");
 
-    const orderDetails = detailData.filter(
+    // Lấy tất cả chi tiết đơn hàng
+    const allOrderDetails = detailData.filter(
       (r) => (r[madhDetailIndex] || "").trim() === madh.trim()
     );
 
-    if (orderDetails.length === 0) {
+    if (allOrderDetails.length === 0) {
       console.error("⚠️ Không có chi tiết cho đơn hàng:", madh);
       return res.status(404).send("Không có chi tiết cho đơn hàng này");
     }
 
-    console.log(`✅ Có ${orderDetails.length} dòng chi tiết sản phẩm.`);
+    // === 3️⃣ Xử lý dữ liệu sản phẩm - LỌC BỎ NHÂN CÔNG VÀ VẬN CHUYỂN ===
+    console.log("🔍 Đang lọc sản phẩm (bỏ qua nhân công và vận chuyển)...");
+    
+    // Lọc bỏ các mục không phải sản phẩm
+    const filteredDetails = allOrderDetails.filter(row => {
+      const description = (row[descriptionIndex] || "").toLowerCase().trim();
+      const excludedKeywords = ["nhân công lắp đặt", "vận chuyển", "nhân công"];
+      
+      // Kiểm tra xem mô tả có chứa từ khóa loại trừ không
+      return !excludedKeywords.some(keyword => description.includes(keyword));
+    });
 
-    // === 3️⃣ Xử lý dữ liệu sản phẩm ===
-    const products = orderDetails.map((row, i) => {
+    console.log(`✅ Tổng số dòng chi tiết: ${allOrderDetails.length}`);
+    console.log(`✅ Sau khi lọc: ${filteredDetails.length} sản phẩm hợp lệ`);
+
+    // === 4️⃣ Xử lý dữ liệu sản phẩm ===
+    const products = filteredDetails.map((row, i) => {
       return {
         stt: i + 1,
         description: row[descriptionIndex] || "",
@@ -3266,7 +3280,18 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
       };
     });
 
-    // === 4️⃣ Load Logo & Watermark ===
+    // Log danh sách sản phẩm đã lọc
+    if (products.length > 0) {
+      console.log("📋 Danh sách sản phẩm sẽ hiển thị:");
+      products.forEach(p => {
+        console.log(`   - ${p.description} (${p.quantity} ${p.unit})`);
+      });
+    } else {
+      console.warn("⚠️ Cảnh báo: Không có sản phẩm nào để hiển thị sau khi lọc!");
+      // Bạn có thể thêm logic xử lý ở đây nếu muốn
+    }
+
+    // === 5️⃣ Load Logo & Watermark ===
     let logoBase64 = "";
     let watermarkBase64 = "";
     try {
@@ -3276,7 +3301,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
       console.warn("⚠️ Không thể tải logo hoặc watermark:", err.message);
     }
 
-    // === 5️⃣ Render EJS ===
+    // === 6️⃣ Render EJS ===
     console.log("🧾 Đang render phiếu bảo hành EJS...");
     res.render("phieubaohanh", {
       products,
