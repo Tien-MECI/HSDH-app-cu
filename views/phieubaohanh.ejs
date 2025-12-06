@@ -4,127 +4,270 @@
 <meta charset="utf-8">
 <title>Phiếu Bảo Hành</title>
 <style>
-  @page { size: A4 landscape; margin: 0; }
+  @page { 
+    size: A4 landscape; 
+    margin: 0; 
+  }
+  
   body, html {
-    margin:0; padding:0;
-    width:297mm; height:210mm;
-    font-family:"Times New Roman",serif;
-    font-size:11pt;
-    line-height:1.15;
-    background:#fff;
+    margin: 0; 
+    padding: 0;
+    width: 297mm; 
+    height: 210mm;
+    font-family: "Times New Roman", serif;
+    font-size: 11pt;
+    line-height: 1.15;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
   }
 
-  /* WATERMARK GIỮA, NHƯNG KHÔNG ĐÈ CHỮ */
+  /* WATERMARK - CĂN CHÍNH GIỮA */
   .watermark {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    background:url('<%= watermarkBase64 %>') center center no-repeat;
-    background-size:92% auto;
-    opacity:0.8;
-    pointer-events:none;
-    z-index:1;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 92%;
+    height: auto;
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 1;
   }
-  @media print { .watermark { opacity:0.18; } }
+  
+  @media print { 
+    .watermark { 
+      opacity: 0.18; 
+    } 
+  }
 
+  /* CONTAINER CHÍNH - CĂN GIỮA THEO WATERMARK */
   .container {
-    position:relative; z-index:10;
-    display:flex; height:100%;
+    position: relative;
+    z-index: 10;
+    display: flex;
+    width: 92%; /* KHỚP VỚI WATERMARK */
+    height: auto;
+    max-height: 90%;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
   }
 
   .left, .right {
-    width:50%; box-sizing:border-box;
-    padding:10mm 8mm 10mm 11mm;   /* cực chuẩn như phiếu thật */
+    width: 50%;
+    box-sizing: border-box;
+    padding: 10mm 8mm 10mm 11mm;
+    display: flex;
+    flex-direction: column;
   }
-  .left { border-right:1px solid #000; }
+  
+  .left { 
+    border-right: 1px solid #000; 
+  }
 
   /* HEADER */
   .header {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:1mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1mm;
   }
-  .company-logo { height:10mm; }
+  
+  .company-logo { 
+    height: 10mm; 
+    max-width: 50mm;
+  }
+  
   .company-name {
-    font-size:14pt; font-weight:bold; text-transform:uppercase;
-    text-align:right; line-height:1.1;
+    font-size: 14pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: right;
+    line-height: 1.1;
+    flex-grow: 1;
   }
 
-  .title { text-align:center; font-size:17pt; font-weight:bold; text-transform:uppercase; margin:1mm 0; }
-  .date { text-align:center; font-style:italic; margin-bottom:2mm; font-size:10.5pt; }
+  .title { 
+    text-align: center; 
+    font-size: 17pt; 
+    font-weight: bold; 
+    text-transform: uppercase; 
+    margin: 1mm 0; 
+  }
+  
+  .date { 
+    text-align: center; 
+    font-style: italic; 
+    margin-bottom: 2mm; 
+    font-size: 10.5pt; 
+  }
 
   /* SỐ PHIẾU */
   .ticket {
-    border:1px solid #000; padding:2.2mm 0; text-align:center;
-    font-weight:bold; font-size:12pt; margin-bottom:3mm;
+    border: 1px solid #000;
+    padding: 2.2mm 0;
+    text-align: center;
+    font-weight: bold;
+    font-size: 12pt;
+    margin-bottom: 3mm;
+    background: #fff;
   }
 
-  /* BẢNG THÔNG TIN KHÁCH HÀNG – CHỈ KẺ KHUNG, KHÔNG NỀN XÁM */
-  .info-box {
-    border:1px solid #000;
-    margin-bottom:3mm;
-    font-size:10.8pt;
+  /* BẢNG THÔNG TIN KHÁCH HÀNG */
+  .customer-info-box {
+    border: 1px solid #000;
+    padding: 3mm;
+    margin-bottom: 3mm;
+    background: #fff;
   }
-  .info-box table {
-    width:100%; border-collapse:collapse;
+  
+  .info-line {
+    margin-bottom: 2mm;
+    font-size: 10.8pt;
+    display: flex;
   }
-  .info-box td {
-    border:1px solid #000; padding:1.8mm 3mm; vertical-align:top;
-  }
-  .info-box td:first-child {
-    width:35%; font-weight:bold;
+  
+  .info-label {
+    font-weight: bold;
+    min-width: 40mm;
+    display: inline-block;
   }
 
   .commitment {
-    border:1px solid #000; padding:2.5mm 3mm; margin:3mm 0;
-    font-size:10.6pt; line-height:1.18; text-align:justify;
+    border: 1px solid #000;
+    padding: 2.5mm 3mm;
+    margin: 3mm 0;
+    font-size: 10.6pt;
+    line-height: 1.18;
+    text-align: justify;
+    background: #fff;
   }
 
   .prod-table {
-    width:100%; border-collapse:collapse; margin:3mm 0 4mm 0;
-    font-size:10.6pt;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0 4mm 0;
+    font-size: 10.6pt;
+    background: #fff;
   }
-  .prod-table th, .prod-table td {
-    border:1px solid #000; padding:1.8mm 2.5mm; text-align:center;
+  
+  .prod-table th, 
+  .prod-table td {
+    border: 1px solid #000;
+    padding: 1.8mm 2.5mm;
+    text-align: center;
   }
-  .prod-table th { font-weight:bold; }
-  .prod-table td:nth-child(2) { text-align:left; padding-left:4mm; }
+  
+  .prod-table th { 
+    font-weight: bold; 
+    background: #f5f5f5;
+  }
+  
+  .prod-table td:nth-child(2) { 
+    text-align: left; 
+    padding-left: 4mm; 
+  }
 
   /* CỘT PHẢI */
   .terms-title {
-    text-align:center; font-size:16pt; font-weight:bold;
-    text-transform:uppercase; margin:0 0 3mm 0;
+    text-align: center;
+    font-size: 16pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 0 0 3mm 0;
   }
+  
   .quality-box {
-    border:1px solid #000; padding:2.8mm 3mm; margin-bottom:3mm;
-    font-weight:bold; font-size:10.8pt; line-height:1.18;
+    border: 1px solid #000;
+    padding: 2.8mm 3mm;
+    margin-bottom: 3mm;
+    font-weight: bold;
+    font-size: 10.8pt;
+    line-height: 1.18;
+    background: #fff;
   }
-  .section { font-weight:bold; margin:3.5mm 0 1mm 0; font-size:11pt; }
+  
+  .section { 
+    font-weight: bold; 
+    margin: 3.5mm 0 1mm 0; 
+    font-size: 11pt; 
+  }
+  
   .notice {
-    border:1px solid #000; padding:2.8mm 3mm; margin-top:4mm;
-    font-size:10.6pt; line-height:1.18; text-align:justify;
+    border: 1px solid #000;
+    padding: 2.8mm 3mm;
+    margin-top: 4mm;
+    font-size: 10.6pt;
+    line-height: 1.18;
+    text-align: justify;
+    background: #fff;
   }
-  p { margin:1mm 0; text-align:justify; font-size:10.6pt; }
+  
+  p { 
+    margin: 1mm 0; 
+    text-align: justify; 
+    font-size: 10.6pt; 
+  }
 
   .contact {
-    margin-top:3mm; font-size:10.6pt; line-height:1.2;
+    margin-top: auto; /* Đẩy phần contact xuống dưới cùng */
+    padding-top: 3mm;
+    font-size: 10.6pt;
+    line-height: 1.2;
+    background: #fff;
   }
 
+  /* MEDIA PRINT */
   @media print {
-    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .left { border-right:1px solid #000 !important; }
+    body { 
+      -webkit-print-color-adjust: exact; 
+      print-color-adjust: exact; 
+      box-shadow: none;
+    }
+    
+    .container {
+      box-shadow: none;
+      background: transparent;
+    }
+    
+    .left, .right {
+      background: transparent;
+    }
+    
+    .left { 
+      border-right: 1px solid #000 !important; 
+    }
+    
+    .customer-info-box,
+    .commitment,
+    .prod-table,
+    .quality-box,
+    .notice {
+      background: transparent !important;
+    }
+    
+    .prod-table th {
+      background: transparent !important;
+    }
   }
 </style>
 </head>
 <body>
 
 <% if (watermarkBase64) { %>
-  <div class="watermark"></div>
+  <img src="<%= watermarkBase64 %>" class="watermark" alt="watermark">
 <% } %>
 
 <div class="container">
-
   <!-- CỘT TRÁI -->
   <div class="left">
     <div class="header">
-      <% if (logoBase64) { %><img src="<%= logoBase64 %>" class="company-logo" alt="logo"><% } %>
+      <% if (logoBase64) { %>
+        <img src="<%= logoBase64 %>" class="company-logo" alt="logo">
+      <% } %>
       <div class="company-name">CÔNG TY CỔ PHẦN CÔNG NGHIỆP<br>M.E.C.I</div>
     </div>
 
@@ -134,12 +277,30 @@
     <div class="ticket">Số phiếu: <%= order.madh %></div>
 
     <div class="customer-info-box">
-      <div class="info-line"><span class="info-label">Thông tin khách hàng: </span><%= order.companyName %></div>
-      <div class="info-line"><span class="info-label">Địa chỉ: </span><%= order.address %></div>
-      <div class="info-line"><span class="info-label">Điện thoại: </span><%= order.phone %></div>
-      <div class="info-line"><span class="info-label">Địa chỉ lắp đặt: </span><%= order.diaChiLapDat %></div>
-      <div class="info-line"><span class="info-label">Ngày bàn giao sản phẩm: </span>......... tháng ......... năm ............</div>
-      <div class="info-line"><span class="info-label">Thời hạn bảo hành: </span>12 tháng</div>
+      <div class="info-line">
+        <span class="info-label">Thông tin khách hàng: </span>
+        <span><%= order.companyName %></span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Địa chỉ: </span>
+        <span><%= order.address %></span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Điện thoại: </span>
+        <span><%= order.phone %></span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Địa chỉ lắp đặt: </span>
+        <span><%= order.diaChiLapDat %></span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Ngày bàn giao sản phẩm: </span>
+        <span>......... tháng ......... năm ............</span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Thời hạn bảo hành: </span>
+        <span>12 tháng</span>
+      </div>
     </div>
 
     <div class="commitment">
@@ -147,12 +308,19 @@
     </div>
 
     <table class="prod-table">
-      <thead><tr><th>STT</th><th>Diễn giải sản phẩm</th><th>Đơn vị</th><th>Số lượng</th></tr></thead>
+      <thead>
+        <tr>
+          <th>STT</th>
+          <th>Diễn giải sản phẩm</th>
+          <th>Đơn vị</th>
+          <th>Số lượng</th>
+        </tr>
+      </thead>
       <tbody>
         <% products.forEach((p, i) => { %>
           <tr>
             <td><%= i + 1 %></td>
-            <td style="text-align:left"><%= p.description %></td>
+            <td><%= p.description %></td>
             <td><%= p.unit %></td>
             <td><%= p.quantity %></td>
           </tr>
@@ -195,7 +363,6 @@
       Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.
     </div>
   </div>
-
 </div>
 </body>
 </html>
