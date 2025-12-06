@@ -114,10 +114,9 @@
     background: #fff;
   }
 
-  /* BẢNG THÔNG TIN KHÁCH HÀNG */
+  /* BẢNG THÔNG TIN KHÁCH HÀNG - BỎ KHUNG */
   .customer-info-box {
-    border: 0px solid #fff;
-    padding: 3mm;
+    padding: 0;
     margin-bottom: 3mm;
     background: #fff;
   }
@@ -134,9 +133,9 @@
     display: inline-block;
   }
 
+  /* CAM KẾT - BỎ KHUNG */
   .commitment {
-    border: 0px solid #fff;
-    padding: 2.5mm 3mm;
+    padding: 0;
     margin: 3mm 0;
     font-size: 10pt;
     line-height: 1.1;
@@ -176,9 +175,9 @@
     margin: 0 0 3mm 0;
   }
   
+  /* CHẤT LƯỢNG - BỎ KHUNG */
   .quality-box {
-    border: 0px solid #fff;
-    padding: 2.8mm 3mm;
+    padding: 0;
     margin-bottom: 3mm;
     font-weight: bold;
     font-size: 10pt;
@@ -191,9 +190,9 @@
     font-size: 10pt; 
   }
   
+  /* THÔNG BÁO - BỎ KHUNG */
   .notice {
-    border: 0px solid #fff;
-    padding: 2.8mm 3mm;
+    padding: 0;
     margin-top: 4mm;
     font-size: 10pt;
     line-height: 1.1;
@@ -211,6 +210,12 @@
     padding-top: 3mm;
     font-size: 10pt;
     line-height: 1.1;
+  }
+
+  /* SỐ ĐIỆN THOẠI MÀU ĐỎ */
+  .phone-red {
+    color: red;
+    font-weight: bold;
   }
 
   /* MEDIA PRINT */
@@ -245,6 +250,10 @@
     .prod-table th {
       background: transparent !important;
     }
+    
+    .phone-red {
+      color: red !important;
+    }
   }
 </style>
 </head>
@@ -269,6 +278,7 @@
 
     <div class="ticket">Số phiếu: <%= order.madh %></div>
 
+    <!-- THÔNG TIN KHÁCH HÀNG - KHÔNG CÓ KHUNG -->
     <div class="customer-info-box">
       <div class="info-line">
         <span class="info-label">Thông tin khách hàng: </span>
@@ -296,6 +306,7 @@
       </div>
     </div>
 
+    <!-- CAM KẾT - KHÔNG CÓ KHUNG -->
     <div class="commitment">
       Công ty Cổ Phần Công Nghiệp M.E.C.I xác nhận bảo hành các sản phẩm dưới đây kèm theo các điều khoản bảo hành của công ty chúng tôi như sau:
     </div>
@@ -325,7 +336,7 @@
       Xin cảm ơn sự quan tâm và ủng hộ của Quý khách hàng.<br>
       Khi có sự cố, vui lòng thông báo ngay cho chúng tôi theo thông tin:<br><br>
       <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</strong><br>
-      Phòng dịch vụ sau bán hàng: 0902 227 007<br>
+      Phòng dịch vụ sau bán hàng: <span class="phone-red">0902 227 007</span><br>
       Địa chỉ: Số 164 Đường Nguyễn Trãi, Phường Thanh Xuân, TP.Hà Nội<br>
       Website: www.meci.vn | Email: cskh@meci.vn
     </div>
@@ -335,6 +346,7 @@
   <div class="right">
     <div class="terms-title">ĐIỀU KHOẢN BẢO HÀNH SẢN PHẨM</div>
 
+    <!-- CHẤT LƯỢNG - KHÔNG CÓ KHUNG -->
     <div class="quality-box">
       Chúng tôi cam kết về chất lượng và bảo hành sản phẩm Cửa cuốn nhanh và phụ kiện đi kèm do chúng tôi trực tiếp cung cấp hoặc đơn vị thân phụ của chúng tôi cung cấp tại thị trường Việt Nam.
     </div>
@@ -352,6 +364,7 @@
     <p>Lỗi do chủ quan của người sử dụng như: lỗi do tự ý tháo lắp, sửa chữa, thay thế, chuyển đổi vị trí...</p>
     <p>Hỏng do nguyên nhân bất khả kháng như: thiên tai, lũ lụt, hỏa hoạn...</p>
 
+    <!-- THÔNG BÁO - KHÔNG CÓ KHUNG -->
     <div class="notice">
       Chúng tôi biết rằng việc quy định chế độ bảo hành không thể bao gồm hết tất cả các điều khoản phát sinh do các lỗi ngoài khả năng phát hiện của chúng tôi, cũng như do những thông tin phản ánh các lỗi không chính xác, không rõ ràng hoặc không cập nhật kịp thời. Đối với những trường hợp này, chúng tôi sẽ cố gắng hỗ trợ Quý Khách Hàng khắc phục sự cố với chi phí thấp nhất có thể.
     </div>
