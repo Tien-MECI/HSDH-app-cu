@@ -1,4 +1,3 @@
-// ycvt.js
 import { google } from 'googleapis';
 
 console.log('🚀 Đang load module ycvt.js...');
@@ -13,27 +12,78 @@ function sleep(ms) {
  * - spreadsheetId: id của workbook chính (chứa Don_hang_PVC_ct, Don_hang, File_BOM_ct)
  * - spreadsheetHcId: id workbook chứa Data_bom
  */
-async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId,maDonHang = null) {
+async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang = null) {
   console.log('▶️ Bắt đầu prepareYcvtData...');
   const sheets = google.sheets({ version: 'v4', auth });
 
+  // --- Throttle / Retry configuration (không thay đổi logic xử lý dữ liệu) ---
+  // Bạn có thể set env SHEETS_WRITE_PER_MINUTE để điều chỉnh giới hạn (mặc định 60)
+  const WRITE_LIMIT = process.env.SHEETS_WRITE_PER_MINUTE ? parseInt(process.env.SHEETS_WRITE_PER_MINUTE, 10) : 60;
+  const WRITE_WINDOW_MS = 60 * 1000; // 1 phút
+  const writeTimestamps = []; // lưu các timestamp của write requests (ms)
+
+  function pruneOldTimestamps() {
+    const now = Date.now();
+    while (writeTimestamps.length && (now - writeTimestamps[0]) > WRITE_WINDOW_MS) {
+      writeTimestamps.shift();
+    }
+  }
+
+  async function throttleIfNeeded() {
+    pruneOldTimestamps();
+    if (writeTimestamps.length < WRITE_LIMIT) return;
+    // chờ đến khi một slot trống
+    const now = Date.now();
+    const oldest = writeTimestamps[0];
+    const waitFor = WRITE_WINDOW_MS - (now - oldest) + 50; // add small buffer
+    console.log(`⏳ Throttling writes: ${writeTimestamps.length}/${WRITE_LIMIT} in last minute. Waiting ${waitFor}ms`);
+    await sleep(waitFor);
+    pruneOldTimestamps();
+  }
+
+  async function makeWriteRequest(fn) {
+    const maxRetries = 6;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      await throttleIfNeeded();
+      try {
+        const res = await fn();
+        // đăng kí 1 write
+        writeTimestamps.push(Date.now());
+        pruneOldTimestamps();
+        return res;
+      } catch (err) {
+        const msg = (err && err.message) ? err.message : '';
+        const status = err?.response?.status;
+        const isQuota = msg.includes('Quota exceeded') || status === 429 || status === 403;
+        if (attempt === maxRetries - 1) {
+          // không còn retry nữa
+          throw err;
+        }
+        // chỉ dùng backoff cho lỗi tạm thời / quota
+        const delay = Math.min(500 * Math.pow(2, attempt), 30000);
+        console.warn(`⚠️ Write request failed (attempt ${attempt + 1}): ${msg || status}. Backing off ${delay}ms`);
+        await sleep(delay);
+      }
+    }
+  }
+
   async function batchPaste(valueRanges) {
     if (!valueRanges || valueRanges.length === 0) return;
-    await sheets.spreadsheets.values.batchUpdate({
+    return makeWriteRequest(() => sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: spreadsheetHcId,
       requestBody: { valueInputOption: 'RAW', data: valueRanges }
-    });
+    }));
   }
 
   async function batchClear(ranges) {
     if (!ranges || ranges.length === 0) return;
-    await sheets.spreadsheets.values.batchClear({
+    return makeWriteRequest(() => sheets.spreadsheets.values.batchClear({
       spreadsheetId: spreadsheetHcId,
       requestBody: { ranges }
-    });
+    }));
   }
 
-   try {
+  try {
     // 1) Lấy dữ liệu ban đầu
     const [data1Res, data2Res, data3Res, data5Res] = await Promise.all([
       sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang_PVC_ct!A1:AE' }),
