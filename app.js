@@ -10,6 +10,7 @@ import { promisify } from "util";
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 import { buildAttendanceData } from "./helpers/chamcong.js";
+import webPush from 'web-push';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 // --- QUAN TRỌNG: Thêm middleware để parse form data ---
@@ -127,9 +128,14 @@ async function loadDriveImageBase64(fileId) {
   }
 }
 
+///push web cấu hình
+const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
+const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
+// Cần đặt email hợp lệ để liên hệ khi có sự cố[citation:1][citation:3]
+webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
 
 // --- Routes ---
-app.get("/", (_req, res) => res.send("🚀 Server chạy ổn! /bbgn để xuất BBGN."));
+app.get("/", (_req, res) => res.send("🚀 Server chạy ổn!"));
 
 //---bbgn----
 app.get("/bbgn", async (req, res) => {
@@ -5754,6 +5760,67 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+/// Tạo endpoint /subscribe cho trình duyệt đăng ký
+
+// Tạm thời lưu trong bộ nhớ. Trong thực tế, bạn NÊN lưu vào cơ sở dữ liệu.
+const pushSubscriptions = [];
+
+app.post('/subscribe', (req, res) => {
+  const subscription = req.body;
+  
+  // Kiểm tra xem subscription đã tồn tại chưa để tránh trùng lặp
+  const exists = pushSubscriptions.some(sub => sub.endpoint === subscription.endpoint);
+  if (!exists) {
+    pushSubscriptions.push(subscription);
+    console.log('✅ New browser subscription added.');
+  }
+  
+  res.status(201).json({ message: 'Subscription saved successfully.' });
+  
+  // (Tùy chọn) Có thể gửi thông báo chào mừng ngay
+  // const payload = JSON.stringify({ title: 'Chào mừng!', body: 'Bạn đã đăng ký nhận thông báo thành công.' });
+  // webPush.sendNotification(subscription, payload).catch(error => console.error('Error sending welcome notification:', error));
+});
+
+///Tạo endpoint /webhook-from-appsheet để nhận yêu cầu từ AppSheet:
+
+app.post('/webhook-from-appsheet', async (req, res) => {
+  try {
+    // Dữ liệu AppSheet gửi lên qua body của POST request[citation:2]
+    const { title, body, icon, data } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required.' });
+    }
+    
+    // Tạo payload cho thông báo
+    const payload = JSON.stringify({ title, body, icon, data });
+    
+    console.log(`📨 Received webhook from AppSheet: "${title}"`);
+    
+    // Gửi thông báo tới TẤT CẢ các trình duyệt đã đăng ký
+    // LƯU Ý: Trong ứng dụng thực tế, bạn cần lọc subscription theo user/device.
+    const sendPromises = pushSubscriptions.map(subscription => 
+      webPush.sendNotification(subscription, payload).catch(err => {
+        console.error(`❌ Failed to send to ${subscription.endpoint}:`, err.statusCode);
+        // Nếu subscription không còn hợp lệ (lỗi 410), bạn có thể xóa nó khỏi danh sách
+        if (err.statusCode === 410) {
+          const index = pushSubscriptions.findIndex(sub => sub.endpoint === subscription.endpoint);
+          if (index > -1) {
+            pushSubscriptions.splice(index, 1);
+          }
+        }
+      })
+    );
+    
+    await Promise.allSettled(sendPromises);
+    res.json({ success: true, message: `Processing notification for ${pushSubscriptions.length} client(s).` });
+    
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
