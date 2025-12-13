@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Push Notifications</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        .log { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Debug Push Notifications</h1>
+    
+    <button onclick="checkPermissions()">1. Kiểm tra Permissions</button>
+    <button onclick="subscribe()">2. Đăng ký Push</button>
+    <button onclick="testNotification()">3. Test Thông báo Ngay</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    
+    <div id="log" class="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            log.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            console.log(message);
+        }
+        
+        function clearLogs() {
+            log.innerHTML = '';
+        }
+        
+        async function checkPermissions() {
+            const permission = await Notification.requestPermission();
+            addLog(`Permission status: ${permission}`);
+            
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                addLog(`Service Workers registered: ${regs.length}`);
+            }
+        }
+        
+        async function subscribe() {
+            // Gọi hàm subscribeToPushNotifications đã định nghĩa trong client.js
+            if (typeof subscribeToPushNotifications === 'function') {
+                subscribeToPushNotifications();
+            } else {
+                addLog('Error: subscribeToPushNotifications not found');
+            }
+        }
+        
+        async function testNotification() {
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                registration.showNotification('Test từ Debug Page', {
+                    body: 'Nếu bạn thấy cái này, Service Worker đang hoạt động!',
+                    icon: '/default-icon.png',
+                    requireInteraction: true
+                });
+                addLog('Test notification shown');
+            }
+        }
+        
+        // Tự động check khi load trang
+        window.addEventListener('load', () => {
+            addLog('Debug page loaded');
+            checkPermissions();
+        });
+    </script>
+    
+    <script src="/client.js"></script>
+</body>
+</html>

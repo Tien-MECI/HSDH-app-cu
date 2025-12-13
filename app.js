@@ -5822,5 +5822,50 @@ app.post('/webhook-from-appsheet', async (req, res) => {
   }
 });
 
+////
+
+// Thêm vào app.js
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+const SUBSCRIPTIONS_FILE = './subscriptions.json';
+import cors from 'cors';
+app.use(cors());
+
+// Hàm load subscriptions từ file
+async function loadSubscriptions() {
+  try {
+    if (existsSync(SUBSCRIPTIONS_FILE)) {
+      const data = await fs.readFile(SUBSCRIPTIONS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading subscriptions:', err);
+  }
+  return [];
+}
+
+// Hàm save subscriptions
+async function saveSubscriptions(subs) {
+  try {
+    await fs.writeFile(SUBSCRIPTIONS_FILE, JSON.stringify(subs, null, 2));
+  } catch (err) {
+    console.error('Error saving subscriptions:', err);
+  }
+}
+
+// Sửa endpoint /subscribe
+app.post('/subscribe', async (req, res) => {
+  const subscription = req.body;
+  let subscriptions = await loadSubscriptions();
+  
+  const exists = subscriptions.some(sub => sub.endpoint === subscription.endpoint);
+  if (!exists) {
+    subscriptions.push(subscription);
+    await saveSubscriptions(subscriptions);
+    console.log('✅ Subscription saved to file');
+  }
+  
+  res.status(201).json({ message: 'Subscription saved.' });
+});
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
