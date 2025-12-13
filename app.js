@@ -7,12 +7,27 @@ import { dirname } from "path";
 import ejs from "ejs";
 import fetch from "node-fetch";
 import { promisify } from "util";
+import webPush from 'web-push';
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 import { buildAttendanceData } from "./helpers/chamcong.js";
-import webPush from 'web-push';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
+
+// --- CORS middleware thay vì dùng package cors ---
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // --- QUAN TRỌNG: Thêm middleware để parse form data ---
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -20,21 +35,17 @@ app.use(express.json());
 app.set("view engine", "ejs");
 app.set("views", "./views");
 
-
 dotenv.config();
-
 
 // --- __dirname trong ESM ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
 
 // --- IDs file Drive ---
 const LOGO_FILE_ID = "1Rwo4pJt222dLTXN9W6knN3A5LwJ5TDIa";
 const WATERMARK_FILE_ID = "1fNROb-dRtRl2RCCDCxGPozU3oHMSIkHr";
 const WATERMARK_FILEHOADON_ID = "1skm9AI1_rrx7ngZrgsyEuy_YbnOXVMIK";
 const WATERMARK_FILEBAOHANH_ID = "1hwTP3Vmghybml3eT6ZGG8pGVmP6fnfvJ";
-
 
 // --- ENV ---
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
@@ -48,12 +59,24 @@ const GAS_WEBAPP_URL_BBSV = process.env.GAS_WEBAPP_URL_BBSV;
 const GAS_WEBAPP_URL_DNC = process.env.GAS_WEBAPP_URL_DNC;
 const GAS_WEBAPP_URL_PYCVT = process.env.GAS_WEBAPP_URL_PYCVT;
 
+// --- Web Push VAPID Keys ---
+const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
+const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
+
 if (!SPREADSHEET_ID || !SPREADSHEET_HC_ID ||!GAS_WEBAPP_URL || !GAS_WEBAPP_URL_BBNT || !GOOGLE_CREDENTIALS_B64 || !GAS_WEBAPP_URL_BBSV || !GAS_WEBAPP_URL_DNC) {
     console.error(
         "❌ Thiếu biến môi trường: SPREADSHEET_ID / SPREADSHEET_HC_ID / GAS_WEBAPP_URL / GAS_WEBAPP_URL_BBNT / GOOGLE_CREDENTIALS_B64 / GAS_WEBAPP_URL_BBSV / GAS_WEBAPP_URL_DNC"
     );
     process.exit(1);
 }
+
+if (!publicVapidKey || !privateVapidKey) {
+    console.error("❌ Thiếu biến môi trường PUBLIC_VAPID_KEY hoặc PRIVATE_VAPID_KEY");
+    process.exit(1);
+}
+
+// Cấu hình web-push
+webPush.setVapidDetails('mailto:your-email@yourdomain.com', publicVapidKey, privateVapidKey);
 
 // --- Giải mã Service Account JSON ---
 const credentials = JSON.parse(
@@ -81,9 +104,36 @@ const PORT = process.env.PORT || 3000;
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+// --- Lưu trữ subscriptions (tạm thời trong bộ nhớ, và đồng bộ với file) ---
+const SUBSCRIPTIONS_FILE = './subscriptions.json';
+let pushSubscriptions = [];
 
+// Hàm load subscriptions từ file
+async function loadSubscriptions() {
+  try {
+    if (existsSync(SUBSCRIPTIONS_FILE)) {
+      const data = await fs.readFile(SUBSCRIPTIONS_FILE, 'utf8');
+      pushSubscriptions = JSON.parse(data);
+      console.log(`✅ Loaded ${pushSubscriptions.length} subscriptions from file`);
+    }
+  } catch (err) {
+    console.error('Error loading subscriptions:', err);
+  }
+}
 
- // === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
+// Hàm save subscriptions
+async function saveSubscriptions() {
+  try {
+    await fs.writeFile(SUBSCRIPTIONS_FILE, JSON.stringify(pushSubscriptions, null, 2));
+    console.log(`💾 Saved ${pushSubscriptions.length} subscriptions to file`);
+  } catch (err) {
+    console.error('Error saving subscriptions:', err);
+  }
+}
+
+// Tải subscriptions khi khởi động
+loadSubscriptions();
+// === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
 async function loadDriveImageBase64(fileId) {
   try {
     // 1️⃣ Lấy metadata để biết mimeType
@@ -5761,111 +5811,91 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
 });
 
 /// Tạo endpoint /subscribe cho trình duyệt đăng ký
+///Tạo endpoint /webhook-from-appsheet để nhận yêu cầu từ AppSheet:
 
-// Tạm thời lưu trong bộ nhớ. Trong thực tế, bạn NÊN lưu vào cơ sở dữ liệu.
-const pushSubscriptions = [];
-
-app.post('/subscribe', (req, res) => {
+// Endpoint để trình duyệt đăng ký nhận push notifications
+app.post('/subscribe', async (req, res) => {
   const subscription = req.body;
   
   // Kiểm tra xem subscription đã tồn tại chưa để tránh trùng lặp
   const exists = pushSubscriptions.some(sub => sub.endpoint === subscription.endpoint);
   if (!exists) {
     pushSubscriptions.push(subscription);
+    await saveSubscriptions();
     console.log('✅ New browser subscription added.');
   }
   
   res.status(201).json({ message: 'Subscription saved successfully.' });
-  
-  // (Tùy chọn) Có thể gửi thông báo chào mừng ngay
-  // const payload = JSON.stringify({ title: 'Chào mừng!', body: 'Bạn đã đăng ký nhận thông báo thành công.' });
-  // webPush.sendNotification(subscription, payload).catch(error => console.error('Error sending welcome notification:', error));
 });
 
-///Tạo endpoint /webhook-from-appsheet để nhận yêu cầu từ AppSheet:
-
+// Endpoint nhận webhook từ AppSheet
 app.post('/webhook-from-appsheet', async (req, res) => {
   try {
-    // Dữ liệu AppSheet gửi lên qua body của POST request[citation:2]
+    console.log('📨 === WEBHOOK RECEIVED ===');
+    console.log('📦 Full request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 Request headers:', req.headers);
+    
     const { title, body, icon, data } = req.body;
     
     if (!title) {
+      console.log('❌ Title is missing in webhook payload');
       return res.status(400).json({ error: 'Title is required.' });
     }
     
-    // Tạo payload cho thông báo
+    console.log(`✅ Webhook validated: "${title}"`);
+    
+    // Kiểm tra xem có subscription nào không
+    console.log(`📋 Total subscriptions in memory: ${pushSubscriptions.length}`);
+    
+    if (pushSubscriptions.length === 0) {
+      console.log('⚠️ No browser subscriptions found. Has the user visited index.html and clicked subscribe?');
+      return res.json({ success: false, message: 'No subscribers yet.' });
+    }
+    
     const payload = JSON.stringify({ title, body, icon, data });
     
-    console.log(`📨 Received webhook from AppSheet: "${title}"`);
-    
-    // Gửi thông báo tới TẤT CẢ các trình duyệt đã đăng ký
-    // LƯU Ý: Trong ứng dụng thực tế, bạn cần lọc subscription theo user/device.
-    const sendPromises = pushSubscriptions.map(subscription => 
-      webPush.sendNotification(subscription, payload).catch(err => {
-        console.error(`❌ Failed to send to ${subscription.endpoint}:`, err.statusCode);
-        // Nếu subscription không còn hợp lệ (lỗi 410), bạn có thể xóa nó khỏi danh sách
+    // Gửi thông báo và log chi tiết kết quả
+    const results = [];
+    for (let i = 0; i < pushSubscriptions.length; i++) {
+      const sub = pushSubscriptions[i];
+      try {
+        console.log(`➡️ Sending to subscription ${i + 1}: ${sub.endpoint.substring(0, 50)}...`);
+        await webPush.sendNotification(sub, payload);
+        console.log(`✅ Successfully sent to subscription ${i + 1}`);
+        results.push({ index: i, status: 'success' });
+      } catch (err) {
+        console.error(`❌ Failed to send to subscription ${i + 1}:`, {
+          statusCode: err.statusCode,
+          message: err.message,
+          endpoint: sub.endpoint.substring(0, 50)
+        });
+        
+        // Xóa subscription không hợp lệ
         if (err.statusCode === 410) {
-          const index = pushSubscriptions.findIndex(sub => sub.endpoint === subscription.endpoint);
-          if (index > -1) {
-            pushSubscriptions.splice(index, 1);
-          }
+          pushSubscriptions.splice(i, 1);
+          i--; // Điều chỉnh index sau khi xóa
+          console.log(`🗑️ Removed expired subscription ${i + 1}`);
         }
-      })
-    );
+        results.push({ index: i, status: 'failed', error: err.message });
+      }
+    }
     
-    await Promise.allSettled(sendPromises);
-    res.json({ success: true, message: `Processing notification for ${pushSubscriptions.length} client(s).` });
+    // Lưu lại danh sách subscriptions sau khi xóa các subscription hết hạn
+    await saveSubscriptions();
+    
+    console.log(`📊 Notification send summary: ${results.filter(r => r.status === 'success').length} succeeded, ${results.filter(r => r.status === 'failed').length} failed`);
+    
+    res.json({ 
+      success: true, 
+      message: `Processed for ${pushSubscriptions.length} subscriber(s)`,
+      results 
+    });
     
   } catch (error) {
-    console.error('❌ Webhook processing error:', error);
-    res.status(500).json({ error: 'Internal server error.' });
+    console.error('💥 CRITICAL Webhook processing error:', error);
+    res.status(500).json({ error: 'Internal server error.', details: error.message });
   }
 });
 
-////
-
-// Thêm vào app.js
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
-const SUBSCRIPTIONS_FILE = './subscriptions.json';
-import cors from 'cors';
-app.use(cors());
-
-// Hàm load subscriptions từ file
-async function loadSubscriptions() {
-  try {
-    if (existsSync(SUBSCRIPTIONS_FILE)) {
-      const data = await fs.readFile(SUBSCRIPTIONS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error('Error loading subscriptions:', err);
-  }
-  return [];
-}
-
-// Hàm save subscriptions
-async function saveSubscriptions(subs) {
-  try {
-    await fs.writeFile(SUBSCRIPTIONS_FILE, JSON.stringify(subs, null, 2));
-  } catch (err) {
-    console.error('Error saving subscriptions:', err);
-  }
-}
-
-// Sửa endpoint /subscribe
-app.post('/subscribe', async (req, res) => {
-  const subscription = req.body;
-  let subscriptions = await loadSubscriptions();
-  
-  const exists = subscriptions.some(sub => sub.endpoint === subscription.endpoint);
-  if (!exists) {
-    subscriptions.push(subscription);
-    await saveSubscriptions(subscriptions);
-    console.log('✅ Subscription saved to file');
-  }
-  
-  res.status(201).json({ message: 'Subscription saved.' });
-});
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
