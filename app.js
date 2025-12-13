@@ -75,8 +75,8 @@ if (!publicVapidKey || !privateVapidKey) {
     process.exit(1);
 }
 
-// Cấu hình web-push
-webPush.setVapidDetails('mailto:your-email@yourdomain.com', publicVapidKey, privateVapidKey);
+// Cần đặt email hợp lệ để liên hệ khi có sự cố[citation:1][citation:3]
+webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
 
 // --- Giải mã Service Account JSON ---
 const credentials = JSON.parse(
@@ -178,11 +178,7 @@ async function loadDriveImageBase64(fileId) {
   }
 }
 
-///push web cấu hình
-const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
-const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
-// Cần đặt email hợp lệ để liên hệ khi có sự cố[citation:1][citation:3]
-webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
+
 
 // --- Routes ---
 app.get("/", (_req, res) => res.send("🚀 Server chạy ổn!"));
