@@ -1,3 +1,20 @@
+// ===== public/client.js =====
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Lấy publicVapidKey từ server (sẽ được inject từ trang HTML)
+let publicVapidKey = '';
+
 async function subscribeToPushNotifications() {
   console.log('🔄 Starting push notification subscription...');
   
@@ -12,7 +29,14 @@ async function subscribeToPushNotifications() {
   }
   
   try {
-    // Kiểm tra permission trước
+    // Lấy publicVapidKey từ biến toàn cục (sẽ được đặt bởi trang HTML)
+    if (!publicVapidKey) {
+      // Nếu chưa có, thử lấy từ server
+      const response = await fetch('/get-vapid-key');
+      const data = await response.json();
+      publicVapidKey = data.publicKey;
+    }
+    
     const permission = await Notification.requestPermission();
     console.log('🔔 Notification permission:', permission);
     
@@ -21,25 +45,28 @@ async function subscribeToPushNotifications() {
       return;
     }
     
-    // Đăng ký Service Worker
     console.log('📝 Registering Service Worker...');
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('✅ Service Worker registered:', registration);
+    console.log('✅ Service Worker registered');
     
     // Đợi Service Worker active
-    await registration.active;
-    console.log('🚀 Service Worker is active');
+    const serviceWorker = registration.installing || registration.waiting || registration.active;
+    if (serviceWorker.state !== 'activated') {
+      await new Promise(resolve => {
+        serviceWorker.addEventListener('statechange', () => {
+          if (serviceWorker.state === 'activated') resolve();
+        });
+      });
+    }
     
-    // Subscribe với Push Manager
     console.log('🔐 Subscribing to push...');
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
     });
     
-    console.log('📄 Subscription object:', JSON.stringify(subscription, null, 2));
+    console.log('📄 Subscription created');
     
-    // Gửi lên server
     console.log('📤 Sending subscription to server...');
     const response = await fetch('/subscribe', {
       method: 'POST',
@@ -52,10 +79,18 @@ async function subscribeToPushNotifications() {
     const result = await response.json();
     console.log('📥 Server response:', result);
     
-    alert('Đã đăng ký nhận thông báo thành công!');
+    alert('✅ Đã đăng ký nhận thông báo thành công!');
     
   } catch (error) {
     console.error('💥 Subscription error:', error);
-    alert('Lỗi đăng ký thông báo: ' + error.message);
+    alert('❌ Lỗi đăng ký thông báo: ' + error.message);
   }
 }
+
+// Gắn sự kiện cho nút đăng ký
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('subscribe-btn');
+  if (btn) {
+    btn.addEventListener('click', subscribeToPushNotifications);
+  }
+});

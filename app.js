@@ -34,6 +34,7 @@ app.use(express.json());
 
 app.set("view engine", "ejs");
 app.set("views", "./views");
+app.use(express.static('public'));
 
 dotenv.config();
 
@@ -5808,6 +5809,10 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
 
 /// Tạo endpoint /subscribe cho trình duyệt đăng ký
 ///Tạo endpoint /webhook-from-appsheet để nhận yêu cầu từ AppSheet:
+// Route để client lấy public VAPID key
+app.get('/get-vapid-key', (req, res) => {
+  res.json({ publicKey: publicVapidKey });
+});
 
 // Endpoint để trình duyệt đăng ký nhận push notifications
 app.post('/subscribe', async (req, res) => {

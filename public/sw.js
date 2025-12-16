@@ -1,17 +1,18 @@
+// ===== public/sw.js =====
 console.log('🛠️ Service Worker loaded');
 
 self.addEventListener('install', event => {
   console.log('🔧 Service Worker installing...');
-  self.skipWaiting(); // Kích hoạt ngay lập tức
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
   console.log('🚀 Service Worker activated');
-  event.waitUntil(clients.claim()); // Kiểm soát tất cả clients ngay
+  event.waitUntil(clients.claim());
 });
 
 self.addEventListener('push', event => {
-  console.log('📬 Push event received!', event);
+  console.log('📬 Push event received!');
   
   let data = {};
   try {
@@ -27,11 +28,9 @@ self.addEventListener('push', event => {
     icon: data.icon || '/default-icon.png',
     badge: '/badge-icon.png',
     data: data.data || {},
-    requireInteraction: true, // Giữ thông báo đến khi user click
-    tag: 'appsheet-notification' // Nhóm các thông báo cùng loại
+    requireInteraction: true,
+    tag: 'appsheet-notification'
   };
-  
-  console.log('🎨 Notification options:', options);
   
   event.waitUntil(
     self.registration.showNotification(data.title || 'Thông báo', options)
@@ -49,13 +48,11 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.matchAll({type: 'window', includeUncontrolled: true})
       .then(windowClients => {
-        // Kiểm tra nếu đã có tab mở URL này
         for (let client of windowClients) {
           if (client.url === urlToOpen && 'focus' in client) {
             return client.focus();
           }
         }
-        // Nếu chưa có, mở tab mới
         if (clients.openWindow) {
           return clients.openWindow(urlToOpen);
         }
