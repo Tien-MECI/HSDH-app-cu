@@ -109,7 +109,7 @@ app.set("views", path.join(__dirname, "views"));
 const SUBSCRIPTIONS_FILE = './subscriptions.json';
 let pushSubscriptions = [];
 
-// Hàm load subscriptions từ file
+// Hàm load subscriptions từ file Phục vụ đăng ký nhận pushweb
 async function loadSubscriptions() {
   try {
     if (existsSync(SUBSCRIPTIONS_FILE)) {
@@ -122,7 +122,7 @@ async function loadSubscriptions() {
   }
 }
 
-// Hàm save subscriptions
+// Hàm save subscriptions (lưu Phục vụ đăng ký nhận pushweb)
 async function saveSubscriptions() {
   try {
     await fs.writeFile(SUBSCRIPTIONS_FILE, JSON.stringify(pushSubscriptions, null, 2));

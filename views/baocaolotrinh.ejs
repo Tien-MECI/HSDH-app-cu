@@ -3,31 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <title>Báo cáo lộ trình xe tháng <%= data ? data.thang : '' %>/<%= data ? data.nam : '' %></title>
+
   <style>
-    body { font-family: "Times New Roman", serif; margin: 20px; position: relative; font-size: 13px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; word-wrap:break-word; }
-    th, td { border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }
-    th { background-color: #e9f0fb; font-weight: bold; }
+    /* ================== PRINT SETUP A4 LANDSCAPE ================== */
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    @media print {
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 297mm;
+        height: 210mm;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+
+      tr, td, th {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+    }
+
+    /* ================== SCREEN + PRINT COMMON ================== */
+    body {
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+      position: relative;
+      margin: 10mm; /* margin hiển thị – khi in @page sẽ override = 0 */
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+
+    th, td {
+      border: 1px solid #000;
+      padding: 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    th {
+      background-color: #e9f0fb;
+      font-weight: bold;
+    }
+
     .logo { height: 65px; }
     .title { font-weight: bold; font-size: 18px; color: #c00; }
-    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); opacity: 0.06; z-index: -1; pointer-events:none; }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      opacity: 0.06;
+      z-index: -1;
+      pointer-events: none;
+    }
+
     .watermark img { width: 900px; }
+
     .bold { font-weight: bold; }
     .text-left { text-align: left !important; padding-left: 8px; }
-    .small { font-size: 11px; line-height: 1.2; text-align: left; padding-left:6px; }
-    .footer { margin-top: 50px; display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
-    .col-vehicle { white-space: nowrap; }
-    /* make two columns per vehicle (MC mượn QM / Cá nhân) */
-    .vehicle-cell { width: 6%; }
+    .small { font-size: 11px; line-height: 1.2; text-align: left; padding-left: 6px; }
+
+    .footer {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .vehicle-cell { width: 6%; white-space: nowrap; }
   </style>
 </head>
+
 <body>
 
 <% if (!data) { %>
   <div style="text-align:center; margin-top:100px;">
     <h2>Chọn tháng/năm để xem báo cáo lộ trình xe</h2>
     <form method="GET">
-      <select name="thang" required><% for(let i=1;i<=12;i++){ %><option value="<%=i%>"><%=i%> tháng</option><% } %></select>
+      <select name="thang" required>
+        <% for(let i=1;i<=12;i++){ %>
+          <option value="<%=i%>"><%=i%> tháng</option>
+        <% } %>
+      </select>
       <input type="number" name="nam" value="<%= new Date().getFullYear() %>" min="2020" required style="width:80px;">
       <button type="submit" style="padding:8px 20px; margin-left:10px;">Xem báo cáo</button>
     </form>
@@ -35,11 +106,15 @@
 <% } else { %>
 
   <% if (watermark) { %>
-    <div class="watermark"><img src="<%= watermark %>" alt="watermark" /></div>
+    <div class="watermark">
+      <img src="<%= watermark %>" alt="watermark">
+    </div>
   <% } %>
 
   <div style="text-align:center; margin-bottom:10px;">
-    <% if (logo) { %><img src="<%= logo %>" class="logo" alt="MECI"><% } %><br>
+    <% if (logo) { %>
+      <img src="<%= logo %>" class="logo">
+    <% } %>
     <div class="title">CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI</div>
     <h2>BẢNG TỔNG HỢP HÀNH TRÌNH XE THÁNG <%= data.thang %>/<%= data.nam %></h2>
   </div>
