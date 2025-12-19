@@ -30,6 +30,13 @@
       }
       
       tr { page-break-inside: avoid !important; }
+      
+      /* Ẩn các cột có class hide-column khi in */
+      .hide-column,
+      .hide-column th,
+      .hide-column td {
+        display: none !important;
+      }
     }
     
     @media screen {
@@ -240,6 +247,11 @@
     .print-button:hover {
       background: #218838;
     }
+    
+    /* Class để ẩn cột */
+    .hide-column {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -312,6 +324,47 @@
         if (b === 'MECI sử dụng') return -1;
         return a.localeCompare(b,'vi');
       });
+      
+      // Tính toán xe nào có km sử dụng để hiển thị
+      // Một xe có km sử dụng nếu:
+      // 1. Có kmQuangMinh > 0
+      // 2. Có kmCaNhan > 0
+      // 3. Hoặc có người sử dụng cá nhân với km > 0
+      const xeCoKmSuDung = new Set();
+      
+      // Kiểm tra từng xe xem có km sử dụng không
+      data.xeArray.forEach((xe, index) => {
+        let coKmSuDung = false;
+        
+        // Kiểm tra kmQuangMinh
+        if ((parseFloat(xe.kmQuangMinh) || 0) > 0) {
+          coKmSuDung = true;
+        }
+        
+        // Kiểm tra kmCaNhan
+        if ((parseFloat(xe.kmCaNhan) || 0) > 0) {
+          coKmSuDung = true;
+        }
+        
+        // Kiểm tra từng người sử dụng
+        if (Array.isArray(xe._nguoiSDArr) && xe._nguoiSDArr.length > 0) {
+          // Nếu có userKmMap, kiểm tra km của từng người
+          if (xe._userKmMap && Object.keys(xe._userKmMap).length > 0) {
+            Object.values(xe._userKmMap).forEach(km => {
+              if (parseFloat(km) > 0) coKmSuDung = true;
+            });
+          } else {
+            // Nếu không có userKmMap nhưng có người sử dụng và kmCaNhan > 0
+            if ((parseFloat(xe.kmCaNhan) || 0) > 0) {
+              coKmSuDung = true;
+            }
+          }
+        }
+        
+        if (coKmSuDung) {
+          xeCoKmSuDung.add(index);
+        }
+      });
     %>
 
     <table class="avoid-break">
@@ -324,11 +377,18 @@
           <th style="width:6%; font-size:11px; font-weight:bold; background:#f4f4f4; line-height:1.3;">
             Khấu hao/<br>giá nhiên liệu TB
           </th>
-          <% data.xeArray.forEach(function(xe){ %>
-            <th colspan="2" style="font-size:11px; background:#fff; line-height:1.4; padding:4px;">
-              Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
-              Giá <%= xe.loaiNhienLieu %> TB: <%= (data.donGiaTB[xe.loaiNhienLieu] || 0).toLocaleString() %> đ/lít
-            </th>
+          <% data.xeArray.forEach(function(xe, index){ %>
+            <% if (xeCoKmSuDung.has(index)) { %>
+              <th colspan="2" style="font-size:11px; background:#fff; line-height:1.4; padding:4px;">
+                Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+                Giá <%= xe.loaiNhienLieu %> TB: <%= (data.donGiaTB[xe.loaiNhienLieu] || 0).toLocaleString() %> đ/lít
+              </th>
+            <% } else { %>
+              <th colspan="2" style="font-size:11px; background:#fff; line-height:1.4; padding:4px; display:none;" class="hide-column">
+                Khấu hao: <%= Math.round(xe.dinhMucKH || 0).toLocaleString() %> đ/km<br>
+                Giá <%= xe.loaiNhienLieu %> TB: <%= (data.donGiaTB[xe.loaiNhienLieu] || 0).toLocaleString() %> đ/lít
+              </th>
+            <% } %>
           <% }); %>
           <th rowspan="4" style="width:7%;">Tổng số km<br>sử dụng<br>cá nhân</th>
           <th rowspan="4" style="width:7%;">Tiền<br>Khấu hao</th>
@@ -344,10 +404,16 @@
           <th style="width:6%; font-size:11px; font-weight:bold; background:#f9f9f9;">
             Loại xe
           </th>
-          <% data.xeArray.forEach(function(xe){ %>
-            <th colspan="2" style="font-weight:bold; font-size:14px; vertical-align:middle;">
-              <%= xe.tenXe %>
-            </th>
+          <% data.xeArray.forEach(function(xe, index){ %>
+            <% if (xeCoKmSuDung.has(index)) { %>
+              <th colspan="2" style="font-weight:bold; font-size:14px; vertical-align:middle;">
+                <%= xe.tenXe %>
+              </th>
+            <% } else { %>
+              <th colspan="2" style="font-weight:bold; font-size:14px; vertical-align:middle; display:none;" class="hide-column">
+                <%= xe.tenXe %>
+              </th>
+            <% } %>
           <% }); %>
         </tr>
 
@@ -356,12 +422,17 @@
           <th style="width:6%; font-size:11px; background:#f4f4f4;">
             Loại
           </th>
-          <% data.xeArray.forEach(function(xe){ 
+          <% data.xeArray.forEach(function(xe, index){ 
               const ten = (xe.tenXe || '').trim().toLowerCase();
               const isQuangMinh = ten.includes('quang minh') || ten === 'xe quang minh';
           %>
-            <th style="font-size:11px;"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
-            <th style="font-size:11px;">Cá nhân</th>
+            <% if (xeCoKmSuDung.has(index)) { %>
+              <th style="font-size:11px;"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
+              <th style="font-size:11px;">Cá nhân</th>
+            <% } else { %>
+              <th style="font-size:11px; display:none;" class="hide-column"><%= isQuangMinh ? 'MC thuê QM' : 'QM thuê MECI' %></th>
+              <th style="font-size:11px; display:none;" class="hide-column">Cá nhân</th>
+            <% } %>
           <% }); %>
         </tr>
 
@@ -370,9 +441,14 @@
           <th style="width:6%; font-size:11px; background:#f9f9f9;">
             Định mức<br>(lít/100km)
           </th>
-          <% data.xeArray.forEach(function(xe){ %>
-            <th style="font-size:11px;"><%= xe.dinhMucNL || '' %></th>
-            <th style="font-size:11px;"><%= xe.loaiNhienLieu || 'DO' %></th>
+          <% data.xeArray.forEach(function(xe, index){ %>
+            <% if (xeCoKmSuDung.has(index)) { %>
+              <th style="font-size:11px;"><%= xe.dinhMucNL || '' %></th>
+              <th style="font-size:11px;"><%= xe.loaiNhienLieu || 'DO' %></th>
+            <% } else { %>
+              <th style="font-size:11px; display:none;" class="hide-column"><%= xe.dinhMucNL || '' %></th>
+              <th style="font-size:11px; display:none;" class="hide-column"><%= xe.loaiNhienLieu || 'DO' %></th>
+            <% } %>
           <% }); %>
         </tr>
       </thead>
@@ -416,16 +492,24 @@
             <td class="text-left"><%= user %></td>
             <td></td>
 
-            <% data.xeArray.forEach(function(xe){
+            <% data.xeArray.forEach(function(xe, index){
                 const km = kmForUserOnVehicle(xe, user) || 0;
                 const khauhao = Math.round(km * (Number(xe.dinhMucKH) || 0));
                 const nhienlieu = Math.round((km * (Number(xe.dinhMucNL) || 0) / 100) * (Number(data.donGiaTB) || 0));
                 totalKmUser += km;
                 totalKhauHao_user += khauhao;
                 totalNhienLieu_user += nhienlieu;
+                
+                if (xeCoKmSuDung.has(index)) {
             %>
-              <td class="vehicle-cell"><%= (user === 'MECI sử dụng' && (xe.tenXe || '').trim().toLowerCase() === 'xe quang minh') ? (km ? km.toLocaleString() : '') : '' %></td>
-              <td class="vehicle-cell"><%= (user !== 'MECI sử dụng') ? (km ? km.toLocaleString() : '') : '' %></td>
+                  <!-- MC mượn QM cell: show km only if this user is MECI sử dụng and xe is Xe Quang Minh -->
+                  <td class="vehicle-cell"><%= (user === 'MECI sử dụng' && (xe.tenXe || '').trim().toLowerCase() === 'xe quang minh') ? (km ? km.toLocaleString() : '') : '' %></td>
+                  <!-- Cá nhân cell: show km for normal users (including MECI if we consider them personal) -->
+                  <td class="vehicle-cell"><%= (user !== 'MECI sử dụng') ? (km ? km.toLocaleString() : '') : '' %></td>
+                <% } else { %>
+                  <td class="vehicle-cell hide-column" style="display:none;"><%= (user === 'MECI sử dụng' && (xe.tenXe || '').trim().toLowerCase() === 'xe quang minh') ? (km ? km.toLocaleString() : '') : '' %></td>
+                  <td class="vehicle-cell hide-column" style="display:none;"><%= (user !== 'MECI sử dụng') ? (km ? km.toLocaleString() : '') : '' %></td>
+                <% } %>
             <% }); %>
 
             <td class="bold"><%= totalKmUser ? totalKmUser.toLocaleString() : '' %></td>
@@ -455,8 +539,13 @@
         <tr class="avoid-break">
           <td class="text-left bold">Tổng</td>
           <td></td>
-          <% data.xeArray.forEach(function(xe){ %>
-            <td></td><td></td>
+          <% data.xeArray.forEach(function(xe, index){ %>
+            <% if (xeCoKmSuDung.has(index)) { %>
+              <td></td><td></td>
+            <% } else { %>
+              <td class="hide-column" style="display:none;"></td>
+              <td class="hide-column" style="display:none;"></td>
+            <% } %>
           <% }); %>
           <td class="bold"><%= grandKm ? grandKm.toLocaleString() : '' %></td>
           <td class="bold"><%= grandKh ? grandKh.toLocaleString() : '' %></td>
@@ -490,6 +579,21 @@
             zoom: 1 !important;
             -webkit-print-color-adjust: exact !important;
           }
+          
+          /* Đảm bảo các cột bị ẩn không chiếm không gian */
+          .hide-column {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+          }
+          
+          /* Điều chỉnh lại chiều rộng bảng sau khi ẩn cột */
+          table {
+            width: auto !important;
+          }
         }
       `;
       document.head.appendChild(style);
@@ -504,6 +608,26 @@
           }, 100);
         });
       }
+      
+      // Tự động điều chỉnh kích thước font nếu cần
+      function adjustFontSizeForPrint() {
+        const table = document.querySelector('table');
+        if (table) {
+          const tableWidth = table.offsetWidth;
+          const containerWidth = document.querySelector('.report-container').offsetWidth;
+          
+          // Nếu bảng quá rộng, giảm font size một chút
+          if (tableWidth > containerWidth * 0.95) {
+            table.style.fontSize = '12px';
+          }
+        }
+      }
+      
+      // Gọi hàm điều chỉnh khi tải trang
+      setTimeout(adjustFontSizeForPrint, 100);
+      
+      // Gọi lại khi thay đổi kích thước cửa sổ
+      window.addEventListener('resize', adjustFontSizeForPrint);
     }
   });
 </script>
