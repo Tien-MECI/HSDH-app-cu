@@ -3253,7 +3253,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     const companyNameIndex = colToIndex("J");
     const addressIndex = colToIndex("L");
     const phoneIndex = colToIndex("H");
-    const diadiem1Index = colToIndex("Y");
+    const diadiem1Index = colToIndex("U");
     const diadiem2Index = colToIndex("AA");
     const diadiem3Index = colToIndex("AC");
     const loaiDiaChiIndex = colToIndex("X");
@@ -4301,7 +4301,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
         // --- Xác định loại lệnh từ cột S (index 36) ---
-        const lenhValue = donHang[36] || '';
+        const lenhValue = donHang[28] || '';
 
         // --- Render ra client (ngay, không chặn UI) ---
         res.render("lenhpvc", {
@@ -4462,7 +4462,7 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
         const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
         // --- Xác định loại lệnh từ cột S (index 36) ---
-        const lenhValue = donHang[36] || '';
+        const lenhValue = donHang[28] || '';
 
         // --- Render ra client (ngay lập tức) ---
         res.render("lenhnk", {
@@ -4625,9 +4625,9 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
 
         // --- Tính tổng (GIỮ NGUYÊN LOGIC) ---
         let tongTien = 0;
-        let chietKhauValue = donHang[40] || "0";
+        let chietKhauValue = donHang[32] || "0";
         let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
-        let tamUngValue = donHang[41] || 0;
+        let tamUngValue = donHang[33] || 0;
         let tamUngPercent =parseFloat(tamUngValue.toString().replace('%', '')) || 0;
 
         products.forEach(product => {
@@ -4823,13 +4823,13 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         products.forEach(p => tongTien += parseFloat(p.thanhTien) || 0);
 
         // --- Xử lý chiết khấu ---
-        let chietKhauValue = donHang[40] || "0";
+        let chietKhauValue = donHang[32] || "0";
         let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
         let chietKhau = chietKhauValue.toString().includes('%')
             ? (tongTien * chietKhauPercent) / 100
             : chietKhauPercent;
 
-        let tamUng = parseFloat(donHang[41]) || 0;
+        let tamUng = parseFloat(donHang[33]) || 0;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
         // --- Tính tổng diện tích và số lượng ---

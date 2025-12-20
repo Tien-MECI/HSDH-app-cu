@@ -219,13 +219,13 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
       row => String(row[5] || '').trim() === String(d4Value).trim() || String(row[6] || '').trim() === String(d4Value).trim()
     );
     const l4Value = matchingRows[0] ? (matchingRows[0][9] || '') : '';
-    const d5Values = matchingRows.map(r => r[39]).filter(v => v).join(', ');
-    const ghichuKT = matchingRows.map(r => r[63]).filter(v => v).join(', ');
-    const h5Values = matchingRows.map(r => r[45]).filter(v => v).join(', ');
-    const h6Values = matchingRows.map(r => r[37]).filter(v => v).join(', ');
-    const Loaiycthuchien = matchingRows.map(r => r[36]).filter(v => v).join(', ');
+    const d5Values = matchingRows.map(r => r[31]).filter(v => v).join(', ');
+    const ghichuKT = matchingRows.map(r => r[55]).filter(v => v).join(', ');
+    const h5Values = matchingRows.map(r => r[37]).filter(v => v).join(', ');
+    const h6Values = matchingRows.map(r => r[29]).filter(v => v).join(', ');
+    const Loaiycthuchien = matchingRows.map(r => r[28]).filter(v => v).join(', ');
     const d6Values = matchingRows
-      .map(r => r[48] ? new Date(r[48]).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '')
+      .map(r => r[40] ? new Date(r[40]).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '')
       .filter(v => v).join('<br>');
 
     // 8) Flags kiểm tra dữ liệu
