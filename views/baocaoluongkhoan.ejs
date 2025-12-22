@@ -708,9 +708,9 @@
                             <td><%= item.stt %></td>
                             <td><%= item.maNhanVien %></td>
                             <td><%= item.hoTen %></td>
-                            <td class="amount"><%= item.thanhTienGiaoVan %></td>
-                            <td class="amount"><%= item.thanhTienLapDat %></td>
-                            <td class="amount"><%= item.tongThanhTien %></td>
+                            <td class="amount"><%= formatNumber(item.thanhTienGiaoVan) %></td>
+                            <td class="amount"><%= formatNumber(item.thanhTienLapDat) %></td>
+                            <td class="amount"><%= formatNumber(item.tongThanhTien) %></td>
                             <td class="amount">
                                 <input type="text" 
                                        class="calculation-input" 
@@ -738,9 +738,9 @@
                         <!-- Dòng tổng -->
                         <tr class="totals-row">
                             <td colspan="3"><strong>TỔNG CỘNG</strong></td>
-                            <td class="amount"><strong><%= totalGiaoVan %></strong></td>
-                            <td class="amount"><strong><%= totalLapDat %></strong></td>
-                            <td class="amount"><strong><%= totalTongTien %></strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalGiaoVan) %></strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalLapDat) %></strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalTongTien) %></strong></td>
                             <td class="amount">
                                 <input type="text" 
                                        class="calculation-input" 
