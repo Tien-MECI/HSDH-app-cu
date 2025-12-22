@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Báo Cáo Lương Khoán</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -212,32 +213,58 @@
             font-weight: 600;
         }
         
+        /* Phân trang mới */
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             margin-top: 20px;
+            padding: 15px;
+            flex-wrap: wrap;
         }
         
-        .page-link {
-            padding: 8px 15px;
-            background: white;
+        .pagination button {
+            min-width: 36px;
+            height: 36px;
             border: 1px solid #e0e6ed;
             border-radius: 4px;
-            text-decoration: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             color: #3498db;
             transition: all 0.3s;
         }
         
-        .page-link:hover {
+        .pagination button:hover:not(:disabled) {
             background: #f8f9fa;
+            border-color: #3498db;
         }
         
-        .page-link.active {
+        .pagination button.active {
             background: #3498db;
             color: white;
             border-color: #3498db;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination-info {
+            margin-left: 15px;
+            color: #7f8c8d;
+            font-size: 14px;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .pagination i {
+            font-size: 12px;
         }
         
         .btn-group {
@@ -315,6 +342,21 @@
             
             .export-options {
                 flex-direction: column;
+            }
+            
+            .pagination {
+                gap: 5px;
+            }
+            
+            .pagination button {
+                min-width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+            
+            .pagination-info {
+                margin-left: 10px;
+                font-size: 12px;
             }
         }
     </style>
@@ -412,19 +454,40 @@
                         <% if (totalPages > 1) { %>
                         <div class="pagination">
                             <% if (currentPage > 1) { %>
-                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= currentPage - 1 %>" class="page-link">← Trước</a>
+                                <button onclick="goToPage(1)" title="Trang đầu">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </button>
+                                <button onclick="goToPage(<%= currentPage - 1 %>)" title="Trang trước">
+                                    <i class="fas fa-angle-left"></i>
+                                </button>
                             <% } %>
                             
-                            <% for (let i = 1; i <= totalPages; i++) { %>
-                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= i %>" 
-                                   class="page-link <%= i === currentPage ? 'active' : '' %>">
+                            <% 
+                                let startPage = Math.max(1, currentPage - 2);
+                                let endPage = Math.min(totalPages, currentPage + 2);
+                                
+                                for (let i = startPage; i <= endPage; i++) { 
+                            %>
+                                <button 
+                                    onclick="goToPage(<%= i %>)"
+                                    class="<%= i === currentPage ? 'active' : '' %>"
+                                >
                                     <%= i %>
-                                </a>
+                                </button>
                             <% } %>
                             
                             <% if (currentPage < totalPages) { %>
-                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= currentPage + 1 %>" class="page-link">Sau →</a>
+                                <button onclick="goToPage(<%= currentPage + 1 %>)" title="Trang sau">
+                                    <i class="fas fa-angle-right"></i>
+                                </button>
+                                <button onclick="goToPage(<%= totalPages %>)" title="Trang cuối">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </button>
                             <% } %>
+                            
+                            <span class="pagination-info">
+                                Trang <%= currentPage %> / <%= totalPages %>
+                            </span>
                         </div>
                         <% } %>
                     <% } else { %>
@@ -533,7 +596,7 @@
                                     <td class="amount">
                                         <input type="text" 
                                                class="amount" 
-                                               value="<%= formatNumber(item.thanhTien) %>"
+                                               value="<%= item.thanhTien %>"
                                                readonly
                                                style="border: none; background: transparent; text-align: right;">
                                     </td>
@@ -585,6 +648,15 @@
                 
                 // Tự động submit form khi chọn tháng/năm
                 document.getElementById('reportForm').submit();
+            }
+        }
+        
+        // Hàm chuyển trang
+        function goToPage(page) {
+            const monthYear = '<%= monthYear || "" %>';
+            if (monthYear) {
+                // Thêm tham số page vào URL và chuyển hướng
+                window.location.href = `/baoluongkhoan?monthYear=${monthYear}&page=${page}`;
             }
         }
         
