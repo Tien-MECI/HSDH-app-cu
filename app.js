@@ -6096,32 +6096,72 @@ app.get("/baoluongkhoan", async (req, res) => {
         }));
 
         // Xử lý bảng 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
-        const table5Data = sheet3Data
-            .filter(row => row[1] && row[1].trim() !== '') // Lọc hàng có mã nhân viên
-            .map((row, index) => {
-                const thanhTienGiaoVan = parseFloat(row[5] || 0); // F
-                const thanhTienLapDat = parseFloat(row[6] || 0); // G
-                const tongThanhTien = parseFloat(row[7] || 0); // H
-                
-                return {
-                    stt: index + 1,
-                    maNhanVien: row[1] || '', // B
-                    hoTen: row[2] || '', // C
-                    thanhTienGiaoVan,
-                    thanhTienLapDat,
-                    tongThanhTien,
-                    tamUng: 0,
-                    thucLinh: tongThanhTien,
-                    stk: row[8] || '', // I
-                    nganHang: row[9] || '', // J
-                    chuTaiKhoan: row[10] || '' // K
-                };
-            });
+        // Xử lý bảng 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
+const parseNumberFromSheet = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    
+    // Nếu đã là số, trả về
+    if (typeof value === 'number') return value;
+    
+    // Nếu là chuỗi, xử lý
+    const str = String(value).trim();
+    
+    // Loại bỏ tất cả dấu chấm, dấu phẩy và khoảng trắng
+    let cleaned = str.replace(/\./g, '') // Loại bỏ dấu chấm phân cách nghìn
+                     .replace(/,/g, '.') // Thay dấu phẩy thành dấu chấm (nếu có phần thập phân)
+                     .replace(/\s/g, ''); // Loại bỏ khoảng trắng
+    
+    // Parse thành số
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+};
+
+const table5Data = sheet3Data
+    .filter(row => {
+        // Kiểm tra xem có mã nhân viên và không phải hàng trống
+        return row[1] && row[1].toString().trim() !== '';
+    })
+    .map((row, index) => {
+        // Parse các giá trị số
+        const thanhTienGiaoVan = parseNumberFromSheet(row[5]); // F
+        const thanhTienLapDat = parseNumberFromSheet(row[6]); // G
+        const tongThanhTien = parseNumberFromSheet(row[7]); // H
+        
+        console.log(`Row ${index + 1}:`, {
+            maNV: row[1],
+            hoTen: row[2],
+            giaoVanRaw: row[5],
+            giaoVanParsed: thanhTienGiaoVan,
+            lapDatRaw: row[6],
+            lapDatParsed: thanhTienLapDat,
+            tongRaw: row[7],
+            tongParsed: tongThanhTien
+        });
+        
+        return {
+            stt: index + 1,
+            maNhanVien: row[1] ? row[1].toString().trim() : '',
+            hoTen: row[2] ? row[2].toString().trim() : '',
+            thanhTienGiaoVan: thanhTienGiaoVan,
+            thanhTienLapDat: thanhTienLapDat,
+            tongThanhTien: tongThanhTien,
+            tamUng: 0,
+            thucLinh: tongThanhTien, // Ban đầu bằng tổng thành tiền
+            stk: row[8] ? row[8].toString().trim() : '',
+            nganHang: row[9] ? row[9].toString().trim() : '',
+            chuTaiKhoan: row[10] ? row[10].toString().trim() : ''
+        };
+    })
+    .filter(item => item.tongThanhTien > 0 || item.thanhTienGiaoVan > 0 || item.thanhTienLapDat > 0); // Lọc những dòng có giá trị
 
         // Format số với dấu phẩy phân cách hàng nghìn
-        const formatNumber = (num) => {
-            return new Intl.NumberFormat('vi-VN').format(num);
-        };
+        // Format số với dấu phẩy phân cách hàng nghìn
+const formatNumber = (num) => {
+    if (num === null || num === undefined) return '0';
+    const number = parseFloat(num);
+    if (isNaN(number)) return '0';
+    return new Intl.NumberFormat('vi-VN').format(number);
+};
 
         // Nếu yêu cầu xuất Excel
         if (exportExcel === 'true') {
@@ -6429,26 +6469,32 @@ app.get("/baoluongkhoan", async (req, res) => {
         }
 
         // Render template với dữ liệu
-        res.render("baocaoluongkhoan", {
-            monthYear,
-            data: {
-                table1: paginatedTable1Data,
-                table2: table2Data,
-                table3: table3Data,
-                table4: table4Data,
-                table5: table5Data
-            },
-            currentPage,
-            totalPages,
-            table1Data: paginatedTable1Data,
-            table2Data,
-            table3Data,
-            table4Data,
-            table5Data,
-            totalRecords,
-            totalAmount,
-            formatNumber
-        });
+       // Render template với dữ liệu
+res.render("baocaoluongkhoan", {
+    monthYear,
+    data: {
+        table1: paginatedTable1Data,
+        table2: table2Data,
+        table3: table3Data,
+        table4: table4Data,
+        table5: table5Data
+    },
+    currentPage,
+    totalPages,
+    table1Data: paginatedTable1Data,
+    table2Data,
+    table3Data,
+    table4Data,
+    table5Data,
+    totalRecords,
+    totalAmount,
+    formatNumber: (num) => {
+        if (num === null || num === undefined) return '0';
+        const number = parseFloat(num);
+        if (isNaN(number)) return '0';
+        return new Intl.NumberFormat('vi-VN').format(number);
+    }
+});
 
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu báo cáo:', error);

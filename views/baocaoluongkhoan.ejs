@@ -783,166 +783,319 @@
     </div>
     
     <script>
-        // Cập nhật giá trị tháng/năm từ input type="month" sang định dạng MM/YYYY
-        function updateMonthYear(input) {
+    // ==================== KHỞI TẠO & TIỆN ÍCH ====================
+    
+    // Hàm format số trong JavaScript (VN format)
+    function formatNumberJS(num) {
+        if (num === null || num === undefined || isNaN(num)) return '0';
+        return new Intl.NumberFormat('vi-VN').format(num);
+    }
+    
+    // Parse số từ chuỗi (hỗ trợ cả VN và EN format)
+    function parseNumber(str) {
+        if (!str) return 0;
+        // Thay thế tất cả dấu chấm phân cách nghìn
+        let cleaned = str.toString().replace(/\./g, '');
+        // Thay dấu phẩy thập phân thành dấu chấm
+        cleaned = cleaned.replace(/,/g, '.');
+        // Loại bỏ khoảng trắng và ký tự không phải số
+        cleaned = cleaned.replace(/[^\d.-]/g, '');
+        
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? 0 : num;
+    }
+    
+    // ==================== FORM XỬ LÝ ====================
+    
+    // Cập nhật giá trị tháng/năm từ input type="month" sang định dạng MM/YYYY
+    function updateMonthYear(input) {
+        if (input.value) {
+            const [year, month] = input.value.split('-');
+            document.getElementById('monthYear').value = `${month}/${year}`;
+            document.getElementById('reportForm').submit();
+        }
+    }
+    
+    // ==================== PHÂN TRANG ====================
+    
+    // Hàm chuyển trang
+    function goToPage(page) {
+        const monthYear = '<%= monthYear || "" %>';
+        if (monthYear) {
+            window.location.href = `/baoluongkhoan?monthYear=${monthYear}&page=${page}`;
+        }
+    }
+    
+    // ==================== XỬ LÝ SỐ TIỀN ====================
+    
+    // Định dạng số khi nhập (xóa định dạng)
+    function formatNumberInput(input) {
+        // Lưu vị trí con trỏ
+        const cursorPos = input.selectionStart;
+        const value = input.value;
+        
+        // Xóa tất cả dấu chấm, giữ lại dấu phẩy nếu có
+        let newValue = value.replace(/\./g, '');
+        
+        // Nếu có dấu phẩy, thay thế bằng dấu chấm tạm thời
+        newValue = newValue.replace(/,/g, '.');
+        
+        input.value = newValue;
+        
+        // Khôi phục vị trí con trỏ
+        const newCursorPos = cursorPos - (value.length - newValue.length);
+        input.setSelectionRange(newCursorPos, newCursorPos);
+    }
+    
+    // Định dạng số khi hiển thị (thêm định dạng VN)
+    function formatNumberDisplay(input) {
+        const value = input.value;
+        const num = parseNumber(value);
+        
+        if (!isNaN(num)) {
+            // Lưu vị trí con trỏ
+            const cursorPos = input.selectionStart;
+            const originalValue = input.value;
+            
+            // Format số
+            input.value = formatNumberJS(num);
+            
+            // Tính toán vị trí con trỏ mới
+            const formattedValue = input.value;
+            let newCursorPos = cursorPos;
+            
+            // Điều chỉnh con trỏ dựa trên số ký tự được thêm/bớt
+            const diff = formattedValue.length - originalValue.length;
+            if (diff !== 0) {
+                // Đơn giản: đặt con trỏ ở cuối
+                newCursorPos = formattedValue.length;
+            }
+            
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            
+            // Kích hoạt tính toán lại nếu có data-index
+            const index = input.getAttribute('data-index');
+            if (index) {
+                setTimeout(() => calculateThucLinh(input, index), 10);
+            }
+        } else {
+            input.value = '0';
+        }
+    }
+    
+    // ==================== BẢNG 3: GHI CHÚ ====================
+    
+    // Cập nhật ghi chú cho bảng 3
+    function updateNote(index, value) {
+        console.log('Cập nhật ghi chú cho nhân sự', index, ':', value);
+        // Có thể thêm AJAX để lưu vào database
+    }
+    
+    // ==================== BẢNG 4: ĐƠN LẮP ĐẶT ====================
+    
+    // Cập nhật ghi chú cho bảng 4
+    function updateInstallationNote(index, value) {
+        console.log('Cập nhật ghi chú đơn lắp đặt', index, ':', value);
+    }
+    
+    // Cập nhật thực chi cho bảng 4
+    function updateActualAmount(index, value) {
+        console.log('Cập nhật thực chi đơn', index, ':', value);
+        // Format lại giá trị
+        const num = parseNumber(value);
+        if (!isNaN(num)) {
+            const input = event.target;
+            input.value = formatNumberJS(num);
+        }
+    }
+    
+    // ==================== BẢNG 5: LƯƠNG KHOÁN ====================
+    
+    // Tính thực lĩnh khi thay đổi tạm ứng
+    function calculateThucLinh(input, index) {
+        // Lấy giá trị tạm ứng
+        const tamUng = parseNumber(input.value);
+        
+        // Lấy tổng thành tiền từ data attribute
+        const tongThanhTien = parseFloat(input.getAttribute('data-tongtien') || 0);
+        
+        // Tính thực lĩnh
+        const thucLinh = tongThanhTien - tamUng;
+        
+        // Cập nhật ô thực lĩnh
+        const thucLinhInput = document.getElementById(`thucLinh_${index}`);
+        if (thucLinhInput) {
+            thucLinhInput.value = formatNumberJS(thucLinh);
+        }
+        
+        // Cập nhật tổng
+        updateTotals();
+    }
+    
+    // Cập nhật tổng tạm ứng và thực lĩnh
+    function updateTotals() {
+        let totalTamUng = 0;
+        let totalThucLinh = 0;
+        
+        // Tính tổng tạm ứng
+        document.querySelectorAll('.calculation-input[data-tongtien]').forEach(input => {
+            totalTamUng += parseNumber(input.value);
+        });
+        
+        // Tính tổng thực lĩnh
+        document.querySelectorAll('.calculation-input[id^="thucLinh_"]').forEach(input => {
+            totalThucLinh += parseNumber(input.value);
+        });
+        
+        // Cập nhật DOM
+        const totalTamUngInput = document.getElementById('totalTamUng');
+        const totalThucLinhInput = document.getElementById('totalThucLinh');
+        
+        if (totalTamUngInput) {
+            totalTamUngInput.value = formatNumberJS(totalTamUng);
+        }
+        
+        if (totalThucLinhInput) {
+            totalThucLinhInput.value = formatNumberJS(totalThucLinh);
+        }
+    }
+    
+    // Xử lý phím tắt trong ô nhập số
+    function handleNumberKeydown(event, input) {
+        // Cho phép: số, backspace, delete, tab, arrow keys, Enter, .
+        const allowedKeys = [
+            'Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 
+            'ArrowUp', 'ArrowDown', 'Enter', '.', ','
+        ];
+        
+        if (allowedKeys.includes(event.key)) return true;
+        if (/^\d$/.test(event.key)) return true;
+        
+        event.preventDefault();
+        return false;
+    }
+    
+    // ==================== KHỞI TẠO TRANG ====================
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Xử lý input tháng/năm
+        const monthYear = '<%= monthYear || "" %>';
+        const monthYearInput = document.getElementById('monthYearInput');
+        
+        if (monthYear && monthYearInput) {
+            const [month, year] = monthYear.split('/');
+            monthYearInput.value = `${year}-${month.padStart(2, '0')}`;
+        } else {
+            const now = new Date();
+            const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
+            const currentYear = now.getFullYear();
+            monthYearInput.value = `${currentYear}-${currentMonth}`;
+        }
+        
+        // 2. Định dạng các ô số đọc-only
+        document.querySelectorAll('.amount input[type="text"][readonly]').forEach(input => {
             if (input.value) {
-                // Chuyển từ YYYY-MM sang MM/YYYY
-                const [year, month] = input.value.split('-');
-                document.getElementById('monthYear').value = `${month}/${year}`;
-                
-                // Tự động submit form khi chọn tháng/năm
-                document.getElementById('reportForm').submit();
+                const num = parseNumber(input.value);
+                if (!isNaN(num)) {
+                    input.value = formatNumberJS(num);
+                }
             }
-        }
+        });
         
-        // Hàm chuyển trang
-        function goToPage(page) {
-            const monthYear = '<%= monthYear || "" %>';
-            if (monthYear) {
-                // Thêm tham số page vào URL và chuyển hướng
-                window.location.href = `/baoluongkhoan?monthYear=${monthYear}&page=${page}`;
-            }
-        }
-        
-        // Khi trang load, đặt giá trị cho input month từ tham số URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const monthYear = '<%= monthYear || "" %>';
-            const monthYearInput = document.getElementById('monthYearInput');
-            
-            if (monthYear && monthYearInput) {
-                // Chuyển từ MM/YYYY sang YYYY-MM
-                const [month, year] = monthYear.split('/');
-                monthYearInput.value = `${year}-${month.padStart(2, '0')}`;
-            } else {
-                // Mặc định chọn tháng hiện tại
-                const now = new Date();
-                const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
-                const currentYear = now.getFullYear();
-                monthYearInput.value = `${currentYear}-${currentMonth}`;
+        // 3. Định dạng các ô số trong bảng 5
+        document.querySelectorAll('.calculation-input').forEach(input => {
+            if (input.value) {
+                const num = parseNumber(input.value);
+                if (!isNaN(num)) {
+                    input.value = formatNumberJS(num);
+                }
             }
             
-            // Định dạng các input số
-            document.querySelectorAll('.amount input[type="text"]').forEach(input => {
-                if (input.value && input.readOnly) {
-                    const num = parseFloat(input.value.replace(/,/g, ''));
-                    if (!isNaN(num)) {
-                        input.value = new Intl.NumberFormat('vi-VN').format(num);
-                    }
+            // Thêm xử lý phím
+            input.addEventListener('keydown', (e) => handleNumberKeydown(e, input));
+            
+            // Auto-calc khi rời khỏi ô
+            input.addEventListener('blur', function() {
+                formatNumberDisplay(this);
+            });
+            
+            // Auto-calc khi nhấn Enter
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    formatNumberDisplay(this);
+                    this.blur();
                 }
             });
         });
         
-        // Cập nhật ghi chú cho bảng 3
-        function updateNote(index, value) {
-            console.log('Cập nhật ghi chú cho nhân sự', index, ':', value);
-            // Ở đây bạn có thể thêm AJAX để lưu vào database nếu cần
-        }
+        // 4. Tính toán tổng ban đầu cho bảng 5
+        setTimeout(() => updateTotals(), 100);
         
-        // Cập nhật ghi chú cho bảng 4
-        function updateInstallationNote(index, value) {
-            console.log('Cập nhật ghi chú đơn lắp đặt', index, ':', value);
-        }
+        // 5. Debug helper (tùy chọn)
+        window.debugData = function() {
+            console.log('=== DEBUG DỮ LIỆU BẢNG 5 ===');
+            document.querySelectorAll('.calculation-input[data-tongtien]').forEach((input, idx) => {
+                console.log(`Dòng ${idx + 1}:`, {
+                    tongThanhTien: input.getAttribute('data-tongtien'),
+                    tamUng: input.value,
+                    tamUngParsed: parseNumber(input.value)
+                });
+            });
+        };
+    });
+    
+    // ==================== XUẤT EXCEL ====================
+    
+    // Xuất Excel với dữ liệu đã nhập
+    function exportExcelWithData() {
+        // Thu thập dữ liệu từ các ô input có thể chỉnh sửa
+        const dataToExport = {
+            table3Notes: [],
+            table4Data: [],
+            table5Data: []
+        };
         
-        // Cập nhật thực chi cho bảng 4
-        function updateActualAmount(index, value) {
-            console.log('Cập nhật thực chi đơn', index, ':', value);
-        }
-        
-        // Định dạng số khi nhập
-        function formatNumberInput(input) {
-            input.value = input.value.replace(/,/g, '');
-        }
-        
-        // Định dạng số khi hiển thị
-        function formatNumberDisplay(input) {
-            const value = input.value.replace(/,/g, '');
-            const num = parseFloat(value);
-            if (!isNaN(num)) {
-                input.value = new Intl.NumberFormat('vi-VN').format(num);
+        // Lấy ghi chú bảng 3
+        document.querySelectorAll('input.editable[onchange*="updateNote"]').forEach(input => {
+            const match = input.getAttribute('onchange').match(/updateNote\((\d+),/);
+            if (match) {
+                dataToExport.table3Notes.push({
+                    index: parseInt(match[1]),
+                    value: input.value
+                });
             }
-        }
-
-        // Tính thực lĩnh khi thay đổi tạm ứng
-function calculateThucLinh(input, index) {
-    // Lấy giá trị tạm ứng (đã bỏ dấu phẩy)
-    const tamUngValue = input.value.replace(/,/g, '');
-    const tamUng = parseFloat(tamUngValue) || 0;
-    
-    // Lấy tổng thành tiền từ data attribute
-    const tongThanhTien = parseFloat(input.getAttribute('data-tongtien') || 0);
-    
-    // Tính thực lĩnh
-    const thucLinh = tongThanhTien - tamUng;
-    
-    // Cập nhật ô thực lĩnh
-    const thucLinhInput = document.getElementById(`thucLinh_${index}`);
-    if (thucLinhInput) {
-        thucLinhInput.value = new Intl.NumberFormat('vi-VN').format(thucLinh);
-    }
-    
-    // Cập nhật tổng tạm ứng và thực lĩnh
-    updateTotals();
-}
-
-// Cập nhật tổng tạm ứng và thực lĩnh
-function updateTotals() {
-    let totalTamUng = 0;
-    let totalThucLinh = 0;
-    
-    // Tính tổng tạm ứng từ tất cả các input tạm ứng
-    document.querySelectorAll('.calculation-input[data-tongtien]').forEach(input => {
-        const value = input.value.replace(/,/g, '');
-        totalTamUng += parseFloat(value) || 0;
-    });
-    
-    // Tính tổng thực lĩnh từ tất cả các input thực lĩnh
-    document.querySelectorAll('.calculation-input[id^="thucLinh_"]').forEach(input => {
-        const value = input.value.replace(/,/g, '');
-        totalThucLinh += parseFloat(value) || 0;
-    });
-    
-    // Cập nhật tổng
-    const totalTamUngInput = document.getElementById('totalTamUng');
-    const totalThucLinhInput = document.getElementById('totalThucLinh');
-    
-    if (totalTamUngInput) {
-        totalTamUngInput.value = new Intl.NumberFormat('vi-VN').format(totalTamUng);
-    }
-    
-    if (totalThucLinhInput) {
-        totalThucLinhInput.value = new Intl.NumberFormat('vi-VN').format(totalThucLinh);
-    }
-}
-
-// Định dạng số khi nhập (xóa dấu phẩy)
-function formatNumberInput(input) {
-    const value = input.value.replace(/,/g, '');
-    input.value = value;
-}
-
-// Định dạng số khi hiển thị (thêm dấu phẩy)
-function formatNumberDisplay(input) {
-    const value = input.value.replace(/,/g, '');
-    const num = parseFloat(value);
-    if (!isNaN(num)) {
-        input.value = new Intl.NumberFormat('vi-VN').format(num);
-        // Kích hoạt tính toán lại thực lĩnh
-        const index = input.getAttribute('data-index');
-        if (index) {
-            calculateThucLinh(input, index);
+        });
+        
+        // Lấy thực chi và ghi chú bảng 4
+        document.querySelectorAll('input[onchange*="updateActualAmount"], input[onchange*="updateInstallationNote"]').forEach(input => {
+            const onchange = input.getAttribute('onchange');
+            const match = onchange.match(/update(?:ActualAmount|InstallationNote)\((\d+),/);
+            if (match) {
+                const type = onchange.includes('ActualAmount') ? 'thucChi' : 'ghiChu';
+                dataToExport.table4Data.push({
+                    index: parseInt(match[1]),
+                    type: type,
+                    value: input.value
+                });
+            }
+        });
+        
+        // Lấy tạm ứng bảng 5
+        document.querySelectorAll('.calculation-input[data-tongtien]').forEach((input, idx) => {
+            dataToExport.table5Data.push({
+                index: idx + 1,
+                tamUng: parseNumber(input.value)
+            });
+        });
+        
+        console.log('Dữ liệu xuất Excel:', dataToExport);
+        
+        // Chuyển hướng đến URL xuất Excel
+        const monthYear = '<%= monthYear || "" %>';
+        if (monthYear) {
+            window.location.href = `/baoluongkhoan?monthYear=${monthYear}&exportExcel=true`;
         }
     }
-}
-
-// Xuất Excel tổng hợp
-function exportExcelWithData() {
-    // Thu thập dữ liệu từ các ô input
-    const monthYear = '<%= monthYear || "" %>';
-    if (monthYear) {
-        // Tạo URL với tham số
-        window.location.href = `/baoluongkhoan?monthYear=${monthYear}&exportExcel=true`;
-    }
-}
-    </script>
+</script>
 </body>
 </html>
