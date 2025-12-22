@@ -359,6 +359,48 @@
                 font-size: 12px;
             }
         }
+        /* Thêm vào phần CSS đã có */
+.table-scroll-wrapper {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #e0e6ed;
+    border-radius: 0 0 8px 8px;
+}
+
+.totals-row {
+    background-color: #e8f4fd !important;
+    font-weight: bold;
+}
+
+.totals-row td {
+    border-top: 2px solid #3498db;
+}
+
+.calculation-input {
+    width: 100%;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fffde7;
+}
+
+.calculation-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
     </style>
 </head>
 <body>
@@ -635,6 +677,109 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Bảng 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ -->
+<div class="section">
+    <h2 class="section-title">TỔNG LƯƠNG KHOÁN DỊCH VỤ</h2>
+    
+    <div class="table-container">
+        <div class="table-scroll-wrapper">
+            <% if (table5Data.length > 0) { %>
+                <table>
+                    <thead class="sticky-header">
+                        <tr>
+                            <th>STT</th>
+                            <th>Mã nhân viên</th>
+                            <th>Họ tên</th>
+                            <th>Thành tiền khoán giao vận</th>
+                            <th>Thành tiền khoán lắp đặt</th>
+                            <th>Tổng thành tiền</th>
+                            <th>Tạm ứng</th>
+                            <th>Thực lĩnh</th>
+                            <th>STK ngân hàng</th>
+                            <th>Ngân hàng</th>
+                            <th>Chủ tài khoản</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            let totalGiaoVan = 0;
+                            let totalLapDat = 0;
+                            let totalTongTien = 0;
+                            let totalTamUng = 0;
+                            let totalThucLinh = 0;
+                            
+                            table5Data.forEach(item => {
+                                totalGiaoVan += item.thanhTienGiaoVan;
+                                totalLapDat += item.thanhTienLapDat;
+                                totalTongTien += item.tongThanhTien;
+                                totalThucLinh += item.thucLinh;
+                        %>
+                        <tr>
+                            <td><%= item.stt %></td>
+                            <td><%= item.maNhanVien %></td>
+                            <td><%= item.hoTen %></td>
+                            <td class="amount"><%= formatNumber(item.thanhTienGiaoVan) %></td>
+                            <td class="amount"><%= formatNumber(item.thanhTienLapDat) %></td>
+                            <td class="amount"><%= formatNumber(item.tongThanhTien) %></td>
+                            <td class="amount">
+                                <input type="text" 
+                                       class="calculation-input" 
+                                       value="<%= formatNumber(item.tamUng) %>"
+                                       data-tongtien="<%= item.tongThanhTien %>"
+                                       data-index="<%= item.stt %>"
+                                       oninput="calculateThucLinh(this, <%= item.stt %>)"
+                                       onfocus="formatNumberInput(this)"
+                                       onblur="formatNumberDisplay(this)">
+                            </td>
+                            <td class="amount">
+                                <input type="text" 
+                                       class="calculation-input" 
+                                       id="thucLinh_<%= item.stt %>"
+                                       value="<%= formatNumber(item.thucLinh) %>"
+                                       readonly
+                                       style="background-color: #f0f0f0;">
+                            </td>
+                            <td><%= item.stk %></td>
+                            <td><%= item.nganHang %></td>
+                            <td><%= item.chuTaiKhoan %></td>
+                        </tr>
+                        <% }) %>
+                        
+                        <!-- Dòng tổng -->
+                        <tr class="totals-row">
+                            <td colspan="3"><strong>TỔNG CỘNG</strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalGiaoVan) %></strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalLapDat) %></strong></td>
+                            <td class="amount"><strong><%= formatNumber(totalTongTien) %></strong></td>
+                            <td class="amount">
+                                <input type="text" 
+                                       class="calculation-input" 
+                                       id="totalTamUng"
+                                       value="<%= formatNumber(totalTamUng) %>"
+                                       readonly
+                                       style="background-color: #f0f0f0; font-weight: bold;">
+                            </td>
+                            <td class="amount">
+                                <input type="text" 
+                                       class="calculation-input" 
+                                       id="totalThucLinh"
+                                       value="<%= formatNumber(totalThucLinh) %>"
+                                       readonly
+                                       style="background-color: #f0f0f0; font-weight: bold;">
+                            </td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            <% } else { %>
+                <div class="no-data">
+                    Không có dữ liệu lương khoán dịch vụ
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
         <% } %>
     </div>
     
@@ -717,6 +862,88 @@
                 input.value = new Intl.NumberFormat('vi-VN').format(num);
             }
         }
+
+        // Tính thực lĩnh khi thay đổi tạm ứng
+function calculateThucLinh(input, index) {
+    // Lấy giá trị tạm ứng (đã bỏ dấu phẩy)
+    const tamUngValue = input.value.replace(/,/g, '');
+    const tamUng = parseFloat(tamUngValue) || 0;
+    
+    // Lấy tổng thành tiền từ data attribute
+    const tongThanhTien = parseFloat(input.getAttribute('data-tongtien') || 0);
+    
+    // Tính thực lĩnh
+    const thucLinh = tongThanhTien - tamUng;
+    
+    // Cập nhật ô thực lĩnh
+    const thucLinhInput = document.getElementById(`thucLinh_${index}`);
+    if (thucLinhInput) {
+        thucLinhInput.value = new Intl.NumberFormat('vi-VN').format(thucLinh);
+    }
+    
+    // Cập nhật tổng tạm ứng và thực lĩnh
+    updateTotals();
+}
+
+// Cập nhật tổng tạm ứng và thực lĩnh
+function updateTotals() {
+    let totalTamUng = 0;
+    let totalThucLinh = 0;
+    
+    // Tính tổng tạm ứng từ tất cả các input tạm ứng
+    document.querySelectorAll('.calculation-input[data-tongtien]').forEach(input => {
+        const value = input.value.replace(/,/g, '');
+        totalTamUng += parseFloat(value) || 0;
+    });
+    
+    // Tính tổng thực lĩnh từ tất cả các input thực lĩnh
+    document.querySelectorAll('.calculation-input[id^="thucLinh_"]').forEach(input => {
+        const value = input.value.replace(/,/g, '');
+        totalThucLinh += parseFloat(value) || 0;
+    });
+    
+    // Cập nhật tổng
+    const totalTamUngInput = document.getElementById('totalTamUng');
+    const totalThucLinhInput = document.getElementById('totalThucLinh');
+    
+    if (totalTamUngInput) {
+        totalTamUngInput.value = new Intl.NumberFormat('vi-VN').format(totalTamUng);
+    }
+    
+    if (totalThucLinhInput) {
+        totalThucLinhInput.value = new Intl.NumberFormat('vi-VN').format(totalThucLinh);
+    }
+}
+
+// Định dạng số khi nhập (xóa dấu phẩy)
+function formatNumberInput(input) {
+    const value = input.value.replace(/,/g, '');
+    input.value = value;
+}
+
+// Định dạng số khi hiển thị (thêm dấu phẩy)
+function formatNumberDisplay(input) {
+    const value = input.value.replace(/,/g, '');
+    const num = parseFloat(value);
+    if (!isNaN(num)) {
+        input.value = new Intl.NumberFormat('vi-VN').format(num);
+        // Kích hoạt tính toán lại thực lĩnh
+        const index = input.getAttribute('data-index');
+        if (index) {
+            calculateThucLinh(input, index);
+        }
+    }
+}
+
+// Xuất Excel tổng hợp
+function exportExcelWithData() {
+    // Thu thập dữ liệu từ các ô input
+    const monthYear = '<%= monthYear || "" %>';
+    if (monthYear) {
+        // Tạo URL với tham số
+        window.location.href = `/baoluongkhoan?monthYear=${monthYear}&exportExcel=true`;
+    }
+}
     </script>
 </body>
 </html>

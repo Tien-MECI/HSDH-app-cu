@@ -5923,6 +5923,7 @@ app.get("/baoluongkhoan", async (req, res) => {
                 table2Data: [],
                 table3Data: [],
                 table4Data: [],
+                table5Data: [],
                 totalRecords: 0,
                 totalAmount: 0
             });
@@ -5948,6 +5949,15 @@ app.get("/baoluongkhoan", async (req, res) => {
         });
         
         const sheet2Data = sheet2Response.data.values || [];
+
+        // Lấy dữ liệu từ sheet Bang_luong_khoan_theo_thang
+        const sheet3Range = 'Bang_luong_khoan_theo_thang!A2:Z';
+        const sheet3Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: sheet3Range,
+        });
+        
+        const sheet3Data = sheet3Response.data.values || [];
 
         // Hàm chuyển đổi chuỗi ngày tháng
         const parseDate = (dateString) => {
@@ -6084,6 +6094,29 @@ app.get("/baoluongkhoan", async (req, res) => {
             stt: index + 1,
             ...item
         }));
+
+        // Xử lý bảng 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
+        const table5Data = sheet3Data
+            .filter(row => row[1] && row[1].trim() !== '') // Lọc hàng có mã nhân viên
+            .map((row, index) => {
+                const thanhTienGiaoVan = parseFloat(row[5] || 0); // F
+                const thanhTienLapDat = parseFloat(row[6] || 0); // G
+                const tongThanhTien = parseFloat(row[7] || 0); // H
+                
+                return {
+                    stt: index + 1,
+                    maNhanVien: row[1] || '', // B
+                    hoTen: row[2] || '', // C
+                    thanhTienGiaoVan,
+                    thanhTienLapDat,
+                    tongThanhTien,
+                    tamUng: 0,
+                    thucLinh: tongThanhTien,
+                    stk: row[8] || '', // I
+                    nganHang: row[9] || '', // J
+                    chuTaiKhoan: row[10] || '' // K
+                };
+            });
 
         // Format số với dấu phẩy phân cách hàng nghìn
         const formatNumber = (num) => {
@@ -6307,6 +6340,80 @@ app.get("/baoluongkhoan", async (req, res) => {
                 }
             }
             
+            // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
+            const sheet5 = workbook.addWorksheet('Tong_luong_khoan_theo_nhan_su');
+            
+            sheet5.mergeCells('A1:K1');
+            sheet5.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN DỊCH VỤ';
+            sheet5.getCell('A1').font = { bold: true, size: 16 };
+            sheet5.getCell('A1').alignment = { horizontal: 'center' };
+            
+            sheet5.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            const headers5 = [
+                'STT', 
+                'Mã nhân viên', 
+                'Họ tên', 
+                'Thành tiền khoán giao vận', 
+                'Thành tiền khoán lắp đặt',
+                'Tổng thành tiền',
+                'Tạm ứng',
+                'Thực lĩnh',
+                'STK ngân hàng',
+                'Ngân hàng',
+                'Chủ tài khoản'
+            ];
+            sheet5.addRow(headers5);
+            
+            const headerRow5 = sheet5.getRow(4);
+            headerRow5.font = { bold: true };
+            headerRow5.alignment = { horizontal: 'center' };
+            
+            table5Data.forEach(item => {
+                sheet5.addRow([
+                    item.stt,
+                    item.maNhanVien,
+                    item.hoTen,
+                    formatNumber(item.thanhTienGiaoVan),
+                    formatNumber(item.thanhTienLapDat),
+                    formatNumber(item.tongThanhTien),
+                    formatNumber(item.tamUng),
+                    formatNumber(item.thucLinh),
+                    item.stk,
+                    item.nganHang,
+                    item.chuTaiKhoan
+                ]);
+            });
+            
+            sheet5.columns = [
+                { width: 8 },    // STT
+                { width: 15 },   // Mã NV
+                { width: 25 },   // Họ tên
+                { width: 20 },   // Khoán giao vận
+                { width: 20 },   // Khoán lắp đặt
+                { width: 15 },   // Tổng thành tiền
+                { width: 15 },   // Tạm ứng
+                { width: 15 },   // Thực lĩnh
+                { width: 20 },   // STK
+                { width: 15 },   // Ngân hàng
+                { width: 25 }    // Chủ tài khoản
+            ];
+            
+            for (let i = 4; i <= sheet5.rowCount; i++) {
+                for (let j = 1; j <= 11; j++) {
+                    const cell = sheet5.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j >= 4 && j <= 8) { // Cột tiền từ 4-8
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
             // Xuất file
             res.setHeader(
                 'Content-Type',
@@ -6328,7 +6435,8 @@ app.get("/baoluongkhoan", async (req, res) => {
                 table1: paginatedTable1Data,
                 table2: table2Data,
                 table3: table3Data,
-                table4: table4Data
+                table4: table4Data,
+                table5: table5Data
             },
             currentPage,
             totalPages,
@@ -6336,6 +6444,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             table2Data,
             table3Data,
             table4Data,
+            table5Data,
             totalRecords,
             totalAmount,
             formatNumber
