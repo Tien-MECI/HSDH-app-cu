@@ -5900,5 +5900,608 @@ app.post('/webhook-from-appsheet', async (req, res) => {
   }
 });
 
+
+///KHOÁN DỊCH VỤ
+
+import exceljs from 'exceljs';
+
+// Thêm route mới sau các route khác
+app.get("/baoluongkhoan", async (req, res) => {
+    try {
+        const { monthYear, page = 1, exportExcel } = req.query;
+        const currentPage = parseInt(page);
+        const perPage = 10;
+
+        if (!monthYear) {
+            // Nếu không có tháng/năm, chỉ render form
+            return res.render("baocaoluongkhoan", {
+                monthYear: "",
+                data: null,
+                currentPage: 1,
+                totalPages: 0,
+                table1Data: [],
+                table2Data: [],
+                table3Data: [],
+                table4Data: [],
+                totalRecords: 0,
+                totalAmount: 0
+            });
+        }
+
+        // Parse tháng/năm từ định dạng MM/YYYY
+        const [month, year] = monthYear.split('/').map(num => parseInt(num));
+
+        // Lấy dữ liệu từ sheet Danh_sach_don_tra_khoan_giao_van
+        const sheet1Range = 'Danh_sach_don_tra_khoan_giao_van!A2:Z';
+        const sheet1Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: sheet1Range,
+        });
+        
+        const sheet1Data = sheet1Response.data.values || [];
+        
+        // Lấy dữ liệu từ sheet TT_khoan_lap_dat
+        const sheet2Range = 'TT_khoan_lap_dat!A2:Z';
+        const sheet2Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: sheet2Range,
+        });
+        
+        const sheet2Data = sheet2Response.data.values || [];
+
+        // Hàm chuyển đổi chuỗi ngày tháng
+        const parseDate = (dateString) => {
+            if (!dateString) return null;
+            
+            // Thử parse từ dd/mm/yyyy
+            if (typeof dateString === 'string' && dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]);
+                    const year = parseInt(parts[2]);
+                    return new Date(year, month - 1, day);
+                }
+            }
+            
+            // Thử parse từ serial date của Google Sheets
+            if (typeof dateString === 'number') {
+                // Google Sheets date serial (days since Dec 30, 1899)
+                const date = new Date((dateString - 25569) * 86400 * 1000);
+                return isNaN(date.getTime()) ? null : date;
+            }
+            
+            // Thử parse từ Date object string
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? null : date;
+        };
+
+        // Lọc dữ liệu sheet1 theo tháng/năm
+        const filteredSheet1Data = sheet1Data.filter(row => {
+            if (!row[1]) return false; // Cột B (index 1)
+            
+            const date = parseDate(row[1]);
+            if (!date) return false;
+            
+            return date.getMonth() + 1 === month && date.getFullYear() === year;
+        });
+
+        // Lọc dữ liệu sheet2 theo tháng/năm
+        const filteredSheet2Data = sheet2Data.filter(row => {
+            if (!row[12]) return false; // Cột M (index 12)
+            
+            const date = parseDate(row[12]);
+            if (!date) return false;
+            
+            return date.getMonth() + 1 === month && date.getFullYear() === year;
+        });
+
+        // Xử lý bảng 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
+        const table1Data = filteredSheet1Data.map((row, index) => ({
+            stt: index + 1,
+            maDonHang: row[3] || '', // D
+            nhomSanPham: row[4] || '', // E
+            loaiDonHang: row[5] || '', // F
+            taiTrong: row[6] || '', // G
+            nhanSu: row[9] || '', // J
+            donGia: parseFloat(row[10] || 0), // K
+            thanhTien: parseFloat(row[11] || 0) // L
+        }));
+
+        // Tính tổng
+        const totalRecords = table1Data.length;
+        const totalAmount = table1Data.reduce((sum, item) => sum + item.thanhTien, 0);
+        
+        // Phân trang cho bảng 1
+        const startIndex = (currentPage - 1) * perPage;
+        const endIndex = startIndex + perPage;
+        const paginatedTable1Data = table1Data.slice(startIndex, endIndex);
+        const totalPages = Math.ceil(totalRecords / perPage);
+
+        // Xử lý bảng 2: TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ/LOẠI ĐƠN HÀNG
+        const groupMap = new Map();
+        
+        filteredSheet1Data.forEach(row => {
+            const nhanSu = row[9] || 'Không xác định';
+            const loaiDonHang = row[5] || 'Không xác định';
+            const thanhTien = parseFloat(row[11] || 0);
+            
+            const key = `${nhanSu}|${loaiDonHang}`;
+            
+            if (groupMap.has(key)) {
+                const existing = groupMap.get(key);
+                existing.thanhTien += thanhTien;
+            } else {
+                groupMap.set(key, {
+                    nhanSu,
+                    loaiDonHang,
+                    thanhTien
+                });
+            }
+        });
+        
+        const table2Data = Array.from(groupMap.values()).map((item, index) => ({
+            stt: index + 1,
+            ...item
+        }));
+
+        // Xử lý bảng 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN
+        const staffSummary = new Map();
+        
+        table2Data.forEach(item => {
+            if (staffSummary.has(item.nhanSu)) {
+                staffSummary.set(item.nhanSu, staffSummary.get(item.nhanSu) + item.thanhTien);
+            } else {
+                staffSummary.set(item.nhanSu, item.thanhTien);
+            }
+        });
+        
+        const table3Data = Array.from(staffSummary.entries()).map(([nhanSu, thanhTien], index) => ({
+            stt: index + 1,
+            nhanSu,
+            thanhTien,
+            ghiChu: ''
+        }));
+
+        // Xử lý bảng 4: Danh sách đơn hàng trả khoán lắp đặt
+        const orderMap = new Map();
+        
+        filteredSheet2Data.forEach(row => {
+            const maDonHang = row[3] || ''; // D
+            const thanhTien = parseFloat(row[9] || 0); // J
+            
+            if (maDonHang && !orderMap.has(maDonHang)) {
+                orderMap.set(maDonHang, {
+                    maDonHang,
+                    thanhTien,
+                    thucChi: thanhTien,
+                    ghiChu: ''
+                });
+            }
+        });
+        
+        const table4Data = Array.from(orderMap.values()).map((item, index) => ({
+            stt: index + 1,
+            ...item
+        }));
+
+        // Format số với dấu phẩy phân cách hàng nghìn
+        const formatNumber = (num) => {
+            return new Intl.NumberFormat('vi-VN').format(num);
+        };
+
+        // Nếu yêu cầu xuất Excel
+        if (exportExcel === 'true') {
+            const workbook = new exceljs.Workbook();
+            
+            // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
+            const sheet1 = workbook.addWorksheet('Danh sách đơn hàng trả khoán');
+            
+            // Tiêu đề sheet
+            sheet1.mergeCells('A1:H1');
+            sheet1.getCell('A1').value = 'DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN';
+            sheet1.getCell('A1').font = { bold: true, size: 16 };
+            sheet1.getCell('A1').alignment = { horizontal: 'center' };
+            
+            // Thông tin tháng/năm
+            sheet1.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            // Tổng số đơn và tổng thành tiền
+            sheet1.getCell('A3').value = `Tổng đơn giao vận: ${totalRecords}`;
+            sheet1.getCell('A4').value = `Tổng thành tiền: ${formatNumber(totalAmount)}`;
+            
+            // Header bảng
+            const headers1 = ['STT', 'Mã đơn hàng', 'Nhóm SP', 'Loại đơn hàng', 'Tải trọng/Kích thước', 'Nhân sự thực hiện', 'Đơn giá', 'Thành tiền'];
+            sheet1.addRow(headers1);
+            
+            // Style cho header
+            const headerRow1 = sheet1.getRow(6);
+            headerRow1.font = { bold: true };
+            headerRow1.alignment = { horizontal: 'center' };
+            
+            // Thêm dữ liệu
+            table1Data.forEach(item => {
+                sheet1.addRow([
+                    item.stt,
+                    item.maDonHang,
+                    item.nhomSanPham,
+                    item.loaiDonHang,
+                    item.taiTrong,
+                    item.nhanSu,
+                    formatNumber(item.donGia),
+                    formatNumber(item.thanhTien)
+                ]);
+            });
+            
+            // Định dạng cột
+            sheet1.columns = [
+                { width: 8 },  // STT
+                { width: 20 }, // Mã đơn
+                { width: 15 }, // Nhóm SP
+                { width: 20 }, // Loại đơn
+                { width: 20 }, // Tải trọng
+                { width: 20 }, // Nhân sự
+                { width: 15 }, // Đơn giá
+                { width: 15 }  // Thành tiền
+            ];
+            
+            // Thêm border cho toàn bộ bảng
+            for (let i = 6; i <= sheet1.rowCount; i++) {
+                for (let j = 1; j <= 8; j++) {
+                    const cell = sheet1.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j === 7 || j === 8) { // Cột đơn giá và thành tiền
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
+            // Sheet 2: TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ/LOẠI ĐƠN HÀNG
+            const sheet2 = workbook.addWorksheet('Tổng hợp khoán giao vận');
+            
+            sheet2.mergeCells('A1:D1');
+            sheet2.getCell('A1').value = 'TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ THỰC HIỆN/LOẠI ĐƠN HÀNG';
+            sheet2.getCell('A1').font = { bold: true, size: 16 };
+            sheet2.getCell('A1').alignment = { horizontal: 'center' };
+            
+            sheet2.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            const headers2 = ['STT', 'Nhân sự thực hiện', 'Loại đơn hàng', 'Thành tiền'];
+            sheet2.addRow(headers2);
+            
+            const headerRow2 = sheet2.getRow(4);
+            headerRow2.font = { bold: true };
+            headerRow2.alignment = { horizontal: 'center' };
+            
+            table2Data.forEach(item => {
+                sheet2.addRow([
+                    item.stt,
+                    item.nhanSu,
+                    item.loaiDonHang,
+                    formatNumber(item.thanhTien)
+                ]);
+            });
+            
+            sheet2.columns = [
+                { width: 8 },
+                { width: 25 },
+                { width: 20 },
+                { width: 15 }
+            ];
+            
+            for (let i = 4; i <= sheet2.rowCount; i++) {
+                for (let j = 1; j <= 4; j++) {
+                    const cell = sheet2.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j === 4) {
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
+            // Sheet 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN
+            const sheet3 = workbook.addWorksheet('Tổng hợp chi trả khoán');
+            
+            sheet3.mergeCells('A1:D1');
+            sheet3.getCell('A1').value = 'TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN';
+            sheet3.getCell('A1').font = { bold: true, size: 16 };
+            sheet3.getCell('A1').alignment = { horizontal: 'center' };
+            
+            sheet3.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            const headers3 = ['STT', 'Tên nhân sự', 'Thành tiền', 'Ghi chú'];
+            sheet3.addRow(headers3);
+            
+            const headerRow3 = sheet3.getRow(4);
+            headerRow3.font = { bold: true };
+            headerRow3.alignment = { horizontal: 'center' };
+            
+            table3Data.forEach(item => {
+                sheet3.addRow([
+                    item.stt,
+                    item.nhanSu,
+                    formatNumber(item.thanhTien),
+                    item.ghiChu
+                ]);
+            });
+            
+            sheet3.columns = [
+                { width: 8 },
+                { width: 25 },
+                { width: 15 },
+                { width: 30 }
+            ];
+            
+            for (let i = 4; i <= sheet3.rowCount; i++) {
+                for (let j = 1; j <= 4; j++) {
+                    const cell = sheet3.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j === 3) {
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
+            // Sheet 4: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT
+            const sheet4 = workbook.addWorksheet('Danh sách đơn khoán lắp đặt');
+            
+            sheet4.mergeCells('A1:E1');
+            sheet4.getCell('A1').value = 'DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT';
+            sheet4.getCell('A1').font = { bold: true, size: 16 };
+            sheet4.getCell('A1').alignment = { horizontal: 'center' };
+            
+            sheet4.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            const headers4 = ['STT', 'Mã đơn hàng', 'Thành tiền', 'Thực chi', 'Ghi chú'];
+            sheet4.addRow(headers4);
+            
+            const headerRow4 = sheet4.getRow(4);
+            headerRow4.font = { bold: true };
+            headerRow4.alignment = { horizontal: 'center' };
+            
+            table4Data.forEach(item => {
+                sheet4.addRow([
+                    item.stt,
+                    item.maDonHang,
+                    formatNumber(item.thanhTien),
+                    formatNumber(item.thucChi),
+                    item.ghiChu
+                ]);
+            });
+            
+            sheet4.columns = [
+                { width: 8 },
+                { width: 20 },
+                { width: 15 },
+                { width: 15 },
+                { width: 30 }
+            ];
+            
+            for (let i = 4; i <= sheet4.rowCount; i++) {
+                for (let j = 1; j <= 5; j++) {
+                    const cell = sheet4.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j === 3 || j === 4) {
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
+            // Xuất file
+            res.setHeader(
+                'Content-Type',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            );
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="Khoan_giao_van_${monthYear.replace('/', '_')}.xlsx"`
+            );
+            
+            await workbook.xlsx.write(res);
+            return res.end();
+        }
+
+        // Render template với dữ liệu
+        res.render("baocaoluongkhoan", {
+            monthYear,
+            data: {
+                table1: paginatedTable1Data,
+                table2: table2Data,
+                table3: table3Data,
+                table4: table4Data
+            },
+            currentPage,
+            totalPages,
+            table1Data: paginatedTable1Data,
+            table2Data,
+            table3Data,
+            table4Data,
+            totalRecords,
+            totalAmount,
+            formatNumber
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu báo cáo:', error);
+        res.status(500).render('error', { 
+            message: 'Đã xảy ra lỗi khi tải dữ liệu báo cáo',
+            error: process.env.NODE_ENV === 'development' ? error.message : null
+        });
+    }
+});
+/// XUẤT EXCEL CHO BẢNG LẮP ĐẶT
+app.get("/baoluongkhoan/export-installation", async (req, res) => {
+    try {
+        const { monthYear } = req.query;
+        
+        if (!monthYear) {
+            return res.status(400).send('Vui lòng chọn tháng/năm');
+        }
+
+        const [month, year] = monthYear.split('/').map(num => parseInt(num));
+
+        // Lấy dữ liệu từ sheet TT_khoan_lap_dat
+        const sheet2Range = 'TT_khoan_lap_dat!A2:Z';
+        const sheet2Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: sheet2Range,
+        });
+        
+        const sheet2Data = sheet2Response.data.values || [];
+
+        // Hàm parse date
+        const parseDate = (dateString) => {
+            if (!dateString) return null;
+            
+            if (typeof dateString === 'string' && dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0]);
+                    const month = parseInt(parts[1]);
+                    const year = parseInt(parts[2]);
+                    return new Date(year, month - 1, day);
+                }
+            }
+            
+            if (typeof dateString === 'number') {
+                const date = new Date((dateString - 25569) * 86400 * 1000);
+                return isNaN(date.getTime()) ? null : date;
+            }
+            
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? null : date;
+        };
+
+        // Lọc dữ liệu
+        const filteredSheet2Data = sheet2Data.filter(row => {
+            if (!row[12]) return false;
+            
+            const date = parseDate(row[12]);
+            if (!date) return false;
+            
+            return date.getMonth() + 1 === month && date.getFullYear() === year;
+        });
+
+        // Xử lý dữ liệu
+        const orderMap = new Map();
+        
+        filteredSheet2Data.forEach(row => {
+            const maDonHang = row[3] || '';
+            const thanhTien = parseFloat(row[9] || 0);
+            
+            if (maDonHang && !orderMap.has(maDonHang)) {
+                orderMap.set(maDonHang, {
+                    maDonHang,
+                    thanhTien,
+                    thucChi: thanhTien,
+                    ghiChu: ''
+                });
+            }
+        });
+        
+        const tableData = Array.from(orderMap.values()).map((item, index) => ({
+            stt: index + 1,
+            ...item
+        }));
+
+        // Tạo Excel
+        const workbook = new exceljs.Workbook();
+        const worksheet = workbook.addWorksheet('Danh sách đơn khoán lắp đặt');
+        
+        // Format số
+        const formatNumber = (num) => {
+            return new Intl.NumberFormat('vi-VN').format(num);
+        };
+
+        // Tiêu đề
+        worksheet.mergeCells('A1:E1');
+        worksheet.getCell('A1').value = 'DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT';
+        worksheet.getCell('A1').font = { bold: true, size: 16 };
+        worksheet.getCell('A1').alignment = { horizontal: 'center' };
+        
+        worksheet.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+
+        // Header
+        const headers = ['STT', 'Mã đơn hàng', 'Thành tiền', 'Thực chi', 'Ghi chú'];
+        worksheet.addRow(headers);
+        
+        const headerRow = worksheet.getRow(4);
+        headerRow.font = { bold: true };
+        headerRow.alignment = { horizontal: 'center' };
+
+        // Dữ liệu
+        tableData.forEach(item => {
+            worksheet.addRow([
+                item.stt,
+                item.maDonHang,
+                formatNumber(item.thanhTien),
+                formatNumber(item.thucChi),
+                item.ghiChu
+            ]);
+        });
+
+        // Định dạng cột
+        worksheet.columns = [
+            { width: 8 },
+            { width: 20 },
+            { width: 15 },
+            { width: 15 },
+            { width: 30 }
+        ];
+
+        // Thêm border
+        for (let i = 4; i <= worksheet.rowCount; i++) {
+            for (let j = 1; j <= 5; j++) {
+                const cell = worksheet.getCell(i, j);
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                if (j === 3 || j === 4) {
+                    cell.numFmt = '#,##0';
+                }
+            }
+        }
+
+        // Xuất file
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="Danh_sach_don_khoan_lap_dat_${monthYear.replace('/', '_')}.xlsx"`
+        );
+        
+        await workbook.xlsx.write(res);
+        return res.end();
+
+    } catch (error) {
+        console.error('Lỗi xuất Excel:', error);
+        res.status(500).send('Lỗi khi xuất file Excel');
+    }
+});
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));

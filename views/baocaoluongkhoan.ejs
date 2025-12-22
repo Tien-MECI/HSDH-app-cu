@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Lương Khoán</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e6ed;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .form-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e6ed;
+        }
+        
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #2c3e50;
+            min-width: 100px;
+        }
+        
+        input[type="month"] {
+            padding: 10px 15px;
+            border: 2px solid #dce1e8;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 200px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="month"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #219653;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .summary-info {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .summary-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            min-width: 200px;
+            flex: 1;
+        }
+        
+        .summary-item h3 {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .summary-item p {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid #e0e6ed;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        
+        th {
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 2px solid #e0e6ed;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e6ed;
+        }
+        
+        tr:hover {
+            background: #f8fafc;
+        }
+        
+        .amount {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .page-link {
+            padding: 8px 15px;
+            background: white;
+            border: 1px solid #e0e6ed;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #3498db;
+            transition: all 0.3s;
+        }
+        
+        .page-link:hover {
+            background: #f8f9fa;
+        }
+        
+        .page-link.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .editable {
+            background: #fffde7;
+        }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #95a5a6;
+            font-style: italic;
+        }
+        
+        .export-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .form-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            input[type="month"] {
+                width: 100%;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .summary-info {
+                flex-direction: column;
+            }
+            
+            .export-options {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BẢNG TỔNG HỢP ĐƠN HÀNG KHOÁN GIAO VẬN</h1>
+            <div class="subtitle">Hệ thống báo cáo và thống kê lương khoán</div>
+        </header>
+        
+        <div class="form-container">
+            <form method="GET" action="/baoluongkhoan" id="reportForm">
+                <div class="form-group">
+                    <label for="monthYear">Tháng/Năm:</label>
+                    <input type="month" 
+                           id="monthYear" 
+                           name="monthYear" 
+                           value="<%= monthYear || '' %>"
+                           required
+                           onchange="formatMonthYear(this)">
+                    <button type="submit" class="btn btn-primary">
+                        <span>📊 Lấy báo cáo</span>
+                    </button>
+                    <% if (monthYear) { %>
+                        <a href="/baoluongkhoan?monthYear=<%= monthYear %>&exportExcel=true" class="btn btn-success">
+                            <span>📥 Xuất Excel Tổng hợp</span>
+                        </a>
+                    <% } %>
+                </div>
+            </form>
+        </div>
+        
+        <% if (monthYear) { %>
+            <!-- Bảng 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span>DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN</span>
+                    <span>Tổng: <%= totalRecords %> đơn | <%= formatNumber(totalAmount) %> đ</span>
+                </h2>
+                
+                <div class="summary-info">
+                    <div class="summary-item">
+                        <h3>Tổng đơn giao vận</h3>
+                        <p><%= totalRecords %></p>
+                    </div>
+                    <div class="summary-item">
+                        <h3>Tổng thành tiền</h3>
+                        <p><%= formatNumber(totalAmount) %> đ</p>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <% if (table1Data.length > 0) { %>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Nhóm SP</th>
+                                    <th>Loại đơn hàng</th>
+                                    <th>Tải trọng/Kích thước</th>
+                                    <th>Nhân sự thực hiện</th>
+                                    <th>Đơn giá</th>
+                                    <th>Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table1Data.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.stt %></td>
+                                    <td><%= item.maDonHang %></td>
+                                    <td><%= item.nhomSanPham %></td>
+                                    <td><%= item.loaiDonHang %></td>
+                                    <td><%= item.taiTrong %></td>
+                                    <td><%= item.nhanSu %></td>
+                                    <td class="amount"><%= formatNumber(item.donGia) %></td>
+                                    <td class="amount"><%= formatNumber(item.thanhTien) %></td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                        
+                        <% if (totalPages > 1) { %>
+                        <div class="pagination">
+                            <% if (currentPage > 1) { %>
+                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= currentPage - 1 %>" class="page-link">← Trước</a>
+                            <% } %>
+                            
+                            <% for (let i = 1; i <= totalPages; i++) { %>
+                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= i %>" 
+                                   class="page-link <%= i === currentPage ? 'active' : '' %>">
+                                    <%= i %>
+                                </a>
+                            <% } %>
+                            
+                            <% if (currentPage < totalPages) { %>
+                                <a href="/baoluongkhoan?monthYear=<%= monthYear %>&page=<%= currentPage + 1 %>" class="page-link">Sau →</a>
+                            <% } %>
+                        </div>
+                        <% } %>
+                    <% } else { %>
+                        <div class="no-data">
+                            Không có dữ liệu đơn hàng nào cho tháng <%= monthYear %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            
+            <!-- Bảng 2: TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ/LOẠI ĐƠN HÀNG -->
+            <div class="section">
+                <h2 class="section-title">TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ THỰC HIỆN/LOẠI ĐƠN HÀNG</h2>
+                
+                <div class="table-container">
+                    <% if (table2Data.length > 0) { %>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Nhân sự thực hiện</th>
+                                    <th>Loại đơn hàng</th>
+                                    <th>Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table2Data.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.stt %></td>
+                                    <td><%= item.nhanSu %></td>
+                                    <td><%= item.loaiDonHang %></td>
+                                    <td class="amount"><%= formatNumber(item.thanhTien) %></td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    <% } else { %>
+                        <div class="no-data">
+                            Không có dữ liệu tổng hợp cho tháng <%= monthYear %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            
+            <!-- Bảng 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN -->
+            <div class="section">
+                <h2 class="section-title">TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN</h2>
+                
+                <div class="table-container">
+                    <% if (table3Data.length > 0) { %>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Tên nhân sự</th>
+                                    <th>Thành tiền</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table3Data.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.stt %></td>
+                                    <td><%= item.nhanSu %></td>
+                                    <td class="amount"><%= formatNumber(item.thanhTien) %></td>
+                                    <td>
+                                        <input type="text" 
+                                               class="editable" 
+                                               placeholder="Nhập ghi chú..."
+                                               value="<%= item.ghiChu %>"
+                                               onchange="updateNote(<%= item.stt %>, this.value)">
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    <% } else { %>
+                        <div class="no-data">
+                            Không có dữ liệu chi trả cho tháng <%= monthYear %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+            
+            <!-- Bảng 4: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT -->
+            <div class="section">
+                <h2 class="section-title">DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT</h2>
+                
+                <div class="table-container">
+                    <% if (table4Data.length > 0) { %>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Thành tiền</th>
+                                    <th>Thực chi</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table4Data.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.stt %></td>
+                                    <td><%= item.maDonHang %></td>
+                                    <td class="amount">
+                                        <input type="text" 
+                                               class="amount" 
+                                               value="<%= formatNumber(item.thanhTien) %>"
+                                               readonly
+                                               style="border: none; background: transparent; text-align: right;">
+                                    </td>
+                                    <td class="amount">
+                                        <input type="text" 
+                                               class="amount editable"
+                                               value="<%= formatNumber(item.thucChi) %>"
+                                               onchange="updateActualAmount(<%= item.stt %>, this.value)"
+                                               onfocus="formatNumberInput(this)"
+                                               onblur="formatNumberDisplay(this)">
+                                    </td>
+                                    <td>
+                                        <input type="text" 
+                                               class="editable" 
+                                               placeholder="Nhập ghi chú..."
+                                               value="<%= item.ghiChu %>"
+                                               onchange="updateInstallationNote(<%= item.stt %>, this.value)">
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    <% } else { %>
+                        <div class="no-data">
+                            Không có dữ liệu đơn khoán lắp đặt cho tháng <%= monthYear %>
+                        </div>
+                    <% } %>
+                </div>
+                
+                <div class="export-options">
+                    <a href="/baoluongkhoan?monthYear=<%= monthYear %>&exportExcel=true" class="btn btn-success">
+                        <span>📥 Xuất Excel Tổng hợp (4 bảng)</span>
+                    </a>
+                    <a href="/baoluongkhoan?monthYear=<%= monthYear %>&exportExcel=true&type=installation" class="btn btn-secondary">
+                        <span>📥 Xuất Excel Lắp đặt riêng</span>
+                    </a>
+                </div>
+            </div>
+        <% } %>
+    </div>
+    
+    <script>
+        // Định dạng input month thành MM/YYYY
+        function formatMonthYear(input) {
+            if (input.value) {
+                const [year, month] = input.value.split('-');
+                input.value = `${month}/${year}`;
+            }
+        }
+        
+        // Cập nhật ghi chú cho bảng 3
+        function updateNote(index, value) {
+            console.log('Cập nhật ghi chú cho nhân sự', index, ':', value);
+            // Ở đây bạn có thể thêm AJAX để lưu vào database nếu cần
+        }
+        
+        // Cập nhật ghi chú cho bảng 4
+        function updateInstallationNote(index, value) {
+            console.log('Cập nhật ghi chú đơn lắp đặt', index, ':', value);
+        }
+        
+        // Cập nhật thực chi cho bảng 4
+        function updateActualAmount(index, value) {
+            console.log('Cập nhật thực chi đơn', index, ':', value);
+        }
+        
+        // Định dạng số khi nhập
+        function formatNumberInput(input) {
+            input.value = input.value.replace(/,/g, '');
+        }
+        
+        // Định dạng số khi hiển thị
+        function formatNumberDisplay(input) {
+            const value = input.value.replace(/,/g, '');
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                input.value = new Intl.NumberFormat('vi-VN').format(num);
+            }
+        }
+        
+        // Tự động định dạng khi trang load
+        document.addEventListener('DOMContentLoaded', function() {
+            const monthInput = document.getElementById('monthYear');
+            if (monthInput && monthInput.value) {
+                formatMonthYear(monthInput);
+            }
+            
+            // Định dạng các input số
+            document.querySelectorAll('.amount input[type="text"]').forEach(input => {
+                if (input.value && input.readOnly) {
+                    const num = parseFloat(input.value.replace(/,/g, ''));
+                    if (!isNaN(num)) {
+                        input.value = new Intl.NumberFormat('vi-VN').format(num);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
