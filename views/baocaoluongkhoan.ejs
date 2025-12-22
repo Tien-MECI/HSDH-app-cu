@@ -67,6 +67,11 @@
             min-width: 100px;
         }
         
+        .month-input-container {
+            position: relative;
+            display: inline-block;
+        }
+        
         input[type="month"] {
             padding: 10px 15px;
             border: 2px solid #dce1e8;
@@ -273,6 +278,18 @@
             justify-content: center;
         }
         
+        .form-hint {
+            margin-top: 8px;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+        
+        .display-value {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 15px;
@@ -312,13 +329,16 @@
         <div class="form-container">
             <form method="GET" action="/baoluongkhoan" id="reportForm">
                 <div class="form-group">
-                    <label for="monthYear">Tháng/Năm:</label>
-                    <input type="month" 
+                    <label for="monthYearInput">Tháng/Năm:</label>
+                    <div class="month-input-container">
+                        <input type="month" 
+                               id="monthYearInput" 
+                               onchange="updateMonthYear(this)">
+                    </div>
+                    <input type="hidden" 
                            id="monthYear" 
                            name="monthYear" 
-                           value="<%= monthYear || '' %>"
-                           required
-                           onchange="formatMonthYear(this)">
+                           value="<%= monthYear || '' %>">
                     <button type="submit" class="btn btn-primary">
                         <span>📊 Lấy báo cáo</span>
                     </button>
@@ -328,6 +348,14 @@
                         </a>
                     <% } %>
                 </div>
+                <div class="form-hint">
+                    <small>Chọn tháng và năm từ dropdown</small>
+                </div>
+                <% if (monthYear) { %>
+                    <div class="display-value">
+                        Đang xem: <strong>Tháng <%= monthYear.split('/')[0] %> năm <%= monthYear.split('/')[1] %></strong>
+                    </div>
+                <% } %>
             </form>
         </div>
         
@@ -548,13 +576,45 @@
     </div>
     
     <script>
-        // Định dạng input month thành MM/YYYY
-        function formatMonthYear(input) {
+        // Cập nhật giá trị tháng/năm từ input type="month" sang định dạng MM/YYYY
+        function updateMonthYear(input) {
             if (input.value) {
+                // Chuyển từ YYYY-MM sang MM/YYYY
                 const [year, month] = input.value.split('-');
-                input.value = `${month}/${year}`;
+                document.getElementById('monthYear').value = `${month}/${year}`;
+                
+                // Tự động submit form khi chọn tháng/năm
+                document.getElementById('reportForm').submit();
             }
         }
+        
+        // Khi trang load, đặt giá trị cho input month từ tham số URL
+        document.addEventListener('DOMContentLoaded', function() {
+            const monthYear = '<%= monthYear || "" %>';
+            const monthYearInput = document.getElementById('monthYearInput');
+            
+            if (monthYear && monthYearInput) {
+                // Chuyển từ MM/YYYY sang YYYY-MM
+                const [month, year] = monthYear.split('/');
+                monthYearInput.value = `${year}-${month.padStart(2, '0')}`;
+            } else {
+                // Mặc định chọn tháng hiện tại
+                const now = new Date();
+                const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
+                const currentYear = now.getFullYear();
+                monthYearInput.value = `${currentYear}-${currentMonth}`;
+            }
+            
+            // Định dạng các input số
+            document.querySelectorAll('.amount input[type="text"]').forEach(input => {
+                if (input.value && input.readOnly) {
+                    const num = parseFloat(input.value.replace(/,/g, ''));
+                    if (!isNaN(num)) {
+                        input.value = new Intl.NumberFormat('vi-VN').format(num);
+                    }
+                }
+            });
+        });
         
         // Cập nhật ghi chú cho bảng 3
         function updateNote(index, value) {
@@ -585,24 +645,6 @@
                 input.value = new Intl.NumberFormat('vi-VN').format(num);
             }
         }
-        
-        // Tự động định dạng khi trang load
-        document.addEventListener('DOMContentLoaded', function() {
-            const monthInput = document.getElementById('monthYear');
-            if (monthInput && monthInput.value) {
-                formatMonthYear(monthInput);
-            }
-            
-            // Định dạng các input số
-            document.querySelectorAll('.amount input[type="text"]').forEach(input => {
-                if (input.value && input.readOnly) {
-                    const num = parseFloat(input.value.replace(/,/g, ''));
-                    if (!isNaN(num)) {
-                        input.value = new Intl.NumberFormat('vi-VN').format(num);
-                    }
-                }
-            });
-        });
     </script>
 </body>
 </html>
