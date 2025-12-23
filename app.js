@@ -39,7 +39,7 @@ app.set("views", "./views");
 app.use(express.static('public'));
 
 // Đăng ký helper functions cho EJS
-app.locals.formatNumber = function(num) {
+app.locals.formatNumber2 = function(num) {
     if (typeof num !== 'number') {
         num = parseFloat(num);
         if (isNaN(num)) return '0';
@@ -49,6 +49,12 @@ app.locals.formatNumber = function(num) {
         maximumFractionDigits: 0
     });
 };
+
+function formatNumber(num) {
+  if (!num) return "0";
+  num = Math.abs(num); // luôn lấy giá trị dương
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
 
 app.locals.formatDate = function(dateStr) {
     if (!dateStr) return '';
@@ -4239,14 +4245,6 @@ function numberToWords1(number) {
 }
 
 
-
-
-function formatNumber(num) {
-  if (!num) return "0";
-  num = Math.abs(num); // luôn lấy giá trị dương
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
-
 // Hàm chuyển định dạng ngày tháng năm
 function formatVietnameseDate(dateStr) {
       try {
@@ -6810,10 +6808,6 @@ function parseGoogleSheetDate(dateStr) {
     return null;
 }
 
-// Hàm định dạng số
-function formatNumber(num) {
-    return num.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
 
 // Hàm generate Table 1
 async function generateTable1(donHangData) {

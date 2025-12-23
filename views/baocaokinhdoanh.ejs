@@ -93,9 +93,9 @@
                                         <tr class="<%= row.isQuarter ? 'quarter-row' : '' %><%= row.isTotal ? 'total-row' : '' %>">
                                             <td><strong><%= row.label %></strong></td>
                                             <% row.years.forEach(yearData => { %>
-                                                <td class="number-cell"><%= formatNumber(yearData.nhua) %></td>
-                                                <td class="number-cell"><%= formatNumber(yearData.nhom) %></td>
-                                                <td class="number-cell"><strong><%= formatNumber(yearData.tong) %></strong></td>
+                                                <td class="number-cell"><%= formatNumber2(yearData.nhua) %></td>
+                                                <td class="number-cell"><%= formatNumber2(yearData.nhom) %></td>
+                                                <td class="number-cell"><strong><%= formatNumber2(yearData.tong) %></strong></td>
                                             <% }); %>
                                         </tr>
                                     <% }); %>
@@ -131,9 +131,9 @@
                                         <tr class="<%= row.isQuarter ? 'quarter-row' : '' %><%= row.isTotal ? 'total-row' : '' %>">
                                             <td><strong><%= row.label %></strong></td>
                                             <% row.employees.forEach(emp => { %>
-                                                <td class="number-cell"><%= formatNumber(emp.doanhSo) %></td>
+                                                <td class="number-cell"><%= formatNumber2(emp.doanhSo) %></td>
                                             <% }); %>
-                                            <td class="number-cell"><strong><%= formatNumber(row.tongQuy) %></strong></td>
+                                            <td class="number-cell"><strong><%= formatNumber2(row.tongQuy) %></strong></td>
                                         </tr>
                                     <% }); %>
                                 </tbody>
@@ -240,7 +240,7 @@
                                                 <td><%= item.nhomSanPham %></td>
                                                 <td><%= item.loaiDonHang %></td>
                                                 <td><%= item.nhomSanXuat %></td>
-                                                <td class="number-cell"><%= formatNumber(item.doanhSo) %></td>
+                                                <td class="number-cell"><%= formatNumber2(item.doanhSo) %></td>
                                                 <td><%= item.kinhDoanh %></td>
                                             </tr>
                                         <% }); %>
@@ -310,9 +310,9 @@
                                         <tr class="<%= row.isQuarter ? 'quarter-row' : '' %><%= row.isTotal ? 'total-row' : '' %>">
                                             <td><strong><%= row.label %></strong></td>
                                             <% row.products.forEach(product => { %>
-                                                <td class="number-cell"><%= formatNumber(product.doanhSo) %></td>
+                                                <td class="number-cell"><%= formatNumber2(product.doanhSo) %></td>
                                             <% }); %>
-                                            <td class="number-cell"><strong><%= formatNumber(row.tongThang) %></strong></td>
+                                            <td class="number-cell"><strong><%= formatNumber2(row.tongThang) %></strong></td>
                                         </tr>
                                     <% }); %>
                                 </tbody>
@@ -379,11 +379,11 @@
                                     <tr>
                                         <td><%= empData.employee %></td>
                                         <% table5.productGroups.forEach(group => { %>
-                                            <td class="number-cell"><%= formatNumber(empData.products[group]) %></td>
+                                            <td class="number-cell"><%= formatNumber2(empData.products[group]) %></td>
                                         <% }); %>
-                                        <td class="number-cell"><strong><%= formatNumber(empData.tongNhua) %></strong></td>
-                                        <td class="number-cell"><strong><%= formatNumber(empData.tongNhom) %></strong></td>
-                                        <td class="number-cell"><strong><%= formatNumber(empData.tong) %></strong></td>
+                                        <td class="number-cell"><strong><%= formatNumber2(empData.tongNhua) %></strong></td>
+                                        <td class="number-cell"><strong><%= formatNumber2(empData.tongNhom) %></strong></td>
+                                        <td class="number-cell"><strong><%= formatNumber2(empData.tong) %></strong></td>
                                     </tr>
                                 <% }); %>
                             </tbody>
@@ -477,7 +477,7 @@
                                                         <option value="lỗi giao vận">Lỗi giao vận</option>
                                                     </select>
                                                 </td>
-                                                <td class="number-cell"><%= formatNumber(item.giaTriHuy) %></td>
+                                                <td class="number-cell"><%= formatNumber2(item.giaTriHuy) %></td>
                                                 <td><%= item.lyDoHuy %></td>
                                                 <td><%= item.ngayThangHuy %></td>
                                                 <td>
@@ -505,7 +505,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Hàm định dạng số (client-side)
-        function formatNumber(num) {
+        function formatNumber2(num) {
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
         
