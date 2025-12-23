@@ -7462,8 +7462,8 @@ async function generateTable6(donHangData, month, year) {
 
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
-        const ngayStr = row[42]; // AP
-        const tinhTrang = row[35]; // AM
+        const ngayStr = row[41]; // AP
+        const tinhTrang = row[35]; // AJ
         const ngayHuyStr = row[47]; // AV
 
         if (tinhTrang !== "Hủy đơn") continue;
