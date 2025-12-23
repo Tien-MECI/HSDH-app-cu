@@ -28,6 +28,8 @@ app.use((req, res, next) => {
   next();
 });
 
+
+
 // --- QUAN TRỌNG: Thêm middleware để parse form data ---
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -35,6 +37,26 @@ app.use(express.json());
 app.set("view engine", "ejs");
 app.set("views", "./views");
 app.use(express.static('public'));
+
+// Đăng ký helper functions cho EJS
+app.locals.formatNumber = function(num) {
+    if (typeof num !== 'number') {
+        num = parseFloat(num);
+        if (isNaN(num)) return '0';
+    }
+    return num.toLocaleString('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+};
+
+app.locals.formatDate = function(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('vi-VN');
+};
+
 
 dotenv.config();
 
