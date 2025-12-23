@@ -7547,6 +7547,54 @@ async function generateExcelReport() {
         workbook.creator = 'Hệ thống báo cáo kinh doanh';
         workbook.created = new Date();
 
+        // ============ SHEET TỔNG HỢP (tạo đầu tiên) ============
+        const summarySheet = workbook.addWorksheet('Tổng hợp');
+        
+        summarySheet.mergeCells('A1:E1');
+        const summaryTitle = summarySheet.getCell('A1');
+        summaryTitle.value = 'TỔNG HỢP BÁO CÁO KINH DOANH';
+        summaryTitle.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+        summaryTitle.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        summaryTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Thông tin xuất báo cáo
+        summarySheet.getCell('A3').value = 'Thông tin báo cáo:';
+        summarySheet.getCell('A3').font = { bold: true };
+        
+        summarySheet.getCell('A4').value = 'Ngày xuất báo cáo:';
+        summarySheet.getCell('B4').value = new Date().toLocaleDateString('vi-VN');
+        
+        summarySheet.getCell('A5').value = 'Năm báo cáo:';
+        summarySheet.getCell('B5').value = currentYear;
+        
+        summarySheet.getCell('A7').value = 'Danh sách các báo cáo:';
+        summarySheet.getCell('A7').font = { bold: true };
+        
+        // Danh sách các sheet sẽ tạo (chuẩn bị trước)
+        const sheetNames = [
+            'Tổng hợp doanh số năm-mảng SP',
+            'Doanh số theo nhân viên',
+            'Báo cáo đơn chi tiết',
+            'Doanh số theo dòng SP',
+            'Doanh số SP theo nhân viên',
+            'Danh sách hủy đơn hàng'
+        ];
+        
+        let summaryRow = 8;
+        sheetNames.forEach((name, index) => {
+            summarySheet.getCell(`A${summaryRow}`).value = `${index + 1}. ${name}`;
+            summaryRow++;
+        });
+
+        // Auto fit summary
+        summarySheet.columns.forEach(column => {
+            column.width = 25;
+        });
+
         // ============ SHEET 1: TỔNG HỢP DOANH SỐ THEO NĂM/MẢNG SẢN PHẨM ============
         const sheet1 = workbook.addWorksheet('Tổng hợp doanh số năm-mảng SP');
         
@@ -7670,7 +7718,8 @@ async function generateExcelReport() {
         const sheet2 = workbook.addWorksheet('Doanh số theo nhân viên');
         
         // Tiêu đề
-        sheet2.mergeCells(`A1:${String.fromCharCode(65 + table2.employeeList.length + 1)}1`);
+        const lastCol2 = String.fromCharCode(65 + table2.employeeList.length);
+        sheet2.mergeCells(`A1:${lastCol2}1`);
         const title2 = sheet2.getCell('A1');
         title2.value = `BẢNG TỔNG HỢP DOANH SỐ THEO NHÂN VIÊN KINH DOANH NĂM ${currentYear}`;
         title2.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -7858,7 +7907,8 @@ async function generateExcelReport() {
         const sheet4 = workbook.addWorksheet('Doanh số theo dòng SP');
         
         // Tiêu đề
-        sheet4.mergeCells(`A1:${String.fromCharCode(65 + table4.productGroups.length + 1)}1`);
+        const lastCol4 = String.fromCharCode(65 + table4.productGroups.length);
+        sheet4.mergeCells(`A1:${lastCol4}1`);
         const title4 = sheet4.getCell('A1');
         title4.value = `BÁO CÁO DOANH SỐ THEO DÒNG SẢN PHẨM NĂM ${currentYear}`;
         title4.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -7947,7 +7997,8 @@ async function generateExcelReport() {
         const sheet5 = workbook.addWorksheet('Doanh số SP theo nhân viên');
         
         // Tiêu đề
-        sheet5.mergeCells(`A1:${String.fromCharCode(65 + table5.productGroups.length + 3)}1`);
+        const lastCol5 = String.fromCharCode(65 + table5.productGroups.length + 3);
+        sheet5.mergeCells(`A1:${lastCol5}1`);
         const title5 = sheet5.getCell('A1');
         title5.value = `BÁO CÁO DOANH SỐ MẢNG SẢN PHẨM/NHÂN VIÊN KINH DOANH NĂM ${currentYear}`;
         title5.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -8004,11 +8055,11 @@ async function generateExcelReport() {
                 
                 // Dữ liệu sản phẩm
                 table5.productGroups.forEach(group => {
-                    rowData.push(empData.products[group]);
+                    rowData.push(empData.products[group] || 0);
                 });
                 
                 // Tổng
-                rowData.push(empData.tongNhua, empData.tongNhom, empData.tong);
+                rowData.push(empData.tongNhua || 0, empData.tongNhom || 0, empData.tong || 0);
                 
                 empRow.values = rowData;
                 
@@ -8148,53 +8199,6 @@ async function generateExcelReport() {
             else if (index === 12) column.width = 25; // Ghi chú
             else column.width = 15;
         });
-
-        // Thêm tổng hợp cuối cùng
-        const summarySheet = workbook.addWorksheet('Tổng hợp');
-        
-        summarySheet.mergeCells('A1:E1');
-        const summaryTitle = summarySheet.getCell('A1');
-        summaryTitle.value = 'TỔNG HỢP BÁO CÁO KINH DOANH';
-        summaryTitle.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
-        summaryTitle.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '4472C4' }
-        };
-        summaryTitle.alignment = { horizontal: 'center', vertical: 'middle' };
-
-        // Thông tin xuất báo cáo
-        summarySheet.getCell('A3').value = 'Thông tin báo cáo:';
-        summarySheet.getCell('A3').font = { bold: true };
-        
-        summarySheet.getCell('A4').value = 'Ngày xuất báo cáo:';
-        summarySheet.getCell('B4').value = new Date().toLocaleDateString('vi-VN');
-        
-        summarySheet.getCell('A5').value = 'Năm báo cáo:';
-        summarySheet.getCell('B5').value = currentYear;
-        
-        summarySheet.getCell('A6').value = 'Tổng số sheet:';
-        summarySheet.getCell('B6').value = workbook.worksheets.length - 1;
-        
-        // Danh sách các sheet
-        summarySheet.getCell('A8').value = 'Danh sách các báo cáo:';
-        summarySheet.getCell('A8').font = { bold: true };
-        
-        let summaryRow = 9;
-        workbook.worksheets.forEach((ws, index) => {
-            if (ws.name !== 'Tổng hợp') {
-                summarySheet.getCell(`A${summaryRow}`).value = `${index}. ${ws.name}`;
-                summaryRow++;
-            }
-        });
-
-        // Auto fit summary
-        summarySheet.columns.forEach(column => {
-            column.width = 25;
-        });
-
-        // Đặt sheet tổng hợp lên đầu
-        workbook.moveWorksheet('Tổng hợp', 0);
 
         return workbook;
     } catch (error) {
