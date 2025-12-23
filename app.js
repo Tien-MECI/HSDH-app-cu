@@ -6853,7 +6853,7 @@ async function generateTable1(donHangData) {
     // Xử lý dữ liệu
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
-        const ngayStr = row[42]; // Cột AP (index 42)
+        const ngayStr = row[41]; // Cột AP (index 42)
         const doanhSo = parseFloat(row[69] || 0); // Cột BR (index 69)
         const nhomSP = row[26]; // Cột AA (index 26)
         const tinhTrang = row[38]; // Cột AM (index 38)
@@ -6910,7 +6910,7 @@ async function generateTable2(donHangData, currentYear) {
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
         const nguoiTao = row[2]; // Cột C
-        const ngayStr = row[42]; // AP
+        const ngayStr = row[41]; // AP
         const ngay = parseGoogleSheetDate(ngayStr);
         if (ngay && ngay.getFullYear() === currentYear && nguoiTao) {
             employees.add(nguoiTao);
@@ -6957,7 +6957,7 @@ async function generateTable2(donHangData, currentYear) {
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
         const nguoiTao = row[2];
-        const ngayStr = row[42];
+        const ngayStr = row[41];
         const doanhSo = parseFloat(row[69] || 0);
         const tinhTrang = row[38];
 
@@ -7011,7 +7011,7 @@ async function generateTable3(donHangData, options) {
 
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
-        const ngayStr = row[42];
+        const ngayStr = row[41];
         const tinhTrang = row[38];
         const doanhSo = parseFloat(row[69] || 0);
 
