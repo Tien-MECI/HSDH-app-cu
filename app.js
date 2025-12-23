@@ -7175,7 +7175,7 @@ async function generateTable4(pvcData, nkData, year) {
         const doanhSo = parseFloat(row[47] || 0); // AV (index 47)
         const nhomSP = row[5]; // F (index 5)
 
-        if (tinhTrang !== "đơn hàng đã chốt") continue;
+        if (tinhTrang !== "Đơn hàng") continue;
         if (isNaN(doanhSo) || doanhSo <= 0) continue;
 
         const ngay = parseGoogleSheetDate(ngayStr);
@@ -7375,7 +7375,7 @@ async function generateTable5(pvcData, nkData, month, year) {
         const nhomSP = row[5]; // F
         const nguoiTao = row[31]; // AF
 
-        if (tinhTrang !== "đơn hàng đã chốt") continue;
+        if (tinhTrang !== "Đơn hàng") continue;
         if (isNaN(doanhSo) || doanhSo <= 0) continue;
         if (!nguoiTao) continue;
 
@@ -7463,10 +7463,10 @@ async function generateTable6(donHangData, month, year) {
     for (let i = 1; i < donHangData.length; i++) {
         const row = donHangData[i];
         const ngayStr = row[42]; // AP
-        const tinhTrang = row[38]; // AM
+        const tinhTrang = row[35]; // AM
         const ngayHuyStr = row[47]; // AV
 
-        if (tinhTrang !== "Hủy đơn hàng") continue;
+        if (tinhTrang !== "Hủy đơn") continue;
 
         const ngay = parseGoogleSheetDate(ngayStr);
         const ngayHuy = parseGoogleSheetDate(ngayHuyStr);
