@@ -6658,5 +6658,1533 @@ app.get("/baoluongkhoan/export-installation", async (req, res) => {
         res.status(500).send('Lỗi khi xuất file Excel');
     }
 });
+
+
+////BÁO CÁO KINH DOANH
+// Thêm route mới sau các route khác trong app.js
+app.get("/baocaokinhdoanh", async (req, res) => {
+    try {
+        // Lấy dữ liệu từ các sheet
+        const [donHangRes, donHangPVCRes, donHangNKRes] = await Promise.all([
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang!A:BR",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_PVC_ct!A:AV",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_nk_ct!A:Z",
+            })
+        ]);
+
+        const donHangData = donHangRes.data.values || [];
+        const donHangPVCData = donHangPVCRes.data.values || [];
+        const donHangNKData = donHangNKRes.data.values || [];
+
+        // Xử lý các tham số filter
+        const currentYear = new Date().getFullYear();
+        const {
+            filterType = 'thang',
+            filterMonth = new Date().getMonth() + 1,
+            filterYear = currentYear,
+            filterDay,
+            page = 1,
+            productYear = currentYear,
+            employeeMonth = new Date().getMonth() + 1,
+            employeeYear = currentYear,
+            cancelMonth = new Date().getMonth() + 1,
+            cancelYear = currentYear
+        } = req.query;
+
+        // Bảng 1: Tổng hợp doanh số theo năm/mảng sản phẩm
+        const table1 = await generateTable1(donHangData);
+        
+        // Bảng 2: Tổng hợp doanh số theo nhân viên kinh doanh
+        const table2 = await generateTable2(donHangData, currentYear);
+        
+        // Bảng 3: Báo cáo doanh số theo đơn chi tiết
+        const table3Data = await generateTable3(donHangData, {
+            filterType,
+            filterMonth: parseInt(filterMonth),
+            filterYear: parseInt(filterYear),
+            filterDay: filterDay ? parseInt(filterDay) : null,
+            page: parseInt(page),
+            limit: 15
+        });
+        
+        // Bảng 4: Báo cáo doanh số theo dòng sản phẩm
+        const table4 = await generateTable4(donHangPVCData, donHangNKData, parseInt(productYear));
+        
+        // Bảng 5: Báo cáo doanh số mảng sản phẩm/nhân viên kinh doanh
+        const table5 = await generateTable5(donHangPVCData, donHangNKData, 
+            parseInt(employeeMonth), parseInt(employeeYear));
+        
+        // Bảng 6: Báo cáo danh sách hủy đơn hàng
+        const table6 = await generateTable6(donHangData, 
+            parseInt(cancelMonth), parseInt(cancelYear));
+
+        res.render("baocaokinhdoanh", {
+            table1,
+            table2,
+            table3: table3Data.data,
+            table3TotalPages: table3Data.totalPages,
+            table3CurrentPage: parseInt(page),
+            table4,
+            table5,
+            table6,
+            filterType,
+            filterMonth,
+            filterYear,
+            filterDay,
+            productYear,
+            employeeMonth,
+            employeeYear,
+            cancelMonth,
+            cancelYear,
+            currentYear
+        });
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy báo cáo kinh doanh:", error);
+        res.status(500).send("Lỗi server khi xử lý báo cáo");
+    }
+});
+
+// Route xuất Excel
+app.get("/export/baocaokinhdoanh", async (req, res) => {
+    try {
+        const workbook = await generateExcelReport();
+        
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=bao-cao-kinh-doanh-${new Date().toISOString().split('T')[0]}.xlsx`
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error("❌ Lỗi khi xuất Excel:", error);
+        res.status(500).send("Lỗi khi xuất file Excel");
+    }
+});
+
+// Hàm hỗ trợ chuyển đổi ngày
+function parseGoogleSheetDate(dateStr) {
+    if (!dateStr) return null;
+    // Chuyển đổi từ dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
+    const parts = dateStr.split(/[/ :]/);
+    if (parts.length >= 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        return new Date(year, month, day);
+    }
+    return null;
+}
+
+// Hàm định dạng số
+function formatNumber(num) {
+    return num.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// Hàm generate Table 1
+async function generateTable1(donHangData) {
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear - 2, currentYear - 1, currentYear];
+    
+    const months = [
+        { label: "Tháng 1", month: 1, isMonth: true },
+        { label: "Tháng 2", month: 2, isMonth: true },
+        { label: "Tháng 3", month: 3, isMonth: true },
+        { label: "Quý 1", quarter: 1, isQuarter: true },
+        { label: "Tháng 4", month: 4, isMonth: true },
+        { label: "Tháng 5", month: 5, isMonth: true },
+        { label: "Tháng 6", month: 6, isMonth: true },
+        { label: "Quý 2", quarter: 2, isQuarter: true },
+        { label: "Tháng 7", month: 7, isMonth: true },
+        { label: "Tháng 8", month: 8, isMonth: true },
+        { label: "Tháng 9", month: 9, isMonth: true },
+        { label: "Quý 3", quarter: 3, isQuarter: true },
+        { label: "Tháng 10", month: 10, isMonth: true },
+        { label: "Tháng 11", month: 11, isMonth: true },
+        { label: "Tháng 12", month: 12, isMonth: true },
+        { label: "Quý 4", quarter: 4, isQuarter: true },
+        { label: "Tổng năm", isTotal: true }
+    ];
+
+    // Khởi tạo kết quả
+    const result = months.map(month => ({
+        label: month.label,
+        isMonth: month.isMonth || false,
+        isQuarter: month.isQuarter || false,
+        isTotal: month.isTotal || false,
+        month: month.month,
+        quarter: month.quarter,
+        years: years.map(year => ({
+            year,
+            nhua: 0,
+            nhom: 0,
+            tong: 0
+        }))
+    }));
+
+    // Xử lý dữ liệu
+    for (let i = 1; i < donHangData.length; i++) {
+        const row = donHangData[i];
+        const ngayStr = row[42]; // Cột AP (index 42)
+        const doanhSo = parseFloat(row[69] || 0); // Cột BR (index 69)
+        const nhomSP = row[26]; // Cột AA (index 26)
+        const tinhTrang = row[38]; // Cột AM (index 38)
+
+        if (tinhTrang !== "Đơn hàng") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay) continue;
+
+        const year = ngay.getFullYear();
+        const month = ngay.getMonth() + 1;
+        const quarter = Math.ceil(month / 3);
+
+        const yearIndex = years.indexOf(year);
+        if (yearIndex === -1) continue;
+
+        // Phân loại nhóm sản phẩm
+        const isNhom = (nhomSP === "NK" || nhomSP === "PKNK");
+        const isNhua = !isNhom;
+
+        // Cập nhật theo tháng
+        const monthIndex = result.findIndex(r => r.month === month && r.isMonth);
+        if (monthIndex !== -1) {
+            if (isNhua) result[monthIndex].years[yearIndex].nhua += doanhSo;
+            if (isNhom) result[monthIndex].years[yearIndex].nhom += doanhSo;
+            result[monthIndex].years[yearIndex].tong += doanhSo;
+        }
+
+        // Cập nhật theo quý
+        const quarterIndex = result.findIndex(r => r.quarter === quarter && r.isQuarter);
+        if (quarterIndex !== -1) {
+            if (isNhua) result[quarterIndex].years[yearIndex].nhua += doanhSo;
+            if (isNhom) result[quarterIndex].years[yearIndex].nhom += doanhSo;
+            result[quarterIndex].years[yearIndex].tong += doanhSo;
+        }
+
+        // Cập nhật tổng năm
+        const totalIndex = result.findIndex(r => r.isTotal);
+        if (totalIndex !== -1) {
+            if (isNhua) result[totalIndex].years[yearIndex].nhua += doanhSo;
+            if (isNhom) result[totalIndex].years[yearIndex].nhom += doanhSo;
+            result[totalIndex].years[yearIndex].tong += doanhSo;
+        }
+    }
+
+    return result;
+}
+
+// Hàm generate Table 2
+async function generateTable2(donHangData, currentYear) {
+    // Lấy danh sách nhân viên
+    const employees = new Set();
+    for (let i = 1; i < donHangData.length; i++) {
+        const row = donHangData[i];
+        const nguoiTao = row[2]; // Cột C
+        const ngayStr = row[42]; // AP
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (ngay && ngay.getFullYear() === currentYear && nguoiTao) {
+            employees.add(nguoiTao);
+        }
+    }
+    const employeeList = Array.from(employees).sort();
+
+    const months = [
+        { label: "Tháng 1", month: 1, isMonth: true },
+        { label: "Tháng 2", month: 2, isMonth: true },
+        { label: "Tháng 3", month: 3, isMonth: true },
+        { label: "Quý 1", quarter: 1, isQuarter: true },
+        { label: "Tháng 4", month: 4, isMonth: true },
+        { label: "Tháng 5", month: 5, isMonth: true },
+        { label: "Tháng 6", month: 6, isMonth: true },
+        { label: "Quý 2", quarter: 2, isQuarter: true },
+        { label: "Tháng 7", month: 7, isMonth: true },
+        { label: "Tháng 8", month: 8, isMonth: true },
+        { label: "Tháng 9", month: 9, isMonth: true },
+        { label: "Quý 3", quarter: 3, isQuarter: true },
+        { label: "Tháng 10", month: 10, isMonth: true },
+        { label: "Tháng 11", month: 11, isMonth: true },
+        { label: "Tháng 12", month: 12, isMonth: true },
+        { label: "Quý 4", quarter: 4, isQuarter: true },
+        { label: "Tổng năm", isTotal: true }
+    ];
+
+    // Khởi tạo kết quả
+    const result = months.map(month => ({
+        label: month.label,
+        isMonth: month.isMonth || false,
+        isQuarter: month.isQuarter || false,
+        isTotal: month.isTotal || false,
+        month: month.month,
+        quarter: month.quarter,
+        employees: employeeList.map(emp => ({
+            name: emp,
+            doanhSo: 0
+        })),
+        tongQuy: 0
+    }));
+
+    // Xử lý dữ liệu
+    for (let i = 1; i < donHangData.length; i++) {
+        const row = donHangData[i];
+        const nguoiTao = row[2];
+        const ngayStr = row[42];
+        const doanhSo = parseFloat(row[69] || 0);
+        const tinhTrang = row[38];
+
+        if (tinhTrang !== "Đơn hàng") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+        if (!nguoiTao) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay || ngay.getFullYear() !== currentYear) continue;
+
+        const month = ngay.getMonth() + 1;
+        const quarter = Math.ceil(month / 3);
+        const empIndex = employeeList.indexOf(nguoiTao);
+
+        if (empIndex === -1) continue;
+
+        // Cập nhật theo tháng
+        const monthIndex = result.findIndex(r => r.month === month && r.isMonth);
+        if (monthIndex !== -1) {
+            result[monthIndex].employees[empIndex].doanhSo += doanhSo;
+            result[monthIndex].tongQuy += doanhSo;
+        }
+
+        // Cập nhật theo quý
+        const quarterIndex = result.findIndex(r => r.quarter === quarter && r.isQuarter);
+        if (quarterIndex !== -1) {
+            result[quarterIndex].employees[empIndex].doanhSo += doanhSo;
+            result[quarterIndex].tongQuy += doanhSo;
+        }
+
+        // Cập nhật tổng năm
+        const totalIndex = result.findIndex(r => r.isTotal);
+        if (totalIndex !== -1) {
+            result[totalIndex].employees[empIndex].doanhSo += doanhSo;
+            result[totalIndex].tongQuy += doanhSo;
+        }
+    }
+
+    return {
+        employeeList,
+        data: result
+    };
+}
+
+// Hàm generate Table 3
+async function generateTable3(donHangData, options) {
+    const { filterType, filterMonth, filterYear, filterDay, page, limit } = options;
+    const startIndex = (page - 1) * limit;
+    
+    let filteredData = [];
+
+    for (let i = 1; i < donHangData.length; i++) {
+        const row = donHangData[i];
+        const ngayStr = row[42];
+        const tinhTrang = row[38];
+        const doanhSo = parseFloat(row[69] || 0);
+
+        if (tinhTrang !== "Đơn hàng") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay) continue;
+
+        // Lọc theo điều kiện
+        let match = false;
+        switch (filterType) {
+            case 'ngay':
+                if (ngay.getDate() === filterDay && 
+                    ngay.getMonth() + 1 === filterMonth && 
+                    ngay.getFullYear() === filterYear) {
+                    match = true;
+                }
+                break;
+            case 'thang':
+                if (ngay.getMonth() + 1 === filterMonth && 
+                    ngay.getFullYear() === filterYear) {
+                    match = true;
+                }
+                break;
+            case 'nam':
+                if (ngay.getFullYear() === filterYear) {
+                    match = true;
+                }
+                break;
+        }
+
+        if (match) {
+            filteredData.push({
+                stt: 0,
+                ngayDuyet: `${ngay.getDate().toString().padStart(2, '0')}/${(ngay.getMonth() + 1).toString().padStart(2, '0')}/${ngay.getFullYear()}`,
+                maDonHang: row[6] || '', // G
+                loaiKhach: row[8] || '', // I
+                khachHangID: row[7] || '', // H
+                tenKhachHang: row[9] || '', // J
+                diaChi: row[11] || '', // L
+                tinh: row[12] || '', // M
+                nguoiLienHe: row[17] || '', // R
+                soDienThoai: row[18] || '', // S
+                nhomSanPham: row[26] || '', // AA
+                loaiDonHang: row[28] || '', // AC
+                nhomSanXuat: row[27] || '', // AB
+                doanhSo: doanhSo,
+                kinhDoanh: row[2] || '' // C
+            });
+        }
+    }
+
+    // Sắp xếp theo ngày (mới nhất trước)
+    filteredData.sort((a, b) => {
+        const dateA = parseGoogleSheetDate(a.ngayDuyet);
+        const dateB = parseGoogleSheetDate(b.ngayDuyet);
+        return dateB - dateA;
+    });
+
+    // Phân trang
+    const total = filteredData.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginatedData = filteredData.slice(startIndex, startIndex + limit);
+
+    // Cập nhật STT
+    paginatedData.forEach((item, index) => {
+        item.stt = startIndex + index + 1;
+    });
+
+    return {
+        data: paginatedData,
+        total,
+        totalPages,
+        currentPage: page
+    };
+}
+
+// Hàm generate Table 4
+async function generateTable4(pvcData, nkData, year) {
+    const productGroups = [
+        "PVC tiêu chuẩn",
+        "PVC khổ lớn", 
+        "PVC ESD",
+        "Vật tư phụ PVC",
+        "HDOOR",
+        "Quạt - Đèn",
+        "BẠT PVC",
+        "Silicon",
+        "VREMTD - VREMTO",
+        "Vật tư phụ",
+        "Khác",
+        "Nhân công",
+        "Vận chuyển",
+        "Mảng nhôm kính"
+    ];
+
+    const pvcMapping = {
+        "PVCTCGC": "PVC tiêu chuẩn",
+        "PVCTCTM": "PVC tiêu chuẩn",
+        "PVCKLGC": "PVC khổ lớn",
+        "PVCKLTM": "PVC khổ lớn",
+        "PVCCTĐ (ESD)": "PVC ESD",
+        "Vật tư phụ PVC": "Vật tư phụ PVC",
+        "HDOOR": "HDOOR",
+        "PKHDOOR": "HDOOR",
+        "Quạt": "Quạt - Đèn",
+        "Đèn": "Quạt - Đèn",
+        "PKDEN": "Quạt - Đèn",
+        "PKQUAT": "Quạt - Đèn",
+        "BPVCKL": "BẠT PVC",
+        "SLCGC": "Silicon",
+        "VREMTD": "VREMTD - VREMTO",
+        "VREMTO": "VREMTD - VREMTO",
+        "Vật tư phụ": "Vật tư phụ",
+        "KHAC": "Khác",
+        "Nhân công": "Nhân công",
+        "Vận chuyển": "Vận chuyển"
+    };
+
+    const months = [
+        { label: "Tháng 1", month: 1, isMonth: true },
+        { label: "Tháng 2", month: 2, isMonth: true },
+        { label: "Tháng 3", month: 3, isMonth: true },
+        { label: "Quý 1", quarter: 1, isQuarter: true },
+        { label: "Tháng 4", month: 4, isMonth: true },
+        { label: "Tháng 5", month: 5, isMonth: true },
+        { label: "Tháng 6", month: 6, isMonth: true },
+        { label: "Quý 2", quarter: 2, isQuarter: true },
+        { label: "Tháng 7", month: 7, isMonth: true },
+        { label: "Tháng 8", month: 8, isMonth: true },
+        { label: "Tháng 9", month: 9, isMonth: true },
+        { label: "Quý 3", quarter: 3, isQuarter: true },
+        { label: "Tháng 10", month: 10, isMonth: true },
+        { label: "Tháng 11", month: 11, isMonth: true },
+        { label: "Tháng 12", month: 12, isMonth: true },
+        { label: "Quý 4", quarter: 4, isQuarter: true },
+        { label: "Tổng năm", isTotal: true }
+    ];
+
+    // Khởi tạo kết quả
+    const result = months.map(month => ({
+        label: month.label,
+        isMonth: month.isMonth || false,
+        isQuarter: month.isQuarter || false,
+        isTotal: month.isTotal || false,
+        month: month.month,
+        quarter: month.quarter,
+        products: productGroups.map(group => ({
+            name: group,
+            doanhSo: 0
+        })),
+        tongThang: 0
+    }));
+
+    // Xử lý dữ liệu PVC
+    for (let i = 1; i < pvcData.length; i++) {
+        const row = pvcData[i];
+        const ngayStr = row[32]; // AG (index 32)
+        const tinhTrang = row[33]; // AH (index 33)
+        const doanhSo = parseFloat(row[47] || 0); // AV (index 47)
+        const nhomSP = row[5]; // F (index 5)
+
+        if (tinhTrang !== "đơn hàng đã chốt") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay || ngay.getFullYear() !== year) continue;
+
+        const month = ngay.getMonth() + 1;
+        const quarter = Math.ceil(month / 3);
+        const productName = pvcMapping[nhomSP] || "Khác";
+        const productIndex = productGroups.indexOf(productName);
+
+        if (productIndex === -1) continue;
+
+        // Cập nhật theo tháng
+        const monthIndex = result.findIndex(r => r.month === month && r.isMonth);
+        if (monthIndex !== -1) {
+            result[monthIndex].products[productIndex].doanhSo += doanhSo;
+            result[monthIndex].tongThang += doanhSo;
+        }
+
+        // Cập nhật theo quý
+        const quarterIndex = result.findIndex(r => r.quarter === quarter && r.isQuarter);
+        if (quarterIndex !== -1) {
+            result[quarterIndex].products[productIndex].doanhSo += doanhSo;
+            result[quarterIndex].tongThang += doanhSo;
+        }
+
+        // Cập nhật tổng năm
+        const totalIndex = result.findIndex(r => r.isTotal);
+        if (totalIndex !== -1) {
+            result[totalIndex].products[productIndex].doanhSo += doanhSo;
+            result[totalIndex].tongThang += doanhSo;
+        }
+    }
+
+    // Xử lý dữ liệu Nhôm kính
+    for (let i = 1; i < nkData.length; i++) {
+        const row = nkData[i];
+        const ngayStr = row[24]; // Y (index 24)
+        const tinhTrang = row[25]; // Z (index 25)
+        const doanhSo = parseFloat(row[19] || 0); // T (index 19)
+
+        if (tinhTrang !== "Đơn hàng") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay || ngay.getFullYear() !== year) continue;
+
+        const month = ngay.getMonth() + 1;
+        const quarter = Math.ceil(month / 3);
+        const productIndex = productGroups.indexOf("Mảng nhôm kính");
+
+        // Cập nhật theo tháng
+        const monthIndex = result.findIndex(r => r.month === month && r.isMonth);
+        if (monthIndex !== -1) {
+            result[monthIndex].products[productIndex].doanhSo += doanhSo;
+            result[monthIndex].tongThang += doanhSo;
+        }
+
+        // Cập nhật theo quý
+        const quarterIndex = result.findIndex(r => r.quarter === quarter && r.isQuarter);
+        if (quarterIndex !== -1) {
+            result[quarterIndex].products[productIndex].doanhSo += doanhSo;
+            result[quarterIndex].tongThang += doanhSo;
+        }
+
+        // Cập nhật tổng năm
+        const totalIndex = result.findIndex(r => r.isTotal);
+        if (totalIndex !== -1) {
+            result[totalIndex].products[productIndex].doanhSo += doanhSo;
+            result[totalIndex].tongThang += doanhSo;
+        }
+    }
+
+    return {
+        productGroups,
+        data: result,
+        year
+    };
+}
+
+// Hàm generate Table 5
+// Hàm generate Table 5: Báo cáo doanh số mảng sản phẩm/nhân viên kinh doanh
+async function generateTable5(pvcData, nkData, month, year) {
+    const productGroups = [
+        "PVC tiêu chuẩn",
+        "PVC khổ lớn", 
+        "PVC ESD",
+        "Vật tư phụ PVC",
+        "HDOOR",
+        "Quạt - Đèn",
+        "BẠT PVC",
+        "Silicon",
+        "VREMTD - VREMTO",
+        "Vật tư phụ",
+        "Khác",
+        "Nhân công",
+        "Vận chuyển",
+        "Mảng nhôm kính"
+    ];
+
+    const pvcMapping = {
+        "PVCTCGC": "PVC tiêu chuẩn",
+        "PVCTCTM": "PVC tiêu chuẩn",
+        "PVCKLGC": "PVC khổ lớn",
+        "PVCKLTM": "PVC khổ lớn",
+        "PVCCTĐ (ESD)": "PVC ESD",
+        "Vật tư phụ PVC": "Vật tư phụ PVC",
+        "HDOOR": "HDOOR",
+        "PKHDOOR": "HDOOR",
+        "Quạt": "Quạt - Đèn",
+        "Đèn": "Quạt - Đèn",
+        "PKDEN": "Quạt - Đèn",
+        "PKQUAT": "Quạt - Đèn",
+        "BPVCKL": "BẠT PVC",
+        "SLCGC": "Silicon",
+        "VREMTD": "VREMTD - VREMTO",
+        "VREMTO": "VREMTD - VREMTO",
+        "Vật tư phụ": "Vật tư phụ",
+        "KHAC": "Khác",
+        "Nhân công": "Nhân công",
+        "Vận chuyển": "Vận chuyển"
+    };
+
+    // Lấy danh sách nhân viên từ cả 2 sheet
+    const employeesSet = new Set();
+
+    // Từ PVC
+    for (let i = 1; i < pvcData.length; i++) {
+        const row = pvcData[i];
+        const nguoiTao = row[31]; // AF (index 31)
+        const ngayStr = row[32]; // AG
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (ngay && ngay.getFullYear() === year && nguoiTao) {
+            if (month === 0 || ngay.getMonth() + 1 === month) {
+                employeesSet.add(nguoiTao);
+            }
+        }
+    }
+
+    // Từ NK
+    for (let i = 1; i < nkData.length; i++) {
+        const row = nkData[i];
+        const nguoiTao = row[22]; // W (index 22)
+        const ngayStr = row[24]; // Y
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (ngay && ngay.getFullYear() === year && nguoiTao) {
+            if (month === 0 || ngay.getMonth() + 1 === month) {
+                employeesSet.add(nguoiTao);
+            }
+        }
+    }
+
+    const employees = Array.from(employeesSet).sort();
+
+    // Xác định periods (tháng)
+    let periods = [];
+    if (month === 0) {
+        // Lấy cả năm
+        for (let m = 1; m <= 12; m++) {
+            periods.push({ 
+                label: `Tháng ${m}`, 
+                month: m, 
+                year: year,
+                data: []
+            });
+        }
+    } else {
+        // Lấy theo tháng cụ thể
+        periods.push({ 
+            label: `Tháng ${month}/${year}`, 
+            month: month, 
+            year: year,
+            data: []
+        });
+    }
+
+    // Khởi tạo cấu trúc dữ liệu
+    periods.forEach(period => {
+        period.data = employees.map(emp => ({
+            employee: emp,
+            products: productGroups.reduce((acc, group) => {
+                acc[group] = 0;
+                return acc;
+            }, {}),
+            tongNhua: 0,
+            tongNhom: 0,
+            tong: 0
+        }));
+    });
+
+    // Xử lý dữ liệu PVC
+    for (let i = 1; i < pvcData.length; i++) {
+        const row = pvcData[i];
+        const ngayStr = row[32]; // AG
+        const tinhTrang = row[33]; // AH
+        const doanhSo = parseFloat(row[47] || 0); // AV
+        const nhomSP = row[5]; // F
+        const nguoiTao = row[31]; // AF
+
+        if (tinhTrang !== "đơn hàng đã chốt") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+        if (!nguoiTao) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay || ngay.getFullYear() !== year) continue;
+
+        const currentMonth = ngay.getMonth() + 1;
+        
+        // Tìm period phù hợp
+        const period = periods.find(p => 
+            (month === 0 && p.month === currentMonth) || 
+            (month !== 0 && p.month === month)
+        );
+        
+        if (!period) continue;
+
+        // Tìm employee trong period
+        const employeeData = period.data.find(d => d.employee === nguoiTao);
+        if (!employeeData) continue;
+
+        // Ánh xạ nhóm sản phẩm
+        const productName = pvcMapping[nhomSP] || "Khác";
+        
+        // Cập nhật doanh số cho nhóm sản phẩm
+        if (employeeData.products.hasOwnProperty(productName)) {
+            employeeData.products[productName] += doanhSo;
+        }
+        
+        // Cập nhật tổng nhựa (bỏ đi vận chuyển)
+        if (productName !== "Vận chuyển") {
+            employeeData.tongNhua += doanhSo;
+        }
+        
+        employeeData.tong += doanhSo;
+    }
+
+    // Xử lý dữ liệu Nhôm kính
+    for (let i = 1; i < nkData.length; i++) {
+        const row = nkData[i];
+        const ngayStr = row[24]; // Y
+        const tinhTrang = row[25]; // Z
+        const doanhSo = parseFloat(row[19] || 0); // T
+        const nguoiTao = row[22]; // W
+
+        if (tinhTrang !== "Đơn hàng") continue;
+        if (isNaN(doanhSo) || doanhSo <= 0) continue;
+        if (!nguoiTao) continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        if (!ngay || ngay.getFullYear() !== year) continue;
+
+        const currentMonth = ngay.getMonth() + 1;
+        
+        // Tìm period phù hợp
+        const period = periods.find(p => 
+            (month === 0 && p.month === currentMonth) || 
+            (month !== 0 && p.month === month)
+        );
+        
+        if (!period) continue;
+
+        // Tìm employee trong period
+        const employeeData = period.data.find(d => d.employee === nguoiTao);
+        if (!employeeData) continue;
+
+        // Cập nhật doanh số cho Mảng nhôm kính
+        employeeData.products["Mảng nhôm kính"] += doanhSo;
+        employeeData.tongNhom += doanhSo;
+        employeeData.tong += doanhSo;
+    }
+
+    return {
+        productGroups,
+        employees,
+        periods,
+        month,
+        year
+    };
+}
+
+// Hàm generate Table 6
+async function generateTable6(donHangData, month, year) {
+    const filteredData = [];
+
+    for (let i = 1; i < donHangData.length; i++) {
+        const row = donHangData[i];
+        const ngayStr = row[42]; // AP
+        const tinhTrang = row[38]; // AM
+        const ngayHuyStr = row[47]; // AV
+
+        if (tinhTrang !== "Hủy đơn hàng") continue;
+
+        const ngay = parseGoogleSheetDate(ngayStr);
+        const ngayHuy = parseGoogleSheetDate(ngayHuyStr);
+        
+        if (!ngay) continue;
+        
+        // Lọc theo tháng/năm
+        if (month && year) {
+            if (ngay.getMonth() + 1 !== month || ngay.getFullYear() !== year) continue;
+        } else if (year) {
+            if (ngay.getFullYear() !== year) continue;
+        }
+
+        filteredData.push({
+            stt: filteredData.length + 1,
+            khachHangID: row[7] || '', // H
+            tenDayDu: row[9] || '', // J
+            nguoiLienHe: row[17] || '', // R
+            dienThoai: row[18] || '', // S
+            diaChiThucHien: row[20] || '', // U
+            maDonHang: row[6] || '', // G
+            hetHang: '',
+            giaTriHuy: parseFloat(row[69] || 0), // BR
+            lyDoHuy: row[57] || '', // BF
+            ngayThangHuy: ngayHuy ? 
+                `${ngayHuy.getDate().toString().padStart(2, '0')}/${(ngayHuy.getMonth() + 1).toString().padStart(2, '0')}/${ngayHuy.getFullYear()}` : '',
+            khoiLuongSPHuy: row[31] || '', // AF
+            ghiChu: ''
+        });
+    }
+
+    return filteredData;
+}
+
+// Hàm tạo Excel report cho báo cáo kinh doanh
+async function generateExcelReport() {
+    try {
+        // Lấy dữ liệu từ Google Sheets
+        const [donHangRes, donHangPVCRes, donHangNKRes] = await Promise.all([
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang!A:BR",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_PVC_ct!A:AV",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_nk_ct!A:Z",
+            })
+        ]);
+
+        const donHangData = donHangRes.data.values || [];
+        const donHangPVCData = donHangPVCRes.data.values || [];
+        const donHangNKData = donHangNKRes.data.values || [];
+
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+
+        // Tạo các bảng dữ liệu
+        const table1 = await generateTable1(donHangData);
+        const table2 = await generateTable2(donHangData, currentYear);
+        const table3Data = await generateTable3(donHangData, {
+            filterType: 'thang',
+            filterMonth: currentMonth,
+            filterYear: currentYear,
+            filterDay: null,
+            page: 1,
+            limit: 10000
+        });
+        const table4 = await generateTable4(donHangPVCData, donHangNKData, currentYear);
+        const table5 = await generateTable5(donHangPVCData, donHangNKData, 0, currentYear);
+        const table6 = await generateTable6(donHangData, currentMonth, currentYear);
+
+        // Tạo workbook
+        const workbook = new exceljs.Workbook();
+        workbook.creator = 'Hệ thống báo cáo kinh doanh';
+        workbook.created = new Date();
+
+        // ============ SHEET 1: TỔNG HỢP DOANH SỐ THEO NĂM/MẢNG SẢN PHẨM ============
+        const sheet1 = workbook.addWorksheet('Tổng hợp doanh số năm-mảng SP');
+        
+        // Tiêu đề
+        sheet1.mergeCells('A1:J1');
+        const title1 = sheet1.getCell('A1');
+        title1.value = 'BẢNG TỔNG HỢP DOANH SỐ THEO NĂM/MẢNG SẢN PHẨM';
+        title1.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title1.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Header
+        sheet1.mergeCells('A2:A3');
+        sheet1.getCell('A2').value = 'Quý/Tháng';
+        sheet1.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // Tạo header cho các năm
+        const years = [currentYear - 2, currentYear - 1, currentYear];
+        let colIndex = 1;
+        
+        years.forEach((year, yearIdx) => {
+            const startCol = colIndex;
+            const endCol = colIndex + 2;
+            const startCell = sheet1.getCell(2, startCol + 1);
+            const endCell = sheet1.getCell(2, endCol + 1);
+            
+            sheet1.mergeCells(2, startCol + 1, 2, endCol + 1);
+            startCell.value = `Năm ${year}`;
+            startCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            
+            // Sub headers
+            sheet1.getCell(3, startCol + 1).value = 'Mảng Nhựa';
+            sheet1.getCell(3, startCol + 2).value = 'Mảng Nhôm';
+            sheet1.getCell(3, startCol + 3).value = 'Tổng';
+            
+            colIndex += 3;
+        });
+
+        // Style cho header
+        for (let row = 2; row <= 3; row++) {
+            for (let col = 1; col <= 10; col++) {
+                const cell = sheet1.getCell(row, col);
+                cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: '5B9BD5' }
+                };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            }
+        }
+
+        // Dữ liệu
+        let rowIndex = 4;
+        table1.forEach((row, idx) => {
+            const dataRow = sheet1.getRow(rowIndex);
+            
+            dataRow.getCell(1).value = row.label;
+            
+            // Dữ liệu cho từng năm
+            let cellIndex = 2;
+            row.years.forEach(yearData => {
+                dataRow.getCell(cellIndex).value = yearData.nhua;
+                dataRow.getCell(cellIndex + 1).value = yearData.nhom;
+                dataRow.getCell(cellIndex + 2).value = yearData.tong;
+                cellIndex += 3;
+            });
+
+            // Style cho dòng
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber > 1) {
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu cho dòng quý và tổng
+                if (row.isQuarter) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'DDEBF7' }
+                    };
+                    cell.font = { bold: true };
+                } else if (row.isTotal) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'C6EFCE' }
+                    };
+                    cell.font = { bold: true };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Auto fit columns
+        sheet1.columns.forEach(column => {
+            column.width = 15;
+        });
+        sheet1.getColumn(1).width = 20;
+
+        // ============ SHEET 2: DOANH SỐ THEO NHÂN VIÊN ============
+        const sheet2 = workbook.addWorksheet('Doanh số theo nhân viên');
+        
+        // Tiêu đề
+        sheet2.mergeCells(`A1:${String.fromCharCode(65 + table2.employeeList.length + 1)}1`);
+        const title2 = sheet2.getCell('A1');
+        title2.value = `BẢNG TỔNG HỢP DOANH SỐ THEO NHÂN VIÊN KINH DOANH NĂM ${currentYear}`;
+        title2.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title2.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Header
+        const headerRow2 = sheet2.getRow(2);
+        headerRow2.values = ['Quý/Tháng', ...table2.employeeList, 'Tổng Quý/Tháng'];
+        headerRow2.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        // Dữ liệu
+        rowIndex = 3;
+        table2.data.forEach(row => {
+            const dataRow = sheet2.getRow(rowIndex);
+            const rowData = [row.label];
+            
+            row.employees.forEach(emp => {
+                rowData.push(emp.doanhSo);
+            });
+            rowData.push(row.tongQuy);
+            
+            dataRow.values = rowData;
+            
+            // Style
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber > 1) {
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu cho dòng quý và tổng
+                if (row.isQuarter) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'DDEBF7' }
+                    };
+                    cell.font = { bold: true };
+                } else if (row.isTotal) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'C6EFCE' }
+                    };
+                    cell.font = { bold: true };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Auto fit
+        sheet2.columns.forEach(column => {
+            column.width = 15;
+        });
+        sheet2.getColumn(1).width = 20;
+
+        // ============ SHEET 3: BÁO CÁO ĐƠN CHI TIẾT ============
+        const sheet3 = workbook.addWorksheet('Báo cáo đơn chi tiết');
+        
+        // Tiêu đề
+        sheet3.mergeCells('A1:O1');
+        const title3 = sheet3.getCell('A1');
+        title3.value = 'BÁO CÁO DOANH SỐ THEO ĐƠN CHI TIẾT';
+        title3.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title3.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title3.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Header
+        const header3 = [
+            'STT', 'Ngày duyệt đơn', 'Mã đơn hàng', 'Loại khách', 'Khách hàng ID',
+            'Tên công ty/Khách hàng', 'Địa chỉ trụ sở', 'Tỉnh', 'Tên Người liên hệ',
+            'Số điện thoại', 'Nhóm sản phẩm', 'Loại đơn hàng', 'Nhóm sản xuất',
+            'Doanh số thực lĩnh', 'Kinh doanh'
+        ];
+        
+        const headerRow3 = sheet3.getRow(2);
+        headerRow3.values = header3;
+        headerRow3.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+
+        // Dữ liệu
+        rowIndex = 3;
+        table3Data.data.forEach((item, idx) => {
+            const dataRow = sheet3.getRow(rowIndex);
+            const rowData = [
+                idx + 1,
+                item.ngayDuyet,
+                item.maDonHang,
+                item.loaiKhach,
+                item.khachHangID,
+                item.tenKhachHang,
+                item.diaChi,
+                item.tinh,
+                item.nguoiLienHe,
+                item.soDienThoai,
+                item.nhomSanPham,
+                item.loaiDonHang,
+                item.nhomSanXuat,
+                item.doanhSo,
+                item.kinhDoanh
+            ];
+            
+            dataRow.values = rowData;
+            
+            // Style
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber === 14) { // Doanh số
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu xen kẽ
+                if (rowIndex % 2 === 0) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'F2F2F2' }
+                    };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Auto fit
+        sheet3.columns.forEach((column, index) => {
+            if (index === 0) column.width = 8; // STT
+            else if (index === 5) column.width = 25; // Tên công ty
+            else if (index === 6) column.width = 30; // Địa chỉ
+            else column.width = 15;
+        });
+
+        // ============ SHEET 4: DOANH SỐ THEO DÒNG SP ============
+        const sheet4 = workbook.addWorksheet('Doanh số theo dòng SP');
+        
+        // Tiêu đề
+        sheet4.mergeCells(`A1:${String.fromCharCode(65 + table4.productGroups.length + 1)}1`);
+        const title4 = sheet4.getCell('A1');
+        title4.value = `BÁO CÁO DOANH SỐ THEO DÒNG SẢN PHẨM NĂM ${currentYear}`;
+        title4.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title4.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title4.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Header
+        const header4 = ['Quý/Tháng', ...table4.productGroups, 'Tổng tháng/quý'];
+        const headerRow4 = sheet4.getRow(2);
+        headerRow4.values = header4;
+        headerRow4.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+
+        // Dữ liệu
+        rowIndex = 3;
+        table4.data.forEach(row => {
+            const dataRow = sheet4.getRow(rowIndex);
+            const rowData = [row.label];
+            
+            row.products.forEach(product => {
+                rowData.push(product.doanhSo);
+            });
+            rowData.push(row.tongThang);
+            
+            dataRow.values = rowData;
+            
+            // Style
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber > 1) {
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu cho dòng quý và tổng
+                if (row.isQuarter) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'DDEBF7' }
+                    };
+                    cell.font = { bold: true };
+                } else if (row.isTotal) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'C6EFCE' }
+                    };
+                    cell.font = { bold: true };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Auto fit
+        sheet4.columns.forEach(column => {
+            column.width = 15;
+        });
+        sheet4.getColumn(1).width = 20;
+
+        // ============ SHEET 5: DOANH SỐ SP THEO NHÂN VIÊN ============
+        const sheet5 = workbook.addWorksheet('Doanh số SP theo nhân viên');
+        
+        // Tiêu đề
+        sheet5.mergeCells(`A1:${String.fromCharCode(65 + table5.productGroups.length + 3)}1`);
+        const title5 = sheet5.getCell('A1');
+        title5.value = `BÁO CÁO DOANH SỐ MẢNG SẢN PHẨM/NHÂN VIÊN KINH DOANH NĂM ${currentYear}`;
+        title5.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title5.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title5.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Dữ liệu - Tạo theo từng tháng
+        let currentRow = 2;
+        
+        table5.periods.forEach(period => {
+            // Tiêu đề tháng
+            sheet5.mergeCells(currentRow, 1, currentRow, table5.productGroups.length + 3);
+            const periodTitle = sheet5.getCell(currentRow, 1);
+            periodTitle.value = period.label;
+            periodTitle.font = { bold: true, size: 12 };
+            periodTitle.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'BDD7EE' }
+            };
+            periodTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+            currentRow++;
+
+            // Header cho tháng
+            const monthHeader = sheet5.getRow(currentRow);
+            const monthHeaderValues = ['Nhân viên', ...table5.productGroups, 'Tổng Nhựa', 'Tổng Nhôm', 'Tổng'];
+            monthHeader.values = monthHeaderValues;
+            
+            monthHeader.eachCell((cell, colNumber) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: '5B9BD5' }
+                };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            });
+            currentRow++;
+
+            // Dữ liệu nhân viên
+            period.data.forEach(empData => {
+                const empRow = sheet5.getRow(currentRow);
+                const rowData = [empData.employee];
+                
+                // Dữ liệu sản phẩm
+                table5.productGroups.forEach(group => {
+                    rowData.push(empData.products[group]);
+                });
+                
+                // Tổng
+                rowData.push(empData.tongNhua, empData.tongNhom, empData.tong);
+                
+                empRow.values = rowData;
+                
+                // Style
+                empRow.eachCell((cell, colNumber) => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    
+                    if (colNumber > 1) {
+                        cell.numFmt = '#,##0';
+                        cell.alignment = { horizontal: 'right' };
+                    }
+                    
+                    // Màu xen kẽ
+                    if (currentRow % 2 === 0) {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'F2F2F2' }
+                        };
+                    }
+                });
+                
+                currentRow++;
+            });
+            
+            // Thêm dòng trống giữa các tháng
+            currentRow++;
+        });
+
+        // Auto fit
+        sheet5.columns.forEach(column => {
+            column.width = 12;
+        });
+        sheet5.getColumn(1).width = 20;
+
+        // ============ SHEET 6: DANH SÁCH HỦY ĐƠN HÀNG ============
+        const sheet6 = workbook.addWorksheet('Danh sách hủy đơn hàng');
+        
+        // Tiêu đề
+        sheet6.mergeCells('A1:M1');
+        const title6 = sheet6.getCell('A1');
+        title6.value = 'BÁO CÁO DANH SÁCH HỦY ĐƠN HÀNG';
+        title6.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title6.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        title6.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Header
+        const header6 = [
+            'STT', 'Khách hàng ID', 'Tên đầy đủ', 'Tên người liên hệ',
+            'Điện thoại liên hệ', 'Địa chỉ thực hiện', 'Mã đơn hàng',
+            'Hết hàng', 'Giá trị hủy', 'Lý do hủy ghi nhận',
+            'Ngày tháng hủy', 'Khối lượng SP hủy', 'Ghi chú'
+        ];
+        
+        const headerRow6 = sheet6.getRow(2);
+        headerRow6.values = header6;
+        headerRow6.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+
+        // Dữ liệu
+        rowIndex = 3;
+        table6.forEach((item, idx) => {
+            const dataRow = sheet6.getRow(rowIndex);
+            const rowData = [
+                idx + 1,
+                item.khachHangID,
+                item.tenDayDu,
+                item.nguoiLienHe,
+                item.dienThoai,
+                item.diaChiThucHien,
+                item.maDonHang,
+                item.hetHang,
+                item.giaTriHuy,
+                item.lyDoHuy,
+                item.ngayThangHuy,
+                item.khoiLuongSPHuy,
+                item.ghiChu
+            ];
+            
+            dataRow.values = rowData;
+            
+            // Style
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber === 9) { // Giá trị hủy
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu xen kẽ
+                if (rowIndex % 2 === 0) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'F2F2F2' }
+                    };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Auto fit
+        sheet6.columns.forEach((column, index) => {
+            if (index === 0) column.width = 8; // STT
+            else if (index === 2) column.width = 25; // Tên đầy đủ
+            else if (index === 5) column.width = 30; // Địa chỉ
+            else if (index === 9) column.width = 20; // Lý do
+            else if (index === 12) column.width = 25; // Ghi chú
+            else column.width = 15;
+        });
+
+        // Thêm tổng hợp cuối cùng
+        const summarySheet = workbook.addWorksheet('Tổng hợp');
+        
+        summarySheet.mergeCells('A1:E1');
+        const summaryTitle = summarySheet.getCell('A1');
+        summaryTitle.value = 'TỔNG HỢP BÁO CÁO KINH DOANH';
+        summaryTitle.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+        summaryTitle.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '4472C4' }
+        };
+        summaryTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Thông tin xuất báo cáo
+        summarySheet.getCell('A3').value = 'Thông tin báo cáo:';
+        summarySheet.getCell('A3').font = { bold: true };
+        
+        summarySheet.getCell('A4').value = 'Ngày xuất báo cáo:';
+        summarySheet.getCell('B4').value = new Date().toLocaleDateString('vi-VN');
+        
+        summarySheet.getCell('A5').value = 'Năm báo cáo:';
+        summarySheet.getCell('B5').value = currentYear;
+        
+        summarySheet.getCell('A6').value = 'Tổng số sheet:';
+        summarySheet.getCell('B6').value = workbook.worksheets.length - 1;
+        
+        // Danh sách các sheet
+        summarySheet.getCell('A8').value = 'Danh sách các báo cáo:';
+        summarySheet.getCell('A8').font = { bold: true };
+        
+        let summaryRow = 9;
+        workbook.worksheets.forEach((ws, index) => {
+            if (ws.name !== 'Tổng hợp') {
+                summarySheet.getCell(`A${summaryRow}`).value = `${index}. ${ws.name}`;
+                summaryRow++;
+            }
+        });
+
+        // Auto fit summary
+        summarySheet.columns.forEach(column => {
+            column.width = 25;
+        });
+
+        // Đặt sheet tổng hợp lên đầu
+        workbook.moveWorksheet('Tổng hợp', 0);
+
+        return workbook;
+    } catch (error) {
+        console.error("❌ Lỗi khi tạo Excel report:", error);
+        throw error;
+    }
+}
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
