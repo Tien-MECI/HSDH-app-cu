@@ -460,41 +460,44 @@ app.get("/dntt-:ma", async (req, res) => {
 });
 
 // --- Route /bbsv ---
-app.get("/bbsv", async (req, res) => {
+app.get("/bbsv/madonhang-:madonhang/solan-:solan", async (req, res) => {
     try {
-        console.log("▶️ Bắt đầu xuất BBSV ...");
-
-        // --- Lấy mã biên bản sự việc từ sheet Bien_ban_su_viec ---
-        const bbsvRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Bien_ban_su_viec!B:B",
-        });
-        const colB = bbsvRes.data.values ? bbsvRes.data.values.flat() : [];
-        const lastRowWithData = colB.length;
-        const maBBSV = colB[lastRowWithData - 1];
-        
-        if (!maBBSV)
-            return res.send("⚠️ Không tìm thấy dữ liệu ở cột B sheet Bien_ban_su_viec.");
-
-        console.log(`✔️ Mã biên bản sự việc: ${maBBSV} (dòng ${lastRowWithData})`);
+        const { madonhang, solan } = req.params;
+        console.log(`▶️ Bắt đầu xuất BBSV với mã đơn: ${madonhang}, số lần: ${solan}`);
 
         // --- Lấy dữ liệu từ sheet Bien_ban_su_viec ---
         const bbsvDetailRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: "Bien_ban_su_viec!A:Z",
         });
-        const bbsvRows = bbsvDetailRes.data.values || [];
-        const bbsvData = bbsvRows.slice(1);
-        const bbsvRecord = bbsvData.find((r) => r[1] === maBBSV);
         
-        if (!bbsvRecord)
-            return res.send("❌ Không tìm thấy biên bản sự việc với mã: " + maBBSV);
+        const bbsvRows = bbsvDetailRes.data.values || [];
+        if (bbsvRows.length < 2) {
+            return res.send("⚠️ Không có dữ liệu trong sheet Bien_ban_su_viec.");
+        }
+        
+        const bbsvData = bbsvRows.slice(1);
+        
+        // Tìm dòng có mã đơn hàng và số lần khớp
+        const bbsvRecord = bbsvData.find((r) => 
+            String(r[1]) === String(madonhang) && String(r[2]) === String(solan)
+        );
+        
+        if (!bbsvRecord) {
+            return res.send(`❌ Không tìm thấy biên bản sự việc với mã: ${madonhang} và số lần: ${solan}`);
+        }
+
+        const maBBSV = bbsvRecord[1];
+        const rowIndex = bbsvData.indexOf(bbsvRecord) + 2; // +2 vì bỏ header (+1) và index bắt đầu từ 0 (+1)
+        
+        console.log(`✔️ Mã biên bản sự việc: ${maBBSV} (dòng ${rowIndex})`);
 
         // --- Lấy dữ liệu từ sheet Don_hang ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: "Don_hang!A:Z",
         });
+        
         const donHangRows = donHangRes.data.values || [];
         const donHangData = donHangRows.slice(1);
         const donHangRecord = donHangData.find((r) => r[5] === maBBSV || r[6] === maBBSV);
@@ -508,7 +511,6 @@ app.get("/bbsv", async (req, res) => {
                     ngayLapBB = `ngày ${parts[0]} tháng ${parts[1]} năm ${parts[2]}`;
                 }
             } else if (ngayLapBB instanceof Date) {
-                // Format date object if needed
                 ngayLapBB = `ngày ${ngayLapBB.getDate()} tháng ${ngayLapBB.getMonth() + 1} năm ${ngayLapBB.getFullYear()}`;
             }
         }
@@ -519,7 +521,6 @@ app.get("/bbsv", async (req, res) => {
             if (typeof ngayYeuCauXuLy === 'string' && ngayYeuCauXuLy.includes('/')) {
                 // Giữ nguyên định dạng dd/mm/yyyy
             } else if (ngayYeuCauXuLy instanceof Date) {
-                // Format date object to dd/mm/yyyy
                 const day = String(ngayYeuCauXuLy.getDate()).padStart(2, '0');
                 const month = String(ngayYeuCauXuLy.getMonth() + 1).padStart(2, '0');
                 const year = ngayYeuCauXuLy.getFullYear();
@@ -586,15 +587,15 @@ app.get("/bbsv", async (req, res) => {
                 const data = await resp.json();
                 console.log("✔️ AppScript trả về:", data);
 
-                // Cập nhật đường dẫn file vào sheet
+                // Cập nhật đường dẫn file vào sheet - sử dụng rowIndex đã xác định
                 const pathToFile = data.pathToFile || `BBSV/${data.fileName}`;
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: `Bien_ban_su_viec!K${lastRowWithData}`,
+                    range: `Bien_ban_su_viec!K${rowIndex}`,
                     valueInputOption: "RAW",
                     requestBody: { values: [[pathToFile]] },
                 });
-                console.log("✔️ Đã ghi đường dẫn:", pathToFile);
+                console.log("✔️ Đã ghi đường dẫn:", pathToFile, "vào dòng", rowIndex);
 
             } catch (err) {
                 console.error("❌ Lỗi gọi AppScript:", err);
