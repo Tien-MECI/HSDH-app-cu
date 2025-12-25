@@ -3677,6 +3677,50 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         }
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
+        // --- Hàm chuẩn hóa số từ dạng Việt Nam (1.234,56) sang số JavaScript ---
+        const normalizeNumber = (value) => {
+            if (!value && value !== 0) return 0;
+            if (typeof value === 'number') return value;
+            
+            // Chuyển đổi dạng Việt Nam (1.234,56) sang số
+            let str = value.toString().trim();
+            
+            // Loại bỏ tất cả dấu chấm phân cách hàng nghìn
+            str = str.replace(/\./g, '');
+            
+            // Thay dấu phẩy thập phân bằng dấu chấm
+            str = str.replace(/,/g, '.');
+            
+            // Chuyển thành số
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        };
+
+        // --- Hàm định dạng số duy nhất cho toàn bộ ứng dụng ---
+        const formatNumber = (num, decimals = 2) => {
+            if (num == null || isNaN(num)) return "0";
+            
+            const numValue = typeof num === 'string' ? normalizeNumber(num) : Number(num);
+            if (isNaN(numValue)) return "0";
+            
+            // Làm tròn đến số thập phân chỉ định
+            const rounded = Math.abs(numValue).toFixed(decimals);
+            
+            // Tách phần nguyên và phần thập phân
+            const [intPart, decPart] = rounded.split('.');
+            
+            // Định dạng phần nguyên với dấu chấm phân cách hàng nghìn
+            const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            // Xử lý phần thập phân
+            if (decPart === '00' || decimals === 0) {
+                return formattedInt;
+            }
+            
+            // Giữ nguyên số lượng số thập phân
+            return `${formattedInt},${decPart}`;
+        };
+
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -3705,37 +3749,41 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                 dai: r[9],
                 rong: r[10],
                 cao: r[11],
-                dienTich: r[12],
+                dienTich: r[12], // Giữ nguyên để xử lý sau
                 soLuong: r[14],
                 donViTinh: r[13],
                 donGia: r[17],
                 giaPK: r[16],
-                thanhTien: r[19]
+                thanhTien: r[19],
+                // Thêm các giá trị đã chuẩn hóa
+                dienTichNum: normalizeNumber(r[12]),
+                soLuongNum: normalizeNumber(r[14]),
+                donGiaNum: normalizeNumber(r[17]),
+                giaPKNum: normalizeNumber(r[16]),
+                thanhTienNum: normalizeNumber(r[19])
             }));
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
 
-        // --- Tính tổng ---
+        // --- Tính tổng sử dụng giá trị đã chuẩn hóa ---
         let tongTien = 0;
-        products.forEach(p => tongTien += parseFloat(p.thanhTien) || 0);
+        products.forEach(p => tongTien += p.thanhTienNum || 0);
 
         // --- Xử lý chiết khấu ---
         let chietKhauValue = donHang[32] || "0";
-        let chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
+        let chietKhauPercent = normalizeNumber(chietKhauValue.toString().replace('%', ''));
         let chietKhau = chietKhauValue.toString().includes('%')
             ? (tongTien * chietKhauPercent) / 100
             : chietKhauPercent;
 
-        let tamUng = parseFloat(donHang[33]) || 0;
+        let tamUng = normalizeNumber(donHang[33]) || 0;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
         // --- Tính tổng diện tích và số lượng ---
         let tongDienTich = 0, tongSoLuong = 0;
         products.forEach(p => {
-            const dienTich = parseFloat(p.dienTich) || 0;
-            const soLuong = parseFloat(p.soLuong) || 0;
-            tongDienTich += dienTich * soLuong;
-            tongSoLuong += soLuong;
+            tongDienTich += (p.dienTichNum || 0) * (p.soLuongNum || 0);
+            tongSoLuong += p.soLuongNum || 0;
         });
         tongDienTich = parseFloat(tongDienTich.toFixed(2));
 
@@ -3758,7 +3806,8 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
             tongDienTich,
             tongSoLuong,
             numberToWords,
-            formatNumber1,
+            formatNumber, // Dùng hàm formatNumber duy nhất
+            normalizeNumber, // Thêm normalizeNumber nếu cần
             pathToFile: ""
         });
 
@@ -3817,7 +3866,8 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                         tongDienTich,
                         tongSoLuong,
                         numberToWords,
-                        formatNumber1,
+                        formatNumber,
+                        normalizeNumber,
                         pathToFile: ""
                     }
                 );

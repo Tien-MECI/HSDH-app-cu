@@ -223,41 +223,44 @@
         </thead>
         <tbody>
             <% for (var i = 0; i < products.length; i++) { %>
-    <tr>
-        <% for (var j = 0; j < filteredColumns.length; j++) { 
-            var value = products[i][filteredColumns[j].key] || '';
-            
-            // Định dạng giá trị số
-            if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key) && value) {
-                value = new Intl.NumberFormat('vi-VN').format(value);
-            } 
-            else if (filteredColumns[j].key === 'dienTich' && value) {
-                value = parseFloat(value).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-            }
-        %>
-            <td style="text-align: center;"><%= value %></td>
-        <% } %>
-    </tr>
-<% } %>
-
+                <tr>
+                    <% for (var j = 0; j < filteredColumns.length; j++) { 
+                        var value = products[i][filteredColumns[j].key] || '';
+                        
+                        // Định dạng giá trị số bằng hàm formatNumber duy nhất
+                        if (['dai', 'rong', 'cao'].includes(filteredColumns[j].key) && value) {
+                            // Số nguyên cho kích thước
+                            value = formatNumber(value, 0);
+                        } else if (['dienTich'].includes(filteredColumns[j].key) && value) {
+                            // Diện tích: 2 chữ số thập phân
+                            value = formatNumber(value, 2);
+                        } else if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key) && value) {
+                            // Giá tiền: 2 chữ số thập phân
+                            value = formatNumber(value, 2);
+                        } else if (['soLuong'].includes(filteredColumns[j].key) && value) {
+                            // Số lượng: nguyên
+                            value = formatNumber(value, 0);
+                        }
+                    %>
+                        <td style="text-align: center;"><%= value %></td>
+                    <% } %>
+                </tr>
+            <% } %>
             
             <!-- Dòng tổng -->
             <tr>
                 <% for (var j = 0; j < filteredColumns.length; j++) { 
                     if (filteredColumns[j].key === 'dienTich') { %>
                         <td style="text-align: center; font-weight: bold;">
-                            <%= tongDienTich.toLocaleString('en-US') %>
+                            <%= formatNumber(tongDienTich, 2) %>
                         </td>
                     <% } else if (filteredColumns[j].key === 'soLuong') { %>
                         <td style="text-align: center; font-weight: bold;">
-                            <%= tongSoLuong %>
+                            <%= formatNumber(tongSoLuong, 0) %>
                         </td>
                     <% } else if (filteredColumns[j].key === 'thanhTien') { %>
                         <td style="text-align: center; font-weight: bold;">
-                            <%= new Intl.NumberFormat('vi-VN').format(tongTien) %>
+                            <%= formatNumber(tongTien, 2) %>
                         </td>
                     <% } else { %>
                         <td></td>
@@ -269,7 +272,7 @@
             <tr>
                 <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Chiết Khấu:</td>
                 <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(chietKhau) %>
+                    <%= formatNumber(chietKhau, 2) %>
                 </td>
             </tr>
             <% } %>
@@ -278,7 +281,7 @@
             <tr>
                 <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 2 %>">Đặt Cọc/Tạm ứng:</td>
                 <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(tamUng) %>
+                    <%= formatNumber(tamUng, 2) %>
                 </td>
             </tr>
             <% } %>
@@ -286,7 +289,7 @@
             <tr>
                 <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 %>">Tổng thành tiền:</td>
                 <td style="text-align: center; font-weight: bold;" colspan="2">
-                    <%= new Intl.NumberFormat('vi-VN').format(tongThanhTien) %>
+                    <%= formatNumber(tongThanhTien, 2) %>
                 </td>
             </tr>
             
