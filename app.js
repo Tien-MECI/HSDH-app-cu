@@ -5113,7 +5113,7 @@ const formatNumber = (num) => {
             const workbook = new exceljs.Workbook();
             
             // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
-            const sheet1 = workbook.addWorksheet('Danh sách đơn hàng trả khoán');
+            const sheet1 = workbook.addWorksheet('Danh sách đơn hàng trả khoán giao vận');
             
             // Tiêu đề sheet
             sheet1.mergeCells('A1:H1');
@@ -5130,8 +5130,8 @@ const formatNumber = (num) => {
             
             // Header bảng
             const headers1 = ['STT', 'Mã đơn hàng', 'Nhóm SP', 'Loại đơn hàng', 'Tải trọng/Kích thước', 'Nhân sự thực hiện', 'Đơn giá', 'Thành tiền'];
-            sheet1.addRow(headers1);
-            
+            sheet1.getRow(6).values = headers1;
+
             // Style cho header
             const headerRow1 = sheet1.getRow(6);
             headerRow1.font = { bold: true };
@@ -5190,8 +5190,9 @@ const formatNumber = (num) => {
             sheet2.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
             
             const headers2 = ['STT', 'Nhân sự thực hiện', 'Loại đơn hàng', 'Thành tiền'];
-            sheet2.addRow(headers2);
-            
+
+            sheet2.getRow(4).values = headers2;
+
             const headerRow2 = sheet2.getRow(4);
             headerRow2.font = { bold: true };
             headerRow2.alignment = { horizontal: 'center' };
@@ -5228,7 +5229,7 @@ const formatNumber = (num) => {
             }
             
             // Sheet 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN
-            const sheet3 = workbook.addWorksheet('Tổng hợp chi trả khoán');
+            const sheet3 = workbook.addWorksheet('Tổng hợp chi trả khoán GV theo loại ĐH');
             
             sheet3.mergeCells('A1:D1');
             sheet3.getCell('A1').value = 'TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN';
@@ -5238,7 +5239,8 @@ const formatNumber = (num) => {
             sheet3.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
             
             const headers3 = ['STT', 'Tên nhân sự', 'Thành tiền', 'Ghi chú'];
-            sheet3.addRow(headers3);
+
+            sheet3.getRow(4).values = headers3;
             
             const headerRow3 = sheet3.getRow(4);
             headerRow3.font = { bold: true };
@@ -5286,8 +5288,9 @@ const formatNumber = (num) => {
             sheet4.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
             
             const headers4 = ['STT', 'Mã đơn hàng', 'Thành tiền', 'Thực chi', 'Ghi chú'];
-            sheet4.addRow(headers4);
-            
+
+            sheet4.getRow(4).values = headers4;
+
             const headerRow4 = sheet4.getRow(4);
             headerRow4.font = { bold: true };
             headerRow4.alignment = { horizontal: 'center' };
@@ -5348,7 +5351,7 @@ const formatNumber = (num) => {
                 'Ngân hàng',
                 'Chủ tài khoản'
             ];
-            sheet5.addRow(headers5);
+            sheet5.getRow(4).values = headers5;
             
             const headerRow5 = sheet5.getRow(4);
             headerRow5.font = { bold: true };
