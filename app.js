@@ -3758,6 +3758,7 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
             tongDienTich,
             tongSoLuong,
             numberToWords,
+            formatNumber1,
             pathToFile: ""
         });
 
@@ -3816,6 +3817,7 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                         tongDienTich,
                         tongSoLuong,
                         numberToWords,
+                        formatNumber1,
                         pathToFile: ""
                     }
                 );

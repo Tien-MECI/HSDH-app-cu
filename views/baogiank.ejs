@@ -223,21 +223,26 @@
         </thead>
         <tbody>
             <% for (var i = 0; i < products.length; i++) { %>
-                <tr>
-                    <% for (var j = 0; j < filteredColumns.length; j++) { 
-                        var value = products[i][filteredColumns[j].key] || '';
-                        
-                        // Định dạng giá trị số
-                        if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key) && value) {
-                            value = new Intl.NumberFormat('vi-VN').format(value);
-                        } else if (filteredColumns[j].key === 'dienTich' && value) {
-                            value = parseFloat(value).toLocaleString('en-US');
-                        }
-                    %>
-                        <td style="text-align: center;"><%= value %></td>
-                    <% } %>
-                </tr>
-            <% } %>
+    <tr>
+        <% for (var j = 0; j < filteredColumns.length; j++) { 
+            var value = products[i][filteredColumns[j].key] || '';
+            
+            // Định dạng giá trị số
+            if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key) && value) {
+                value = new Intl.NumberFormat('vi-VN').format(value);
+            } 
+            else if (filteredColumns[j].key === 'dienTich' && value) {
+                value = parseFloat(value).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        %>
+            <td style="text-align: center;"><%= value %></td>
+        <% } %>
+    </tr>
+<% } %>
+
             
             <!-- Dòng tổng -->
             <tr>
