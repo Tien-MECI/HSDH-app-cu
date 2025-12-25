@@ -3677,49 +3677,33 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         }
         console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-        // --- HÀM CHUẨN HÓA SỐ - Sửa đúng cách ---
-        const normalizeNumber = (value) => {
-            if (value === undefined || value === null || value === '') return 0;
-            if (typeof value === 'number') return value;
-            
-            // Chuyển đổi dạng Việt Nam (1.234,56) sang số
-            let str = value.toString().trim();
-            
-            // Loại bỏ tất cả dấu chấm phân cách hàng nghìn
-            str = str.replace(/\./g, '');
-            
-            // Thay dấu phẩy thập phân bằng dấu chấm
-            str = str.replace(/,/g, '.');
-            
-            // Chuyển thành số
-            const num = parseFloat(str);
-            return isNaN(num) ? 0 : num;
-        };
-
-        // --- HÀM ĐỊNH DẠNG SỐ DUY NHẤT ---
+         // --- HÀM ĐỊNH DẠNG SỐ DUY NHẤT (Fix lỗi dấu ,) ---
         const formatNumber = (num, decimals = 2) => {
-            // Nếu là chuỗi, chuẩn hóa trước
+            if (num == null || num === undefined || num === '') return "0";
+            
+            // Nếu là chuỗi có dấu phẩy thập phân (0,20), chuyển thành số
+            let numberValue;
             if (typeof num === 'string') {
-                num = normalizeNumber(num);
+                // Loại bỏ dấu chấm phân cách hàng nghìn, thay dấu phẩy bằng dấu chấm
+                let str = num.trim().replace(/\./g, '').replace(/,/g, '.');
+                numberValue = parseFloat(str);
+                if (isNaN(numberValue)) return "0";
+            } else {
+                numberValue = Number(num);
+                if (isNaN(numberValue)) return "0";
             }
             
-            if (num == null || isNaN(num)) return "0";
-            
-            // Làm tròn đến số thập phân chỉ định
-            const rounded = Math.abs(num).toFixed(decimals);
-            
-            // Tách phần nguyên và phần thập phân
+            // Làm tròn và định dạng
+            const rounded = Math.abs(numberValue).toFixed(decimals);
             const [intPart, decPart] = rounded.split('.');
             
             // Định dạng phần nguyên với dấu chấm phân cách hàng nghìn
             const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             
-            // Xử lý phần thập phân
             if (decPart === '00' || decimals === 0) {
                 return formattedInt;
             }
             
-            // Giữ nguyên số lượng số thập phân
             return `${formattedInt},${decPart}`;
         };
 
@@ -3746,57 +3730,58 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
             .map((r) => ({
-                // Giữ nguyên giá trị gốc
                 kyHieu: r[5],
                 tenHangHoa: r[8],
                 dai: r[9],
                 rong: r[10],
                 cao: r[11],
-                dienTich: r[12], // Giữ nguyên để hiển thị
+                dienTich: r[12],
                 soLuong: r[14],
                 donViTinh: r[13],
                 donGia: r[17],
                 giaPK: r[16],
-                thanhTien: r[19],
-                // Thêm các giá trị đã chuẩn hóa riêng để tính toán
-                _dienTichNum: normalizeNumber(r[12]),
-                _soLuongNum: normalizeNumber(r[14]),
-                _donGiaNum: normalizeNumber(r[17]),
-                _giaPKNum: normalizeNumber(r[16]),
-                _thanhTienNum: normalizeNumber(r[19])
+                thanhTien: r[19]
             }));
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
-        
-        // Debug: in ra vài sản phẩm đầu tiên để kiểm tra
-        if (products.length > 0) {
-            console.log('Sample product:', {
-                dienTich: products[0].dienTich,
-                _dienTichNum: products[0]._dienTichNum,
-                thanhTien: products[0].thanhTien,
-                _thanhTienNum: products[0]._thanhTienNum
-            });
-        }
 
-        // --- Tính tổng sử dụng giá trị đã chuẩn hóa ---
+        
+        // --- Hàm chuyển đổi chuỗi số Việt Nam thành số ---
+        const parseVietNumber = (str) => {
+            if (!str && str !== 0) return 0;
+            if (typeof str === 'number') return str;
+            
+            let s = str.toString().trim();
+            // Loại bỏ dấu chấm phân cách hàng nghìn
+            s = s.replace(/\./g, '');
+            // Thay dấu phẩy thập phân bằng dấu chấm
+            s = s.replace(/,/g, '.');
+            
+            const num = parseFloat(s);
+            return isNaN(num) ? 0 : num;
+        };
+
+        // --- Tính tổng ---
         let tongTien = 0;
-        products.forEach(p => tongTien += p._thanhTienNum || 0);
+        products.forEach(p => tongTien += parseVietNumber(p.thanhTien) || 0);
 
         // --- Xử lý chiết khấu ---
         let chietKhauValue = donHang[32] || "0";
-        let chietKhauPercent = normalizeNumber(chietKhauValue.toString().replace('%', ''));
+        let chietKhauPercent = parseVietNumber(chietKhauValue.toString().replace('%', '')) || 0;
         let chietKhau = chietKhauValue.toString().includes('%')
             ? (tongTien * chietKhauPercent) / 100
             : chietKhauPercent;
 
-        let tamUng = normalizeNumber(donHang[33]) || 0;
+        let tamUng = parseVietNumber(donHang[33]) || 0;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
         // --- Tính tổng diện tích và số lượng ---
         let tongDienTich = 0, tongSoLuong = 0;
         products.forEach(p => {
-            tongDienTich += (p._dienTichNum || 0) * (p._soLuongNum || 0);
-            tongSoLuong += p._soLuongNum || 0;
+            const dienTich = parseVietNumber(p.dienTich) || 0;
+            const soLuong = parseVietNumber(p.soLuong) || 0;
+            tongDienTich += dienTich * soLuong;
+            tongSoLuong += soLuong;
         });
         tongDienTich = parseFloat(tongDienTich.toFixed(2));
 
@@ -3819,12 +3804,103 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
             tongDienTich,
             tongSoLuong,
             numberToWords,
-            formatNumber, // Dùng hàm formatNumber duy nhất
-            normalizeNumber, // Thêm để có thể dùng trong template nếu cần
+            formatNumber,
             pathToFile: ""
         });
 
-        // ... (phần còn lại giữ nguyên) ...
+        // ===== PHẦN MỚI: tìm dòng bằng retry/polling =====
+        async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
+            let attempt = 0;
+            let delay = initialDelayMs;
+            while (attempt < attemptLimit) {
+                attempt++;
+                try {
+                    const resp = await sheets.spreadsheets.values.get({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: "File_bao_gia_ct!A:D",
+                    });
+                    const rows = resp.data.values || [];
+                    const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
+                    if (idx !== -1) return idx + 1;
+                } catch (e) {
+                    console.warn(`⚠️ Lỗi đọc File_bao_gia_ct (attempt ${attempt}):`, e.message || e);
+                }
+                await new Promise(r => setTimeout(r, delay));
+                delay = Math.min(delay + 300, 2000);
+            }
+            return null;
+        }
+
+        // ===== Gọi AppScript & ghi đường dẫn (nền, không chặn UI) =====
+        (async () => {
+            try {
+                const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
+                const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
+
+                console.log(`⏳ Polling File_bao_gia_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+
+                const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
+                if (!rowNumber) {
+                    console.error(`❌ Không tìm thấy dòng cho ${maDonHang} - ${soLan} sau ${MAX_ATTEMPTS} lần.`);
+                    return;
+                }
+
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi GAS ...`);
+
+                const renderedHtml = await renderFileAsync(
+                    path.join(__dirname, "views", "baogiank.ejs"),
+                    {
+                        donHang,
+                        products,
+                        logoBase64,
+                        watermarkBase64,
+                        autoPrint: false,
+                        maDonHang,
+                        tongTien,
+                        chietKhau,
+                        tamUng,
+                        tongThanhTien,
+                        tongDienTich,
+                        tongSoLuong,
+                        numberToWords,
+                        formatNumber,
+                        pathToFile: ""
+                    }
+                );
+
+                const GAS_WEBAPP_URL_BAOGIANK = process.env.GAS_WEBAPP_URL_BAOGIANK;
+                if (!GAS_WEBAPP_URL_BAOGIANK) {
+                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIANK - bỏ qua bước gọi GAS");
+                    return;
+                }
+
+                const resp = await fetch(GAS_WEBAPP_URL_BAOGIANK, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        orderCode: maDonHang,
+                        html: renderedHtml
+                    })
+                });
+
+                const data = await resp.json();
+                console.log("✔️ AppScript trả về:", data);
+
+                const pathToFile = data.pathToFile || `BAO_GIA_NK/${data.fileName}`;
+
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `File_bao_gia_ct!D${rowNumber}`,
+                    valueInputOption: "RAW",
+                    requestBody: { values: [[pathToFile]] },
+                });
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
+
+            } catch (err) {
+                console.error("❌ Lỗi khi gọi AppScript hoặc ghi link:", err);
+            }
+        })().catch(err => console.error("❌ Async background error:", err));
+
     } catch (err) {
         console.error("❌ Lỗi khi xuất Báo Giá Nhôm Kính:", err.stack || err.message);
         if (!res.headersSent)
@@ -3966,149 +4042,71 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
 });
 
 
-/// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
-app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
-    try {
-        console.log("▶️ Bắt đầu xuất Báo Giá Nhôm Kính ...");
+////HÀM BBGN PVC KÈM MÃ ĐƠN HÀNG VÀO SỐ LẦN
 
-        // --- Nhận tham số ---
+app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất BBGN ...");
+
         const { maDonHang, soLan } = req.params;
         if (!maDonHang || !soLan) {
             return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng hoặc số lần.");
         }
-        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
-        // --- HÀM ĐỊNH DẠNG SỐ DUY NHẤT (Fix lỗi dấu ,) ---
-        const formatNumber = (num, decimals = 2) => {
-            if (num == null || num === undefined || num === '') return "0";
-            
-            // Nếu là chuỗi có dấu phẩy thập phân (0,20), chuyển thành số
-            let numberValue;
-            if (typeof num === 'string') {
-                // Loại bỏ dấu chấm phân cách hàng nghìn, thay dấu phẩy bằng dấu chấm
-                let str = num.trim().replace(/\./g, '').replace(/,/g, '.');
-                numberValue = parseFloat(str);
-                if (isNaN(numberValue)) return "0";
-            } else {
-                numberValue = Number(num);
-                if (isNaN(numberValue)) return "0";
-            }
-            
-            // Làm tròn và định dạng
-            const rounded = Math.abs(numberValue).toFixed(decimals);
-            const [intPart, decPart] = rounded.split('.');
-            
-            // Định dạng phần nguyên với dấu chấm phân cách hàng nghìn
-            const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
-            if (decPart === '00' || decimals === 0) {
-                return formattedInt;
-            }
-            
-            return `${formattedInt},${decPart}`;
-        };
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}, số lần: ${soLan}`);
 
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A1:BW",
+            range: "Don_hang!A1:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
         const donHang =
             data.find((r) => r[5] === maDonHang) ||
             data.find((r) => r[6] === maDonHang);
-        if (!donHang)
-            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
 
-        // --- Lấy chi tiết sản phẩm Nhôm Kính ---
+        if (!donHang) {
+            return res.send("❌ Không tìm thấy đơn hàng với mã: " + maDonHang);
+        }
+
+        // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_nk_ct!A1:U",
+            range: "Don_hang_PVC_ct!A1:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
-            .map((r) => ({
-                kyHieu: r[5],
-                tenHangHoa: r[8],
-                dai: r[9],
-                rong: r[10],
-                cao: r[11],
-                dienTich: r[12],
-                soLuong: r[14],
-                donViTinh: r[13],
-                donGia: r[17],
-                giaPK: r[16],
-                thanhTien: r[19]
+            .map((r, i) => ({
+                stt: i + 1,
+                tenSanPham: r[9],
+                soLuong: r[23],
+                donVi: r[22],
+                tongSoLuong: r[21],
+                ghiChu: "",
             }));
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
 
-        // --- Hàm chuyển đổi chuỗi số Việt Nam thành số ---
-        const parseVietNumber = (str) => {
-            if (!str && str !== 0) return 0;
-            if (typeof str === 'number') return str;
-            
-            let s = str.toString().trim();
-            // Loại bỏ dấu chấm phân cách hàng nghìn
-            s = s.replace(/\./g, '');
-            // Thay dấu phẩy thập phân bằng dấu chấm
-            s = s.replace(/,/g, '.');
-            
-            const num = parseFloat(s);
-            return isNaN(num) ? 0 : num;
-        };
-
-        // --- Tính tổng (dùng parseVietNumber để chuyển đổi) ---
-        let tongTien = 0;
-        products.forEach(p => tongTien += parseVietNumber(p.thanhTien) || 0);
-
-        // --- Xử lý chiết khấu ---
-        let chietKhauValue = donHang[32] || "0";
-        let chietKhauPercent = parseVietNumber(chietKhauValue.toString().replace('%', '')) || 0;
-        let chietKhau = chietKhauValue.toString().includes('%')
-            ? (tongTien * chietKhauPercent) / 100
-            : chietKhauPercent;
-
-        let tamUng = parseVietNumber(donHang[33]) || 0;
-        let tongThanhTien = tongTien - chietKhau - tamUng;
-
-        // --- Tính tổng diện tích và số lượng ---
-        let tongDienTich = 0, tongSoLuong = 0;
-        products.forEach(p => {
-            const dienTich = parseVietNumber(p.dienTich) || 0;
-            const soLuong = parseVietNumber(p.soLuong) || 0;
-            tongDienTich += dienTich * soLuong;
-            tongSoLuong += soLuong;
-        });
-        tongDienTich = parseFloat(tongDienTich.toFixed(2));
-
         // --- Logo & Watermark ---
         const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-        const watermarkBase64 = await loadDriveImageBase64("1766zFeBWPEmjTGQGrrtM34QFbV8fHryb");
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
 
-        // --- Render cho client ---
-        res.render("baogiank", {
+        // --- Render ra client trước ---
+        res.render("bbgn", {
             donHang,
             products,
             logoBase64,
             watermarkBase64,
             autoPrint: true,
             maDonHang,
-            tongTien,
-            chietKhau,
-            tamUng,
-            tongThanhTien,
-            tongDienTich,
-            tongSoLuong,
-            numberToWords,
-            formatNumber, // Dùng hàm formatNumber duy nhất
+            soLan,
             pathToFile: ""
         });
 
-        // ===== PHẦN GHI FILE (GIỮ NGUYÊN NHƯ CODE BAN ĐẦU) =====
+        // ===== HÀM MỚI: tìm dòng có retry (polling) =====
         async function findRowWithRetry(orderCode, attemptLimit = 20, initialDelayMs = 500) {
             let attempt = 0;
             let delay = initialDelayMs;
@@ -4117,13 +4115,13 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                 try {
                     const resp = await sheets.spreadsheets.values.get({
                         spreadsheetId: SPREADSHEET_ID,
-                        range: "File_bao_gia_ct!A:D",
+                        range: "file_BBGN_ct!A:D",
                     });
                     const rows = resp.data.values || [];
                     const idx = rows.findIndex(r => (r[1] === orderCode) && (r[2] === soLan));
                     if (idx !== -1) return idx + 1;
                 } catch (e) {
-                    console.warn(`⚠️ Lỗi đọc File_bao_gia_ct (attempt ${attempt}):`, e.message || e);
+                    console.warn(`⚠️ Lỗi đọc file_BBGN_ct (attempt ${attempt}):`, e.message || e);
                 }
                 await new Promise(r => setTimeout(r, delay));
                 delay = Math.min(delay + 300, 2000);
@@ -4131,13 +4129,13 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
             return null;
         }
 
-        // ===== Gọi AppScript & ghi đường dẫn (nền, không chặn UI) =====
+        // --- Phần chạy nền (không chặn client) ---
         (async () => {
             try {
                 const MAX_ATTEMPTS = parseInt(process.env.SHEET_POLL_ATTEMPTS, 10) || 20;
                 const INITIAL_DELAY_MS = parseInt(process.env.SHEET_POLL_DELAY_MS, 10) || 500;
 
-                console.log(`⏳ Polling File_bao_gia_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
+                console.log(`⏳ Polling file_BBGN_ct để tìm (maDonHang=${maDonHang}, soLan=${soLan}) ...`);
 
                 const rowNumber = await findRowWithRetry(maDonHang, MAX_ATTEMPTS, INITIAL_DELAY_MS);
                 if (!rowNumber) {
@@ -4145,10 +4143,10 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                     return;
                 }
 
-                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi GAS ...`);
+                console.log(`✔️ Đã tìm thấy dòng ${rowNumber}, chuẩn bị gọi Apps Script ...`);
 
                 const renderedHtml = await renderFileAsync(
-                    path.join(__dirname, "views", "baogiank.ejs"),
+                    path.join(__dirname, "views", "bbgn.ejs"),
                     {
                         donHang,
                         products,
@@ -4156,25 +4154,13 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                         watermarkBase64,
                         autoPrint: false,
                         maDonHang,
-                        tongTien,
-                        chietKhau,
-                        tamUng,
-                        tongThanhTien,
-                        tongDienTich,
-                        tongSoLuong,
-                        numberToWords,
-                        formatNumber, // Dùng hàm formatNumber mới
+                        soLan,
                         pathToFile: ""
                     }
                 );
 
-                const GAS_WEBAPP_URL_BAOGIANK = process.env.GAS_WEBAPP_URL_BAOGIANK;
-                if (!GAS_WEBAPP_URL_BAOGIANK) {
-                    console.warn("⚠️ Chưa cấu hình GAS_WEBAPP_URL_BAOGIANK - bỏ qua bước gọi GAS");
-                    return;
-                }
-
-                const resp = await fetch(GAS_WEBAPP_URL_BAOGIANK, {
+                // --- Gọi AppScript để tạo file PDF / lưu Google Drive ---
+                const resp = await fetch(GAS_WEBAPP_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
@@ -4186,23 +4172,24 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
                 const data = await resp.json();
                 console.log("✔️ AppScript trả về:", data);
 
-                const pathToFile = data.pathToFile || `BAO_GIA_NK/${data.fileName}`;
+                const pathToFile = data.pathToFile || `BBGN/${data.fileName}`;
 
+                // --- Ghi đường dẫn vào đúng dòng ---
                 await sheets.spreadsheets.values.update({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: `File_bao_gia_ct!D${rowNumber}`,
+                    range: `file_BBGN_ct!D${rowNumber}`,
                     valueInputOption: "RAW",
                     requestBody: { values: [[pathToFile]] },
                 });
-                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
 
+                console.log(`✔️ Đã ghi đường dẫn vào dòng ${rowNumber}: ${pathToFile}`);
             } catch (err) {
-                console.error("❌ Lỗi khi gọi AppScript hoặc ghi link:", err);
+                console.error("❌ Lỗi chạy nền khi gọi AppScript:", err);
             }
-        })().catch(err => console.error("❌ Async background error:", err));
+        })().catch(err => console.error("❌ Async IIFE BBGN lỗi:", err));
 
     } catch (err) {
-        console.error("❌ Lỗi khi xuất Báo Giá Nhôm Kính:", err.stack || err.message);
+        console.error("❌ Lỗi khi xuất BBGN:", err.stack || err.message);
         if (!res.headersSent)
             res.status(500).send("Lỗi server: " + (err.message || err));
     }
