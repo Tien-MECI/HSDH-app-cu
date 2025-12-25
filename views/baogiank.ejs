@@ -226,23 +226,25 @@
                 <tr>
                     <% for (var j = 0; j < filteredColumns.length; j++) { 
                         var value = products[i][filteredColumns[j].key] || '';
+                        var displayValue = value;
                         
                         // Định dạng giá trị số bằng hàm formatNumber duy nhất
-                        if (['dai', 'rong', 'cao'].includes(filteredColumns[j].key) && value) {
+                        if (['dai', 'rong', 'cao'].includes(filteredColumns[j].key)) {
                             // Số nguyên cho kích thước
-                            value = formatNumber(value, 0);
-                        } else if (['dienTich'].includes(filteredColumns[j].key) && value) {
+                            displayValue = formatNumber(value, 0);
+                        } else if (filteredColumns[j].key === 'dienTich') {
                             // Diện tích: 2 chữ số thập phân
-                            value = formatNumber(value, 2);
-                        } else if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key) && value) {
-                            // Giá tiền: 2 chữ số thập phân
-                            value = formatNumber(value, 2);
-                        } else if (['soLuong'].includes(filteredColumns[j].key) && value) {
+                            // Dùng giá trị gốc và định dạng lại
+                            displayValue = formatNumber(value, 2);
+                        } else if (['soLuong'].includes(filteredColumns[j].key)) {
                             // Số lượng: nguyên
-                            value = formatNumber(value, 0);
+                            displayValue = formatNumber(value, 0);
+                        } else if (['donGia', 'giaPK', 'thanhTien'].includes(filteredColumns[j].key)) {
+                            // Giá tiền: 2 chữ số thập phân
+                            displayValue = formatNumber(value, 2);
                         }
                     %>
-                        <td style="text-align: center;"><%= value %></td>
+                        <td style="text-align: center;"><%= displayValue %></td>
                     <% } %>
                 </tr>
             <% } %>
