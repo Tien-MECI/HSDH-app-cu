@@ -5209,15 +5209,12 @@ const table5Data = sheet3Data
     .map((row, index) => {
         // Parse các giá trị số
         const thanhTienLapDat = parseNumberFromSheet(row[6]); // G
-        const tongThanhTien = parseNumberFromSheet(row[7]); // H
         
         console.log(`Row ${index + 1}:`, {
             maNV: row[1],
             hoTen: row[2],
             lapDatRaw: row[6],
             lapDatParsed: thanhTienLapDat,
-            tongRaw: row[7],
-            tongParsed: tongThanhTien
         });
         
         return {
@@ -5225,10 +5222,7 @@ const table5Data = sheet3Data
             maNhanVien: row[1] ? row[1].toString().trim() : '',
             hoTen: row[2] ? row[2].toString().trim() : '',
             thanhTienLapDat: thanhTienLapDat,
-            tongThanhTien: tongThanhTien,
-            stk: row[8] ? row[8].toString().trim() : '',
-            nganHang: row[9] ? row[9].toString().trim() : '',
-            chuTaiKhoan: row[10] ? row[10].toString().trim() : ''
+            ghiChu: ''
         };
     })
     .filter(item => item.thanhTienLapDat > 0); // Lọc những dòng có giá trị
@@ -5478,10 +5472,7 @@ const table5Data = sheet3Data
                 'Mã nhân viên', 
                 'Họ tên', 
                 'Thành tiền khoán lắp đặt',
-                'Tổng thành tiền',
-                'STK ngân hàng',
-                'Ngân hàng',
-                'Chủ tài khoản'
+                'Ghi chú'
             ];
             sheet5.getRow(4).values = headers5;
             
@@ -5495,10 +5486,7 @@ const table5Data = sheet3Data
                     item.maNhanVien,
                     item.hoTen,
                     formatNumber(item.thanhTienLapDat),
-                    formatNumber(item.tongThanhTien),
-                    item.stk,
-                    item.nganHang,
-                    item.chuTaiKhoan
+                    item.ghiChu
                 ]);
             });
             
@@ -5507,10 +5495,8 @@ const table5Data = sheet3Data
                 { width: 15 },   // Mã NV
                 { width: 25 },   // Họ tên
                 { width: 20 },   // Khoán lắp đặt
-                { width: 15 },   // Tổng thành tiền
-                { width: 20 },   // STK
-                { width: 15 },   // Ngân hàng
-                { width: 25 }    // Chủ tài khoản
+                { width: 20 },   // Ghi chú
+
             ];
             
             for (let i = 4; i <= sheet5.rowCount; i++) {

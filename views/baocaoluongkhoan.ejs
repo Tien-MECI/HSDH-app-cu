@@ -668,7 +668,7 @@
                     <% } %>
                 </div>
 
-                                <!-- Bảng 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ -->
+                                <!-- Bảng 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT-->
 <div class="section">
     <h2 class="section-title">TỔNG LƯƠNG KHOÁN LẮP ĐẶT</h2>
     
@@ -683,9 +683,7 @@
                             <th>Họ tên</th>
                             <th>Thành tiền khoán lắp đặt</th>
                             <th>Tổng thành tiền</th>
-                            <th>STK ngân hàng</th>
-                            <th>Ngân hàng</th>
-                            <th>Chủ tài khoản</th>
+                            <th>Ghi chú</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -695,27 +693,21 @@
                             let totalThucLinh = 0;
                             table6Data.forEach(item => {
                                 totalLapDat += item.thanhTienLapDat;
-                                totalTongTien += item.tongThanhTien;
                         %>
                         <tr>
                             <td><%= item.stt %></td>
                             <td><%= item.maNhanVien %></td>
                             <td><%= item.hoTen %></td>
                             <td class="amount"><%= formatNumber(item.thanhTienLapDat) %></td>
-                            <td class="amount"><%= formatNumber(item.tongThanhTien) %></td>
-                            <td><%= item.stk %></td>
-                            <td><%= item.nganHang %></td>
-                            <td><%= item.chuTaiKhoan %></td>
+                            <td>
+                                <input type="text" 
+                                        class="editable" 
+                                        placeholder="Nhập ghi chú..."
+                                        value="<%= item.ghiChu %>"
+                                        onchange="updateNote(<%= item.stt %>, this.value)">
+                            </td>
                         </tr>
                         <% }) %>
-                        
-                        <!-- Dòng tổng -->
-                        <tr class="totals-row">
-                            <td colspan="3"><strong>TỔNG CỘNG</strong></td>
-                            <td class="amount"><strong><%= formatNumber(totalLapDat) %></strong></td>
-                            <td class="amount"><strong><%= formatNumber(totalTongTien) %></strong></td>
-                            <td colspan="3"></td>
-                        </tr>
                     </tbody>
                 </table>
             <% } else { %>
@@ -829,14 +821,6 @@
     </div>
 </div>
                 
-                <div class="export-options">
-                    <a href="/baoluongkhoan?monthYear=<%= monthYear %>&exportExcel=true" class="btn btn-success">
-                        <span>📥 Xuất Excel Tổng hợp (4 bảng)</span>
-                    </a>
-                    <a href="/baoluongkhoan?monthYear=<%= monthYear %>&exportExcel=true&type=installation" class="btn btn-secondary">
-                        <span>📥 Xuất Excel Lắp đặt riêng</span>
-                    </a>
-                </div>
             </div>
         <% } %>
     </div>
