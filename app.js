@@ -5446,7 +5446,6 @@ const formatNumber = (num) => {
                 'Họ tên', 
                 'Thành tiền khoán lắp đặt',
                 'Tổng thành tiền',
-                'Thực lĩnh',
                 'STK ngân hàng',
                 'Ngân hàng',
                 'Chủ tài khoản'
@@ -5464,7 +5463,6 @@ const formatNumber = (num) => {
                     item.hoTen,
                     formatNumber(item.thanhTienLapDat),
                     formatNumber(item.tongThanhTien),
-                    formatNumber(item.thucLinh),
                     item.stk,
                     item.nganHang,
                     item.chuTaiKhoan
@@ -5477,7 +5475,6 @@ const formatNumber = (num) => {
                 { width: 25 },   // Họ tên
                 { width: 20 },   // Khoán lắp đặt
                 { width: 15 },   // Tổng thành tiền
-                { width: 15 },   // Thực lĩnh
                 { width: 20 },   // STK
                 { width: 15 },   // Ngân hàng
                 { width: 25 }    // Chủ tài khoản

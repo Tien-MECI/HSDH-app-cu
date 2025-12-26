@@ -683,7 +683,6 @@
                             <th>Họ tên</th>
                             <th>Thành tiền khoán lắp đặt</th>
                             <th>Tổng thành tiền</th>
-                            <th>Thực lĩnh</th>
                             <th>STK ngân hàng</th>
                             <th>Ngân hàng</th>
                             <th>Chủ tài khoản</th>
@@ -697,7 +696,6 @@
                             table5Data.forEach(item => {
                                 totalLapDat += item.thanhTienLapDat;
                                 totalTongTien += item.tongThanhTien;
-                                totalThucLinh += item.thucLinh;
                         %>
                         <tr>
                             <td><%= item.stt %></td>
@@ -705,7 +703,6 @@
                             <td><%= item.hoTen %></td>
                             <td class="amount"><%= formatNumber(item.thanhTienLapDat) %></td>
                             <td class="amount"><%= formatNumber(item.tongThanhTien) %></td>
-                            <td class="amount"><%= formatNumber(item.thucLinh) %></td>
                             <td><%= item.stk %></td>
                             <td><%= item.nganHang %></td>
                             <td><%= item.chuTaiKhoan %></td>
@@ -717,7 +714,6 @@
                             <td colspan="3"><strong>TỔNG CỘNG</strong></td>
                             <td class="amount"><strong><%= formatNumber(totalLapDat) %></strong></td>
                             <td class="amount"><strong><%= formatNumber(totalTongTien) %></strong></td>
-                            <td class="amount"><strong><%= formatNumber(totalThucLinh) %></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tbody>
