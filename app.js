@@ -5458,7 +5458,7 @@ const table5Data = sheet3Data
             }
 
              // Sheet 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT
-            const sheet5 = workbook.addWorksheet('Tong_luong_khoan_LĐ_theo_nhan_su');
+            const sheet5 = workbook.addWorksheet('Tổng hợp lương khoán lắp đặt theo nhân sự');
             
             sheet5.mergeCells('A1:K1');
             sheet5.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN LẮP ĐẶT';
@@ -5500,7 +5500,7 @@ const table5Data = sheet3Data
             ];
             
             for (let i = 4; i <= sheet5.rowCount; i++) {
-                for (let j = 1; j <= 11; j++) {
+                for (let j = 1; j <= 5; j++) {
                     const cell = sheet5.getCell(i, j);
                     cell.border = {
                         top: { style: 'thin' },
@@ -5515,7 +5515,7 @@ const table5Data = sheet3Data
             }
             
             // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
-            const sheet6 = workbook.addWorksheet('Tong_luong_khoan_theo_nhan_su');
+            const sheet6 = workbook.addWorksheet('Tổng hợp khoán dịch vụ theo nhân sự');
             
             sheet6.mergeCells('A1:K1');
             sheet6.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN DỊCH VỤ';
