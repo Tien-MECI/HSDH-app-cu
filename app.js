@@ -13,6 +13,7 @@ import { preparexkvtData } from './xuatvattu.js';
 import { buildAttendanceData } from "./helpers/chamcong.js";
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
+import { userGroups, notificationRules } from './config/userGroups.js';
 
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
@@ -135,7 +136,33 @@ app.set("views", path.join(__dirname, "views"));
 
 // --- Lưu trữ subscriptions (tạm thời trong bộ nhớ, và đồng bộ với file) ---
 const SUBSCRIPTIONS_FILE = './subscriptions.json';
-let pushSubscriptions = [];
+let pushSubscriptions = []; // Mỗi subscription có: {endpoint, username, createdAt}
+
+// Helper function: Lấy danh sách usernames từ các group
+function getTargetUsernames(rule, data) {
+  let usernames = [];
+  
+  // Xử lý các targetGroups từ rule
+  rule.targetGroups.forEach(group => {
+    if (group === 'creator' && data.nguoi_tao) {
+      usernames.push(data.nguoi_tao);
+    } else if (userGroups[group]) {
+      usernames = usernames.concat(userGroups[group]);
+    }
+  });
+  
+  // Xử lý additionalGroups nếu có
+  if (rule.additionalGroups) {
+    rule.additionalGroups.forEach(group => {
+      if (userGroups[group]) {
+        usernames = usernames.concat(userGroups[group]);
+      }
+    });
+  }
+  
+  // Loại bỏ trùng lặp và trả về
+  return [...new Set(usernames)];
+}
 
 // Hàm load subscriptions từ file Phục vụ đăng ký nhận pushweb
 async function loadSubscriptions() {
@@ -4761,88 +4788,161 @@ app.get('/get-vapid-key', (req, res) => {
   res.json({ publicKey: publicVapidKey });
 });
 
-// Endpoint để trình duyệt đăng ký nhận push notifications
+// Endpoint subscribe mới với username
 app.post('/subscribe', async (req, res) => {
-  const subscription = req.body;
+  const { subscription, username } = req.body;
   
-  // Kiểm tra xem subscription đã tồn tại chưa để tránh trùng lặp
-  const exists = pushSubscriptions.some(sub => sub.endpoint === subscription.endpoint);
-  if (!exists) {
-    pushSubscriptions.push(subscription);
-    await saveSubscriptions();
-    console.log('✅ New browser subscription added.');
+  if (!subscription || !username) {
+    return res.status(400).json({ 
+      error: 'Subscription và Username là bắt buộc.' 
+    });
   }
   
-  res.status(201).json({ message: 'Subscription saved successfully.' });
+  // Kiểm tra subscription đã tồn tại chưa
+  const existsIndex = pushSubscriptions.findIndex(
+    sub => sub.endpoint === subscription.endpoint
+  );
+  
+  const userSubscription = {
+    ...subscription,
+    username: username.trim().toUpperCase(), // Chuẩn hóa username
+    createdAt: new Date().toISOString()
+  };
+  
+  if (existsIndex > -1) {
+    // Cập nhật subscription cũ
+    pushSubscriptions[existsIndex] = userSubscription;
+    console.log(`🔄 Updated subscription for: ${username}`);
+  } else {
+    // Thêm mới
+    pushSubscriptions.push(userSubscription);
+    console.log(`✅ New subscription for: ${username}`);
+  }
+  
+  await saveSubscriptions();
+  res.json({ 
+    success: true, 
+    message: `Đã lưu subscription cho ${username}` 
+  });
 });
 
-// Endpoint nhận webhook từ AppSheet
+// Endpoint webhook mới với logic thông minh
 app.post('/webhook-from-appsheet', async (req, res) => {
   try {
-    console.log('📨 === WEBHOOK RECEIVED ===');
-    console.log('📦 Full request body:', JSON.stringify(req.body, null, 2));
-    console.log('🔍 Request headers:', req.headers);
+    const orderData = req.body;
+    console.log('📨 Nhận webhook:', orderData.ma_dh);
     
-    const { title, body, icon, data } = req.body;
+    // 1. Xác định trạng thái cần xử lý
+    let statusField = null;
+    let statusValue = null;
     
-    if (!title) {
-      console.log('❌ Title is missing in webhook payload');
-      return res.status(400).json({ error: 'Title is required.' });
-    }
-    
-    console.log(`✅ Webhook validated: "${title}"`);
-    
-    // Kiểm tra xem có subscription nào không
-    console.log(`📋 Total subscriptions in memory: ${pushSubscriptions.length}`);
-    
-    if (pushSubscriptions.length === 0) {
-      console.log('⚠️ No browser subscriptions found. Has the user visited index.html and clicked subscribe?');
-      return res.json({ success: false, message: 'No subscribers yet.' });
-    }
-    
-    const payload = JSON.stringify({ title, body, icon, data });
-    
-    // Gửi thông báo và log chi tiết kết quả
-    const results = [];
-    for (let i = 0; i < pushSubscriptions.length; i++) {
-      const sub = pushSubscriptions[i];
-      try {
-        console.log(`➡️ Sending to subscription ${i + 1}: ${sub.endpoint.substring(0, 50)}...`);
-        await webPush.sendNotification(sub, payload);
-        console.log(`✅ Successfully sent to subscription ${i + 1}`);
-        results.push({ index: i, status: 'success' });
-      } catch (err) {
-        console.error(`❌ Failed to send to subscription ${i + 1}:`, {
-          statusCode: err.statusCode,
-          message: err.message,
-          endpoint: sub.endpoint.substring(0, 50)
-        });
-        
-        // Xóa subscription không hợp lệ
-        if (err.statusCode === 410) {
-          pushSubscriptions.splice(i, 1);
-          i--; // Điều chỉnh index sau khi xóa
-          console.log(`🗑️ Removed expired subscription ${i + 1}`);
-        }
-        results.push({ index: i, status: 'failed', error: err.message });
+    // Kiểm tra các trường trạng thái theo thứ tự ưu tiên
+    const statusFields = ['tiep_nhan_don_hang', 'Phe_duyet', 'tinh_trang_tao_don'];
+    for (const field of statusFields) {
+      if (orderData[field]) {
+        statusField = field;
+        statusValue = orderData[field];
+        break;
       }
     }
     
-    // Lưu lại danh sách subscriptions sau khi xóa các subscription hết hạn
+    if (!statusValue) {
+      console.log('⚠️ Không xác định được trạng thái');
+      return res.json({ success: false, message: 'Không xác định được trạng thái' });
+    }
+    
+    // 2. Tìm rule phù hợp
+    const rule = notificationRules[statusValue];
+    if (!rule) {
+      console.log(`⚠️ Không có rule cho trạng thái: ${statusValue}`);
+      return res.json({ success: false, message: 'Không có rule phù hợp' });
+    }
+    
+    // 3. Lấy danh sách người nhận
+    const targetUsernames = getTargetUsernames(rule, orderData);
+    console.log(`🎯 Người nhận: ${targetUsernames.join(', ')}`);
+    
+    // 4. Lọc subscriptions
+    const subscriptionsToNotify = pushSubscriptions.filter(sub => 
+      targetUsernames.includes(sub.username)
+    );
+    
+    console.log(`📋 Tìm thấy ${subscriptionsToNotify.length} subscriptions`);
+    
+    if (subscriptionsToNotify.length === 0) {
+      return res.json({ success: true, message: 'Không có người nhận phù hợp' });
+    }
+    
+    // 5. Tạo thông báo
+    const notificationPayload = {
+      title: rule.titleTemplate(orderData),
+      body: rule.bodyTemplate(orderData),
+      data: {
+        url: orderData.url || `https://appsheet.com/start/YourAppID#view=OrderDetail&row=${orderData.id}`,
+        orderId: orderData.ma_dh,
+        status: statusValue
+      }
+    };
+    
+    // 6. Gửi thông báo (giữ nguyên logic gửi cũ)
+    const payload = JSON.stringify(notificationPayload);
+    const results = [];
+    
+    for (let i = 0; i < subscriptionsToNotify.length; i++) {
+      const sub = subscriptionsToNotify[i];
+      try {
+        await webPush.sendNotification(sub, payload);
+        results.push({ username: sub.username, status: 'success' });
+      } catch (err) {
+        console.error(`❌ Lỗi gửi cho ${sub.username}:`, err.message);
+        // Xử lý subscription hết hạn (410)
+        if (err.statusCode === 410) {
+          pushSubscriptions = pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
+        }
+        results.push({ username: sub.username, status: 'failed', error: err.message });
+      }
+    }
+    
+    // 7. Lưu subscriptions (nếu có thay đổi)
     await saveSubscriptions();
     
-    console.log(`📊 Notification send summary: ${results.filter(r => r.status === 'success').length} succeeded, ${results.filter(r => r.status === 'failed').length} failed`);
-    
-    res.json({ 
-      success: true, 
-      message: `Processed for ${pushSubscriptions.length} subscriber(s)`,
-      results 
+    res.json({
+      success: true,
+      message: `Đã xử lý thông báo cho ${statusValue}`,
+      details: {
+        order: orderData.ma_dh,
+        status: statusValue,
+        targetCount: targetUsernames.length,
+        sentCount: results.filter(r => r.status === 'success').length,
+        failedCount: results.filter(r => r.status === 'failed').length
+      }
     });
     
   } catch (error) {
-    console.error('💥 CRITICAL Webhook processing error:', error);
-    res.status(500).json({ error: 'Internal server error.', details: error.message });
+    console.error('💥 Lỗi xử lý webhook:', error);
+    res.status(500).json({ error: 'Lỗi server', details: error.message });
   }
+});
+
+// Endpoint quản lý subscriptions
+app.get('/admin/subscriptions', (req, res) => {
+  const summary = {};
+  pushSubscriptions.forEach(sub => {
+    if (!summary[sub.username]) {
+      summary[sub.username] = { count: 0, devices: [] };
+    }
+    summary[sub.username].count++;
+    summary[sub.username].devices.push({
+      endpoint: sub.endpoint.substring(0, 50) + '...',
+      created: sub.createdAt
+    });
+  });
+  
+  res.json({
+    totalSubscriptions: pushSubscriptions.length,
+    totalUsers: Object.keys(summary).length,
+    users: summary
+  });
 });
 
 

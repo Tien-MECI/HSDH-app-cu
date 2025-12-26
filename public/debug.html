@@ -1,78 +1,565 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Debug Push Notifications</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug & Đăng ký Thông báo</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
-        .log { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
-    </style>
-    <script>
-        // Inject VAPID key từ biến môi trường
-        window.publicVapidKey = '<%= process.env.PUBLIC_VAPID_KEY %>';
-    </script>
-</head>
-<body>
-    <h1>Debug Push Notifications</h1>
-    
-    <button onclick="checkPermissions()">1. Kiểm tra Permissions</button>
-    <button onclick="subscribe()">2. Đăng ký Push</button>
-    <button onclick="testNotification()">3. Test Thông báo Ngay</button>
-    <button onclick="clearLogs()">Clear Logs</button>
-    
-    <div id="log" class="log"></div>
-    
-    <script src="/client.js"></script>
-    <script>
-        const log = document.getElementById('log');
-        
-        function addLog(message) {
-            log.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
-            console.log(message);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
-        function clearLogs() {
-            log.innerHTML = '';
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
         }
         
-        async function checkPermissions() {
-            const permission = await Notification.requestPermission();
-            addLog(`Permission status: ${permission}`);
-            
-            if ('serviceWorker' in navigator) {
-                const regs = await navigator.serviceWorker.getRegistrations();
-                addLog(`Service Workers registered: ${regs.length}`);
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
             }
         }
         
-        async function subscribe() {
-            // Gọi hàm subscribeToPushNotifications đã định nghĩa trong client.js
-            if (typeof subscribeToPushNotifications === 'function') {
-                subscribeToPushNotifications();
-            } else {
-                addLog('Error: subscribeToPushNotifications not found');
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .section h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 1.5rem;
+        }
+        
+        .section h3 {
+            color: #6c757d;
+            margin: 20px 0 10px 0;
+            font-size: 1.2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .log-container {
+            grid-column: span 2;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .log-container {
+                grid-column: span 1;
+            }
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        .log-header h2 {
+            margin: 0;
+            border: none;
+            color: #fff;
+        }
+        
+        #log {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-time {
+            color: #888;
+            margin-right: 10px;
+        }
+        
+        .log-success {
+            color: #4CAF50;
+        }
+        
+        .log-error {
+            color: #f44336;
+        }
+        
+        .log-warning {
+            color: #ff9800;
+        }
+        
+        .log-info {
+            color: #2196F3;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 0.9rem;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: #4CAF50;
+        }
+        
+        .status-offline {
+            background-color: #f44336;
+        }
+    </style>
+    <script>
+        // Inject VAPID key từ biến môi trường
+        window.publicVapidKey = 'BHApebDW1nYGCIzZVc4zgo1sLt5-acXCIEze31DCI35rVH8QguKr45DcgksFPwJS86eC6fiIuRjo_1rzJEHWaV8';
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Hệ Thống Thông Báo Đơn Hàng</h1>
+            <p>Đăng ký nhận thông báo theo trạng thái đơn hàng và nhóm người dùng</p>
+        </header>
+        
+        <div class="main-content">
+            <!-- Phần 1: Đăng ký người dùng -->
+            <div class="section">
+                <h2>👤 Đăng Ký Người Dùng</h2>
+                <div class="form-group">
+                    <label for="username-input">Tên đăng nhập (Ten_dang_nhap):</label>
+                    <input type="text" id="username-input" placeholder="MC005, MC010, MC034, ...">
+                    <div class="info-box">
+                        <p><strong>Định dạng:</strong> MC + 3 số (VD: MC005, MC010, MC034)</p>
+                        <p><strong>Nhóm phê duyệt:</strong> MC005, MC010, MC011</p>
+                        <p><strong>Nhóm sản xuất:</strong> MC034, MC035</p>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="subscribe-btn" class="btn-primary">
+                        <span>🔔</span> Đăng Ký Nhận Thông Báo
+                    </button>
+                </div>
+                
+                <h3>Kiểm Tra Hệ Thống</h3>
+                <div class="button-group">
+                    <button onclick="checkPermissions()" class="btn-secondary">
+                        <span>🔍</span> Kiểm Tra Quyền
+                    </button>
+                    <button onclick="testNotification()" class="btn-success">
+                        <span>🧪</span> Test Thông Báo
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Phần 2: Quản lý và Thông tin -->
+            <div class="section">
+                <h2>⚙️ Quản Lý & Thông Tin</h2>
+                
+                <h3>Trạng Thái Hệ Thống</h3>
+                <div class="button-group">
+                    <button onclick="checkServiceWorker()" class="btn-secondary">
+                        <span>⚙️</span> Kiểm Tra Service Worker
+                    </button>
+                    <button onclick="checkConnection()" class="btn-secondary">
+                        <span>📡</span> Kiểm Tra Kết Nối
+                    </button>
+                </div>
+                
+                <h3>Quản Lý Subscriptions</h3>
+                <div class="button-group">
+                    <button onclick="listSubscriptions()" class="btn-warning">
+                        <span>📋</span> Danh Sách Đăng Ký
+                    </button>
+                    <button onclick="clearAllSubscriptions()" class="btn-danger">
+                        <span>🗑️</span> Xóa Tất Cả
+                    </button>
+                </div>
+                
+                <h3>Thông Tin Hữu Ích</h3>
+                <div class="info-box">
+                    <p><strong>Luồng thông báo:</strong></p>
+                    <p>• Tạo đơn → Nhóm phê duyệt (MC005, MC010, MC011)</p>
+                    <p>• Phê duyệt → Người tạo + Nhóm sản xuất (MC034, MC035)</p>
+                    <p>• Tiếp nhận → Người tạo + Nhóm phê duyệt</p>
+                    <p>• Hủy đơn → Người tạo + Nhóm phê duyệt</p>
+                </div>
+            </div>
+            
+            <!-- Phần 3: Log Console -->
+            <div class="log-container">
+                <div class="log-header">
+                    <h2>📋 Console Logs</h2>
+                    <button onclick="clearLogs()" class="btn-secondary" style="padding: 8px 16px; font-size: 0.9rem;">
+                        <span>🧹</span> Xóa Logs
+                    </button>
+                </div>
+                <div id="log"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Hệ thống thông báo đơn hàng • Phiên bản 2.0 • Server: <span id="server-status" class="status-indicator status-online"></span> Đang hoạt động</p>
+        </footer>
+    </div>
+    
+    <script src="/client.js"></script>
+    <script>
+        // Biến và hàm quản lý log
+        const logElement = document.getElementById('log');
+        let logEntries = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('vi-VN');
+            const entry = {
+                time: timestamp,
+                message: message,
+                type: type
+            };
+            
+            logEntries.push(entry);
+            
+            // Giới hạn số lượng log entries
+            if (logEntries.length > 100) {
+                logEntries.shift();
+            }
+            
+            // Hiển thị log
+            updateLogDisplay();
+            
+            // Console log thực tế
+            const consoleMessage = `[${timestamp}] ${message}`;
+            switch(type) {
+                case 'error': console.error(consoleMessage); break;
+                case 'warning': console.warn(consoleMessage); break;
+                case 'success': console.log('%c' + consoleMessage, 'color: green'); break;
+                default: console.log(consoleMessage);
+            }
+        }
+        
+        function updateLogDisplay() {
+            logElement.innerHTML = '';
+            logEntries.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = `log-entry log-${entry.type}`;
+                div.innerHTML = `<span class="log-time">[${entry.time}]</span> ${entry.message}`;
+                logElement.appendChild(div);
+            });
+            
+            // Tự động cuộn xuống dưới cùng
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function clearLogs() {
+            logEntries = [];
+            updateLogDisplay();
+            addLog('Đã xóa tất cả logs', 'info');
+        }
+        
+        // Các hàm debug
+        async function checkPermissions() {
+            try {
+                if (!('Notification' in window)) {
+                    addLog('❌ Trình duyệt không hỗ trợ Notification API', 'error');
+                    return;
+                }
+                
+                const permission = await Notification.requestPermission();
+                addLog(`🔔 Quyền thông báo: ${permission}`, permission === 'granted' ? 'success' : 'warning');
+                
+                if (permission === 'granted') {
+                    addLog('✅ Bạn đã cho phép thông báo', 'success');
+                } else if (permission === 'denied') {
+                    addLog('❌ Bạn đã từ chối thông báo. Vui lòng cấp quyền trong cài đặt trình duyệt.', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi khi kiểm tra quyền: ${error.message}`, 'error');
             }
         }
         
         async function testNotification() {
-            if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.ready;
-                registration.showNotification('Test từ Debug Page', {
-                    body: 'Nếu bạn thấy cái này, Service Worker đang hoạt động!',
-                    icon: '/default-icon.png',
-                    requireInteraction: true
-                });
-                addLog('Test notification shown');
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.showNotification('Test từ Debug Page', {
+                        body: 'Nếu bạn thấy thông báo này, hệ thống đang hoạt động tốt!',
+                        icon: '/default-icon.png',
+                        requireInteraction: true,
+                        tag: 'test-notification'
+                    });
+                    addLog('✅ Đã hiển thị thông báo test', 'success');
+                } else {
+                    addLog('❌ Service Worker không khả dụng', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi khi test thông báo: ${error.message}`, 'error');
             }
         }
         
-        // Tự động check khi load trang
+        async function checkServiceWorker() {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    addLog(`📋 Số Service Worker đã đăng ký: ${registrations.length}`, 'info');
+                    
+                    registrations.forEach((reg, index) => {
+                        addLog(`  SW ${index + 1}: ${reg.scope}`, 'info');
+                        addLog(`    State: ${reg.active ? reg.active.state : 'unknown'}`, 'info');
+                    });
+                    
+                    if (registrations.length === 0) {
+                        addLog('ℹ️ Chưa có Service Worker nào được đăng ký', 'warning');
+                    }
+                } else {
+                    addLog('❌ Trình duyệt không hỗ trợ Service Worker', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi khi kiểm tra Service Worker: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkConnection() {
+            try {
+                addLog('📡 Đang kiểm tra kết nối đến server...', 'info');
+                
+                // Kiểm tra kết nối đến server
+                const response = await fetch('/get-vapid-key');
+                if (response.ok) {
+                    addLog('✅ Kết nối đến server thành công', 'success');
+                } else {
+                    addLog(`⚠️ Server trả về mã lỗi: ${response.status}`, 'warning');
+                }
+                
+                // Kiểm tra kết nối đến FCM
+                try {
+                    const fcmTest = await fetch('https://fcm.googleapis.com/fcm/send', { method: 'HEAD' });
+                    addLog('✅ Kết nối đến FCM (Google) thành công', 'success');
+                } catch (fcmError) {
+                    addLog('⚠️ Không thể kết nối đến FCM. Có thể bị chặn bởi firewall.', 'warning');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi kết nối: ${error.message}`, 'error');
+            }
+        }
+        
+        async function listSubscriptions() {
+            try {
+                addLog('📋 Đang lấy danh sách subscriptions...', 'info');
+                const response = await fetch('/admin/subscriptions');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`📊 Tổng số subscriptions: ${data.totalSubscriptions}`, 'info');
+                    addLog(`👥 Tổng số users: ${data.totalUsers}`, 'info');
+                    
+                    if (data.users && Object.keys(data.users).length > 0) {
+                        Object.keys(data.users).forEach(username => {
+                            addLog(`  ${username}: ${data.users[username].count} thiết bị`, 'info');
+                        });
+                    } else {
+                        addLog('ℹ️ Chưa có ai đăng ký', 'warning');
+                    }
+                } else {
+                    addLog(`❌ Lỗi: ${data.error || 'Không xác định'}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi khi lấy danh sách: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearAllSubscriptions() {
+            if (!confirm('⚠️ Bạn có CHẮC CHẮN muốn xóa TẤT CẢ subscriptions?\n\nThao tác này sẽ xóa mọi đăng ký và không thể hoàn tác.')) {
+                return;
+            }
+            
+            try {
+                addLog('🧹 Đang xóa tất cả subscriptions...', 'warning');
+                const response = await fetch('/admin/subscriptions/all', { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(`✅ ${result.message}`, 'success');
+                } else {
+                    addLog(`❌ Lỗi: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Lỗi khi xóa subscriptions: ${error.message}`, 'error');
+            }
+        }
+        
+        // Khởi động khi trang load
         window.addEventListener('load', () => {
-            addLog('Debug page loaded');
+            addLog('🌐 Trang debug đã tải xong', 'success');
+            addLog('💡 Tip: Hãy nhập tên đăng nhập và đăng ký để nhận thông báo', 'info');
+            
+            // Tự động kiểm tra quyền khi load trang
             checkPermissions();
+            
+            // Tự động kiểm tra Service Worker
+            checkServiceWorker();
+        });
+        
+        // Thêm sự kiện cho nút Enter trên input
+        document.getElementById('username-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('subscribe-btn').click();
+            }
         });
     </script>
-    
-    <script src="/client.js"></script>
 </body>
 </html>
