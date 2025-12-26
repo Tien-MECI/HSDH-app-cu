@@ -5460,7 +5460,7 @@ const table5Data = sheet3Data
              // Sheet 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT
             const sheet5 = workbook.addWorksheet('Tổng hợp lương khoán lắp đặt theo nhân sự');
             
-            sheet5.mergeCells('A1:K1');
+            sheet5.mergeCells('A1:E1');
             sheet5.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN LẮP ĐẶT';
             sheet5.getCell('A1').font = { bold: true, size: 16 };
             sheet5.getCell('A1').alignment = { horizontal: 'center' };
