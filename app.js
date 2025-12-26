@@ -5208,6 +5208,8 @@ const formatNumber = (num) => {
     return new Intl.NumberFormat('vi-VN').format(number);
 };
 
+
+
         // Nếu yêu cầu xuất Excel
         if (exportExcel === 'true') {
             const workbook = new exceljs.Workbook();
@@ -5427,12 +5429,12 @@ const formatNumber = (num) => {
                     }
                 }
             }
-            
-            // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
-            const sheet5 = workbook.addWorksheet('Tong_luong_khoan_theo_nhan_su');
+
+             // Sheet 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT
+            const sheet5 = workbook.addWorksheet('Tong_luong_khoan_LĐ_theo_nhan_su');
             
             sheet5.mergeCells('A1:K1');
-            sheet5.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN DỊCH VỤ';
+            sheet5.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN LẮP ĐẶT';
             sheet5.getCell('A1').font = { bold: true, size: 16 };
             sheet5.getCell('A1').alignment = { horizontal: 'center' };
             
@@ -5442,10 +5444,8 @@ const formatNumber = (num) => {
                 'STT', 
                 'Mã nhân viên', 
                 'Họ tên', 
-                'Thành tiền khoán giao vận', 
                 'Thành tiền khoán lắp đặt',
                 'Tổng thành tiền',
-                'Tạm ứng',
                 'Thực lĩnh',
                 'STK ngân hàng',
                 'Ngân hàng',
@@ -5462,6 +5462,76 @@ const formatNumber = (num) => {
                     item.stt,
                     item.maNhanVien,
                     item.hoTen,
+                    formatNumber(item.thanhTienLapDat),
+                    formatNumber(item.tongThanhTien),
+                    formatNumber(item.thucLinh),
+                    item.stk,
+                    item.nganHang,
+                    item.chuTaiKhoan
+                ]);
+            });
+            
+            sheet5.columns = [
+                { width: 8 },    // STT
+                { width: 15 },   // Mã NV
+                { width: 25 },   // Họ tên
+                { width: 20 },   // Khoán lắp đặt
+                { width: 15 },   // Tổng thành tiền
+                { width: 15 },   // Thực lĩnh
+                { width: 20 },   // STK
+                { width: 15 },   // Ngân hàng
+                { width: 25 }    // Chủ tài khoản
+            ];
+            
+            for (let i = 4; i <= sheet5.rowCount; i++) {
+                for (let j = 1; j <= 11; j++) {
+                    const cell = sheet5.getCell(i, j);
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (j >= 4 && j <= 8) { // Cột tiền từ 4-8
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            }
+            
+            // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
+            const sheet6 = workbook.addWorksheet('Tong_luong_khoan_theo_nhan_su');
+            
+            sheet6.mergeCells('A1:K1');
+            sheet6.getCell('A1').value = 'TỔNG LƯƠNG KHOÁN DỊCH VỤ';
+            sheet6.getCell('A1').font = { bold: true, size: 16 };
+            sheet6.getCell('A1').alignment = { horizontal: 'center' };
+            
+            sheet6.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+            
+            const headers6 = [
+                'STT', 
+                'Mã nhân viên', 
+                'Họ tên', 
+                'Thành tiền khoán giao vận', 
+                'Thành tiền khoán lắp đặt',
+                'Tổng thành tiền',
+                'Tạm ứng',
+                'Thực lĩnh',
+                'STK ngân hàng',
+                'Ngân hàng',
+                'Chủ tài khoản'
+            ];
+            sheet6.getRow(4).values = headers6;
+            
+            const headerRow6 = sheet6.getRow(4);
+            headerRow6.font = { bold: true };
+            headerRow6.alignment = { horizontal: 'center' };
+            
+            table5Data.forEach(item => {
+                sheet6.addRow([
+                    item.stt,
+                    item.maNhanVien,
+                    item.hoTen,
                     formatNumber(item.thanhTienGiaoVan),
                     formatNumber(item.thanhTienLapDat),
                     formatNumber(item.tongThanhTien),
@@ -5473,7 +5543,7 @@ const formatNumber = (num) => {
                 ]);
             });
             
-            sheet5.columns = [
+            sheet6.columns = [
                 { width: 8 },    // STT
                 { width: 15 },   // Mã NV
                 { width: 25 },   // Họ tên
@@ -5487,9 +5557,9 @@ const formatNumber = (num) => {
                 { width: 25 }    // Chủ tài khoản
             ];
             
-            for (let i = 4; i <= sheet5.rowCount; i++) {
+            for (let i = 4; i <= sheet6.rowCount; i++) {
                 for (let j = 1; j <= 11; j++) {
-                    const cell = sheet5.getCell(i, j);
+                    const cell = sheet6.getCell(i, j);
                     cell.border = {
                         top: { style: 'thin' },
                         left: { style: 'thin' },
