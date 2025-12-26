@@ -694,7 +694,6 @@
                             let totalLapDat = 0;
                             let totalTongTien = 0;
                             let totalThucLinh = 0;
-                            
                             table5Data.forEach(item => {
                                 totalLapDat += item.thanhTienLapDat;
                                 totalTongTien += item.tongThanhTien;
@@ -706,23 +705,7 @@
                             <td><%= item.hoTen %></td>
                             <td class="amount"><%= formatNumber(item.thanhTienLapDat) %></td>
                             <td class="amount"><%= formatNumber(item.tongThanhTien) %></td>
-                            <td class="amount">
-                                <input type="text" 
-                                       class="calculation-input" 
-                                       data-tongtien="<%= item.tongThanhTien %>"
-                                       data-index="<%= item.stt %>"
-                                       oninput="calculateThucLinh(this, <%= item.stt %>)"
-                                       onfocus="formatNumberInput(this)"
-                                       onblur="formatNumberDisplay(this)">
-                            </td>
-                            <td class="amount">
-                                <input type="text" 
-                                       class="calculation-input" 
-                                       id="thucLinh_<%= item.stt %>"
-                                       value="<%= formatNumber(item.thucLinh) %>"
-                                       readonly
-                                       style="background-color: #f0f0f0;">
-                            </td>
+                            <td class="amount"><%= formatNumber(item.thucLinh) %></td>
                             <td><%= item.stk %></td>
                             <td><%= item.nganHang %></td>
                             <td><%= item.chuTaiKhoan %></td>
@@ -734,14 +717,7 @@
                             <td colspan="3"><strong>TỔNG CỘNG</strong></td>
                             <td class="amount"><strong><%= formatNumber(totalLapDat) %></strong></td>
                             <td class="amount"><strong><%= formatNumber(totalTongTien) %></strong></td>
-                            <td class="amount">
-                                <input type="text" 
-                                       class="calculation-input" 
-                                       id="totalThucLinh"
-                                       value="<%= formatNumber(totalThucLinh) %>"
-                                       readonly
-                                       style="background-color: #f0f0f0; font-weight: bold;">
-                            </td>
+                            <td class="amount"><strong><%= formatNumber(totalThucLinh) %></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tbody>
