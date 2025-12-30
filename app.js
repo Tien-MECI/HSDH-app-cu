@@ -5795,34 +5795,58 @@ app.get("/baoluongkhoan/export-installation", async (req, res) => {
 });
 
 // --- Route phân bổ khoán lắp đặt theo từng nhân viên ---
+// Thêm helper functions cho EJS khoán lắp đặt
+app.locals.formatNumber = function(num) {
+    if (typeof num !== 'number') {
+        num = parseFloat(num);
+        if (isNaN(num)) return '0';
+    }
+    return num.toLocaleString('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+};
+
+app.locals.formatDate = function(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('vi-VN');
+};
+
+// Route báo cáo lắp đặt
 app.get("/lapdat-:manv", async (req, res) => {
     try {
         const { manv } = req.params;
-        const { thangNam } = req.query;
+        const { thang, nam } = req.query;
         
-        // Lấy dữ liệu từ Google Sheets
-        const sheetName = "TT_khoan_lap_dat";
+        // Lấy dữ liệu từ sheet TT_khoan_lap_dat
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
-            range: `${sheetName}!A:N`,
+            range: "TT_khoan_lap_dat!A:Z",
         });
-        
-        const rows = response.data.values || [];
-        if (rows.length <= 1) {
+
+        const data = response.data.values || [];
+        if (data.length === 0) {
             return res.render("phanbolapdat", {
-                manv,
-                error: "Không có dữ liệu trong sheet",
-                data: null,
-                summary: null,
-                thangNam: thangNam || ""
+                manv: manv || '',
+                thang: thang || '',
+                nam: nam || '',
+                hoTen: '',
+                table1: [],
+                table2: [],
+                tongTien: 0,
+                tongDonHang: 0,
+                error: "Không có dữ liệu trong sheet"
             });
         }
-        
-        // Lấy header
-        const headers = rows[0];
-        
-        // Map column indexes
-        const colIndexes = {
+
+        // Lấy headers
+        const headers = data[0];
+        const dataRows = data.slice(1);
+
+        // Tìm chỉ số cột
+        const colIndex = {
             hoTen: headers.indexOf("Họ và tên"),
             maNV: headers.indexOf("Mã nhân viên"),
             maDonHang: headers.indexOf("Mã đơn hàng"),
@@ -5830,139 +5854,137 @@ app.get("/lapdat-:manv", async (req, res) => {
             vaiTro: headers.indexOf("Vai trò"),
             heSoDiem: headers.indexOf("Hệ số điểm"),
             tongDiemHeSo: headers.indexOf("Tổng điểm hệ số"),
-            giaTriKhoan: headers.indexOf("Tiền khoán lắp đặt"),
-            donGiaTrungBinh: headers.indexOf("Đơn giá trung bình"),
+            tienKhoanLD: headers.indexOf("Tiền khoán lắp đặt"),
+            donGiaTB: headers.indexOf("Đơn giá trung bình"),
             thanhTien: headers.indexOf("Thành tiền được hưởng/lần thực hiện"),
             ngayBaoCao: headers.indexOf("Ngày lấy báo cáo"),
             xacNhanThanhToan: headers.indexOf("Xác nhận thanh toán")
         };
-        
-        // Filter data
-        let filteredData = rows.slice(1).map((row, index) => ({
-            index: index + 1,
-            hoTen: row[colIndexes.hoTen] || "",
-            maNV: row[colIndexes.maNV] || "",
-            maDonHang: row[colIndexes.maDonHang] || "",
-            maLanThucHien: row[colIndexes.maLanThucHien] || "",
-            vaiTro: row[colIndexes.vaiTro] || "",
-            heSoDiem: parseFloat(row[colIndexes.heSoDiem]) || 0,
-            tongDiemHeSo: parseFloat(row[colIndexes.tongDiemHeSo]) || 0,
-            giaTriKhoan: parseFloat(row[colIndexes.giaTriKhoan]) || 0,
-            donGiaTrungBinh: parseFloat(row[colIndexes.donGiaTrungBinh]) || 0,
-            thanhTien: parseFloat(row[colIndexes.thanhTien]) || 0,
-            ngayBaoCao: row[colIndexes.ngayBaoCao] || "",
-            xacNhanThanhToan: row[colIndexes.xacNhanThanhToan] || ""
-        }));
-        
-        // Nếu có tháng/năm và mã NV trong query, lọc dữ liệu
-        if (thangNam && manv) {
-            const [month, year] = thangNam.split('/');
+
+        // Lọc dữ liệu theo mã nhân viên và tháng/năm
+        let filteredData = dataRows.filter(row => {
+            const maNV = row[colIndex.maNV] || '';
+            const ngayStr = row[colIndex.ngayBaoCao] || '';
             
-            filteredData = filteredData.filter(row => {
-                // Kiểm tra mã nhân viên
-                if (row.maNV !== manv) return false;
-                
-                // Kiểm tra tháng/năm
-                if (row.ngayBaoCao) {
-                    const dateParts = row.ngayBaoCao.split('/');
-                    if (dateParts.length === 3) {
-                        const rowMonth = dateParts[1];
-                        const rowYear = dateParts[2];
-                        return rowMonth === month && rowYear === year;
-                    }
+            // Kiểm tra mã nhân viên
+            const matchMaNV = !manv || maNV.trim() === manv.trim();
+            
+            // Kiểm tra ngày tháng
+            let matchDate = true;
+            if (thang && nam) {
+                const ngay = parseGoogleSheetDate(ngayStr);
+                if (ngay) {
+                    const rowMonth = ngay.getMonth() + 1;
+                    const rowYear = ngay.getFullYear();
+                    matchDate = rowMonth === parseInt(thang) && rowYear === parseInt(nam);
+                } else {
+                    matchDate = false;
                 }
-                return false;
-            });
-        }
-        
-        // Tính toán summary data
-        const summary = {};
-        if (filteredData.length > 0) {
-            // Bảng 1: Tổng hợp đơn hàng
-            const donHangMap = new Map();
+            }
             
-            filteredData.forEach(row => {
-                if (!donHangMap.has(row.maDonHang)) {
-                    donHangMap.set(row.maDonHang, {
-                        maDonHang: row.maDonHang,
-                        giaTriKhoan: row.giaTriKhoan,
-                        tongDiemHeSo: row.tongDiemHeSo,
-                        tongThanhTien: 0
+            return matchMaNV && matchDate;
+        });
+
+        // Lấy thông tin nhân viên (nếu có dữ liệu)
+        let hoTen = '';
+        if (filteredData.length > 0) {
+            hoTen = filteredData[0][colIndex.hoTen] || '';
+        }
+
+        // Xử lý dữ liệu cho bảng 1: Tổng hợp các đơn hàng
+        const donHangMap = new Map();
+        
+        filteredData.forEach(row => {
+            const maDonHang = row[colIndex.maDonHang] || '';
+            const tienKhoan = parseFloat(row[colIndex.tienKhoanLD] || 0);
+            const tongHeSo = parseFloat(row[colIndex.tongDiemHeSo] || 0);
+            
+            if (maDonHang) {
+                if (!donHangMap.has(maDonHang)) {
+                    donHangMap.set(maDonHang, {
+                        maDonHang: maDonHang,
+                        giaTriKhoan: 0,
+                        tongHeSoDiem: 0
                     });
                 }
-                const donHang = donHangMap.get(row.maDonHang);
-                donHang.tongThanhTien += row.thanhTien;
-            });
-            
-            summary.donHangList = Array.from(donHangMap.values()).map((item, index) => ({
-                stt: index + 1,
-                ...item
-            }));
-            
-            // Bảng 2: Chi tiết phân bổ
-            summary.chiTietList = filteredData.map((row, index) => ({
-                stt: index + 1,
-                ...row
-            }));
-            
-            // Tổng hợp theo đơn hàng cho bảng 2
-            const chiTietGrouped = {};
-            filteredData.forEach(row => {
-                if (!chiTietGrouped[row.maDonHang]) {
-                    chiTietGrouped[row.maDonHang] = [];
-                }
-                chiTietGrouped[row.maDonHang].push(row);
-            });
-            
-            summary.chiTietGrouped = chiTietGrouped;
-            
-            // Tổng tiền
-            summary.tongTien = filteredData.reduce((sum, row) => sum + row.thanhTien, 0);
-            
-            // Lấy tên nhân viên
-            summary.tenNV = filteredData[0]?.hoTen || "";
-        }
-        
+                
+                const donHang = donHangMap.get(maDonHang);
+                donHang.giaTriKhoan = tienKhoan; // Giá trị khoán có thể giống nhau
+                donHang.tongHeSoDiem = tongHeSo; // Tổng hệ số điểm có thể giống nhau
+            }
+        });
+
+        const table1 = Array.from(donHangMap.values()).map((item, index) => ({
+            stt: index + 1,
+            maDonHang: item.maDonHang,
+            giaTriKhoan: item.giaTriKhoan,
+            tongHeSoDiem: item.tongHeSoDiem
+        }));
+
+        // Xử lý dữ liệu cho bảng 2: Tổng hợp tiền khoán được hưởng/đơn hàng
+        const table2 = filteredData.map((row, index) => ({
+            stt: index + 1,
+            maLanThucHien: row[colIndex.maLanThucHien] || '',
+            hoTen: row[colIndex.hoTen] || '',
+            vaiTro: row[colIndex.vaiTro] || '',
+            heSoDiem: parseFloat(row[colIndex.heSoDiem] || 0),
+            donGiaTB: parseFloat(row[colIndex.donGiaTB] || 0),
+            thanhTien: parseFloat(row[colIndex.thanhTien] || 0)
+        }));
+
+        // Tính tổng tiền
+        const tongTien = table2.reduce((sum, item) => sum + item.thanhTien, 0);
+        const tongDonHang = table1.length;
+
         res.render("phanbolapdat", {
-            manv,
-            thangNam: thangNam || "",
-            data: filteredData,
-            summary: summary,
+            manv: manv || '',
+            thang: thang || '',
+            nam: nam || '',
+            hoTen: hoTen,
+            table1: table1,
+            table2: table2,
+            tongTien: tongTien,
+            tongDonHang: tongDonHang,
             error: null
         });
-        
+
     } catch (error) {
-        console.error("❌ Lỗi khi lấy dữ liệu khoán lắp đặt:", error);
+        console.error("❌ Lỗi khi lấy báo cáo lắp đặt:", error);
         res.render("phanbolapdat", {
-            manv: req.params.manv,
-            thangNam: "",
-            data: null,
-            summary: null,
-            error: "Có lỗi xảy ra khi tải dữ liệu"
+            manv: req.params.manv || '',
+            thang: req.query.thang || '',
+            nam: req.query.nam || '',
+            hoTen: '',
+            table1: [],
+            table2: [],
+            tongTien: 0,
+            tongDonHang: 0,
+            error: "Đã xảy ra lỗi khi lấy dữ liệu: " + error.message
         });
     }
 });
 
-// --- Route xuất Excel lắp đặt theo từng nhân viên ---
-app.get("/export-lapdat-excel", async (req, res) => {
+// Route xuất Excel báo cáo lắp đặt
+app.get("/export/lapdat", async (req, res) => {
     try {
-        const { thangNam, manv } = req.query;
+        const { manv, thang, nam } = req.query;
         
-        if (!thangNam || !manv) {
-            return res.status(400).send("Thiếu tham số tháng/năm hoặc mã NV");
-        }
-        
-        // Lấy dữ liệu (tương tự như trên)
-        const sheetName = "TT_khoan_lap_dat";
+        // Lấy dữ liệu từ sheet TT_khoan_lap_dat
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
-            range: `${sheetName}!A:N`,
+            range: "TT_khoan_lap_dat!A:Z",
         });
+
+        const data = response.data.values || [];
+        if (data.length === 0) {
+            throw new Error("Không có dữ liệu trong sheet");
+        }
+
+        // Lấy headers và chỉ số cột (giống như trên)
+        const headers = data[0];
+        const dataRows = data.slice(1);
         
-        const rows = response.data.values || [];
-        const headers = rows[0];
-        
-        const colIndexes = {
+        const colIndex = {
             hoTen: headers.indexOf("Họ và tên"),
             maNV: headers.indexOf("Mã nhân viên"),
             maDonHang: headers.indexOf("Mã đơn hàng"),
@@ -5970,231 +5992,301 @@ app.get("/export-lapdat-excel", async (req, res) => {
             vaiTro: headers.indexOf("Vai trò"),
             heSoDiem: headers.indexOf("Hệ số điểm"),
             tongDiemHeSo: headers.indexOf("Tổng điểm hệ số"),
-            giaTriKhoan: headers.indexOf("Tiền khoán lắp đặt"),
-            donGiaTrungBinh: headers.indexOf("Đơn giá trung bình"),
+            tienKhoanLD: headers.indexOf("Tiền khoán lắp đặt"),
+            donGiaTB: headers.indexOf("Đơn giá trung bình"),
             thanhTien: headers.indexOf("Thành tiền được hưởng/lần thực hiện"),
             ngayBaoCao: headers.indexOf("Ngày lấy báo cáo"),
             xacNhanThanhToan: headers.indexOf("Xác nhận thanh toán")
         };
-        
+
         // Lọc dữ liệu
-        const [month, year] = thangNam.split('/');
-        const filteredData = rows.slice(1)
-            .filter(row => {
-                if (row[colIndexes.maNV] !== manv) return false;
-                if (row[colIndexes.ngayBaoCao]) {
-                    const dateParts = row[colIndexes.ngayBaoCao].split('/');
-                    if (dateParts.length === 3) {
-                        return dateParts[1] === month && dateParts[2] === year;
-                    }
+        let filteredData = dataRows.filter(row => {
+            const maNV = row[colIndex.maNV] || '';
+            const ngayStr = row[colIndex.ngayBaoCao] || '';
+            
+            const matchMaNV = !manv || maNV.trim() === manv.trim();
+            
+            let matchDate = true;
+            if (thang && nam) {
+                const ngay = parseGoogleSheetDate(ngayStr);
+                if (ngay) {
+                    const rowMonth = ngay.getMonth() + 1;
+                    const rowYear = ngay.getFullYear();
+                    matchDate = rowMonth === parseInt(thang) && rowYear === parseInt(nam);
+                } else {
+                    matchDate = false;
                 }
-                return false;
-            })
-            .map((row, index) => ({
-                index: index + 1,
-                hoTen: row[colIndexes.hoTen] || "",
-                maNV: row[colIndexes.maNV] || "",
-                maDonHang: row[colIndexes.maDonHang] || "",
-                maLanThucHien: row[colIndexes.maLanThucHien] || "",
-                vaiTro: row[colIndexes.vaiTro] || "",
-                heSoDiem: parseFloat(row[colIndexes.heSoDiem]) || 0,
-                tongDiemHeSo: parseFloat(row[colIndexes.tongDiemHeSo]) || 0,
-                giaTriKhoan: parseFloat(row[colIndexes.giaTriKhoan]) || 0,
-                donGiaTrungBinh: parseFloat(row[colIndexes.donGiaTrungBinh]) || 0,
-                thanhTien: parseFloat(row[colIndexes.thanhTien]) || 0,
-                ngayBaoCao: row[colIndexes.ngayBaoCao] || ""
-            }));
-        
-        if (filteredData.length === 0) {
-            return res.status(404).send("Không có dữ liệu để xuất");
+            }
+            
+            return matchMaNV && matchDate;
+        });
+
+        // Lấy tên nhân viên
+        let hoTen = '';
+        if (filteredData.length > 0) {
+            hoTen = filteredData[0][colIndex.hoTen] || '';
         }
-        
+
         // Tạo workbook Excel
         const workbook = new exceljs.Workbook();
-        
+        workbook.creator = 'Hệ thống báo cáo lắp đặt';
+        workbook.created = new Date();
+
         // Sheet 1: Danh sách đơn hàng
         const sheet1 = workbook.addWorksheet('danh_sach_don_hang');
         
-        // Tính tổng hợp đơn hàng
-        const donHangMap = new Map();
-        filteredData.forEach(row => {
-            if (!donHangMap.has(row.maDonHang)) {
-                donHangMap.set(row.maDonHang, {
-                    maDonHang: row.maDonHang,
-                    giaTriKhoan: row.giaTriKhoan,
-                    tongDiemHeSo: row.tongDiemHeSo,
-                    tongThanhTien: 0
-                });
-            }
-            donHangMap.get(row.maDonHang).tongThanhTien += row.thanhTien;
-        });
-        
-        const donHangList = Array.from(donHangMap.values());
-        
-        // Style cho sheet 1
-        sheet1.columns = [
-            { header: 'STT', key: 'stt', width: 10 },
-            { header: 'Mã đơn hàng', key: 'maDonHang', width: 20 },
-            { header: 'Giá trị khoán', key: 'giaTriKhoan', width: 20, style: { numFmt: '#,##0' } },
-            { header: 'Tổng hệ số điểm', key: 'tongDiemHeSo', width: 20, style: { numFmt: '0.00' } },
-            { header: 'Tổng thành tiền', key: 'tongThanhTien', width: 20, style: { numFmt: '#,##0' } }
-        ];
-        
-        // Thêm dữ liệu
-        donHangList.forEach((item, index) => {
-            sheet1.addRow({
-                stt: index + 1,
-                maDonHang: item.maDonHang,
-                giaTriKhoan: item.giaTriKhoan,
-                tongDiemHeSo: item.tongDiemHeSo,
-                tongThanhTien: item.tongThanhTien
-            });
-        });
-        
-        // Thêm tiêu đề
-        sheet1.insertRow(1, [`BÁO CÁO KHOÁN LẮP ĐẶT - ${filteredData[0].hoTen} - ${thangNam}`]);
-        sheet1.mergeCells('A1:E1');
-        sheet1.getCell('A1').font = { size: 16, bold: true };
-        sheet1.getCell('A1').alignment = { horizontal: 'center' };
-        
-        // Style cho header
-        sheet1.getRow(3).font = { bold: true };
-        sheet1.getRow(3).fill = {
+        // Tiêu đề sheet 1
+        sheet1.mergeCells('A1:D1');
+        const title1 = sheet1.getCell('A1');
+        title1.value = 'BẢNG TỔNG HỢP CÁC ĐƠN HÀNG CÓ SỰ THAM GIA LẮP ĐẶT';
+        title1.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title1.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
+            fgColor: { argb: '4472C4' }
         };
-        sheet1.getRow(3).alignment = { horizontal: 'center' };
-        
+        title1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Thông tin báo cáo
+        sheet1.getCell('A2').value = 'Nhân viên:';
+        sheet1.getCell('B2').value = hoTen;
+        sheet1.getCell('A3').value = 'Mã NV:';
+        sheet1.getCell('B3').value = manv;
+        sheet1.getCell('A4').value = 'Tháng/Năm:';
+        sheet1.getCell('B4').value = `${thang}/${nam}`;
+
+        // Header sheet 1
+        const header1 = ['STT', 'Mã đơn hàng', 'Giá trị khoán', 'Tổng hệ số điểm khoán đơn hàng'];
+        const headerRow1 = sheet1.getRow(6);
+        headerRow1.values = header1;
+        headerRow1.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
+
+        // Tạo bảng 1 từ dữ liệu
+        const donHangMap = new Map();
+        filteredData.forEach(row => {
+            const maDonHang = row[colIndex.maDonHang] || '';
+            const tienKhoan = parseFloat(row[colIndex.tienKhoanLD] || 0);
+            const tongHeSo = parseFloat(row[colIndex.tongDiemHeSo] || 0);
+            
+            if (maDonHang) {
+                if (!donHangMap.has(maDonHang)) {
+                    donHangMap.set(maDonHang, {
+                        maDonHang: maDonHang,
+                        giaTriKhoan: tienKhoan,
+                        tongHeSoDiem: tongHeSo
+                    });
+                }
+            }
+        });
+
+        // Dữ liệu sheet 1
+        let rowIndex = 7;
+        let stt = 1;
+        donHangMap.forEach((item) => {
+            const dataRow = sheet1.getRow(rowIndex);
+            dataRow.values = [
+                stt,
+                item.maDonHang,
+                item.giaTriKhoan,
+                item.tongHeSoDiem
+            ];
+            
+            // Style cho dòng
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber > 2) {
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu xen kẽ
+                if (rowIndex % 2 === 0) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'F2F2F2' }
+                    };
+                }
+            });
+            
+            rowIndex++;
+            stt++;
+        });
+
+        // Tổng sheet 1
+        const totalRow1 = sheet1.getRow(rowIndex);
+        totalRow1.getCell(1).value = 'Tổng số đơn hàng:';
+        totalRow1.getCell(2).value = donHangMap.size;
+        totalRow1.getCell(1).font = { bold: true };
+        totalRow1.getCell(2).font = { bold: true };
+
+        // Auto fit columns
+        sheet1.columns.forEach((column, index) => {
+            if (index === 0) column.width = 8; // STT
+            else if (index === 1) column.width = 20; // Mã đơn hàng
+            else column.width = 25;
+        });
+
         // Sheet 2: Phân bổ khoán
         const sheet2 = workbook.addWorksheet('Phan_bo_khoan');
         
-        sheet2.columns = [
-            { header: 'STT', key: 'stt', width: 8 },
-            { header: 'Mã lần thực hiện', key: 'maLanThucHien', width: 25 },
-            { header: 'Họ tên nhân sự', key: 'hoTen', width: 25 },
-            { header: 'Vai trò', key: 'vaiTro', width: 20 },
-            { header: 'Hệ số điểm', key: 'heSoDiem', width: 15, style: { numFmt: '0.00' } },
-            { header: 'Đơn giá trung bình', key: 'donGiaTrungBinh', width: 20, style: { numFmt: '#,##0' } },
-            { header: 'Thành tiền', key: 'thanhTien', width: 20, style: { numFmt: '#,##0' } }
-        ];
-        
-        // Nhóm dữ liệu theo đơn hàng
-        const groupedByDonHang = {};
-        filteredData.forEach(row => {
-            if (!groupedByDonHang[row.maDonHang]) {
-                groupedByDonHang[row.maDonHang] = [];
-            }
-            groupedByDonHang[row.maDonHang].push(row);
-        });
-        
-        let rowIndex = 1;
-        
-        // Tiêu đề
-        sheet2.insertRow(rowIndex, [`CHI TIẾT PHÂN BỔ KHOÁN LẮP ĐẶT - ${filteredData[0].hoTen} - ${thangNam}`]);
-        sheet2.mergeCells(`A${rowIndex}:G${rowIndex}`);
-        sheet2.getCell(`A${rowIndex}`).font = { size: 16, bold: true };
-        sheet2.getCell(`A${rowIndex}`).alignment = { horizontal: 'center' };
-        rowIndex += 2;
-        
-        // Thêm dữ liệu từng đơn hàng
-        Object.keys(groupedByDonHang).forEach(maDonHang => {
-            // Tiêu đề đơn hàng
-            sheet2.insertRow(rowIndex, [`ĐƠN HÀNG: ${maDonHang}`]);
-            sheet2.mergeCells(`A${rowIndex}:G${rowIndex}`);
-            sheet2.getCell(`A${rowIndex}`).font = { bold: true, color: { argb: 'FF0000FF' } };
-            sheet2.getCell(`A${rowIndex}`).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFF0F0F0' }
-            };
-            rowIndex++;
-            
-            // Header cho chi tiết
-            sheet2.getRow(rowIndex).values = ['STT', 'Mã lần TH', 'Họ tên', 'Vai trò', 'Hệ số điểm', 'Đơn giá TB', 'Thành tiền'];
-            sheet2.getRow(rowIndex).font = { bold: true };
-            sheet2.getRow(rowIndex).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFE8F0FE' }
-            };
-            sheet2.getRow(rowIndex).alignment = { horizontal: 'center' };
-            rowIndex++;
-            
-            // Chi tiết từng lần thực hiện
-            let donHangTotal = 0;
-            groupedByDonHang[maDonHang].forEach((row, idx) => {
-                sheet2.getRow(rowIndex).values = [
-                    idx + 1,
-                    row.maLanThucHien,
-                    row.hoTen,
-                    row.vaiTro,
-                    row.heSoDiem,
-                    row.donGiaTrungBinh,
-                    row.thanhTien
-                ];
-                donHangTotal += row.thanhTien;
-                rowIndex++;
-            });
-            
-            // Dòng tổng cho đơn hàng
-            sheet2.getRow(rowIndex).values = [
-                '',
-                'TỔNG ĐƠN HÀNG',
-                '',
-                '',
-                '',
-                '',
-                donHangTotal
-            ];
-            sheet2.getRow(rowIndex).font = { bold: true };
-            sheet2.getRow(rowIndex).fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFFFFFCC' }
-            };
-            rowIndex += 2;
-        });
-        
-        // Tổng cuối cùng
-        const grandTotal = filteredData.reduce((sum, row) => sum + row.thanhTien, 0);
-        sheet2.getRow(rowIndex).values = [
-            '',
-            'TỔNG CỘNG',
-            '',
-            '',
-            '',
-            '',
-            grandTotal
-        ];
-        sheet2.getRow(rowIndex).font = { bold: true, size: 14 };
-        sheet2.getRow(rowIndex).fill = {
+        // Tiêu đề sheet 2
+        sheet2.mergeCells('A1:G1');
+        const title2 = sheet2.getCell('A1');
+        title2.value = 'TỔNG HỢP TIỀN KHOÁN ĐƯỢC HƯỞNG/ĐƠN HÀNG';
+        title2.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        title2.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FFCCFFCC' }
+            fgColor: { argb: '4472C4' }
         };
-        
-        // Auto-fit columns
-        sheet2.columns.forEach(column => {
-            if (column.width) {
-                column.width = Math.min(column.width + 5, 50);
+        title2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Thông tin báo cáo sheet 2
+        sheet2.getCell('A2').value = 'Nhân viên:';
+        sheet2.getCell('B2').value = hoTen;
+        sheet2.getCell('A3').value = 'Mã NV:';
+        sheet2.getCell('B3').value = manv;
+        sheet2.getCell('A4').value = 'Tháng/Năm:';
+        sheet2.getCell('B4').value = `${thang}/${nam}`;
+
+        // Header sheet 2
+        const header2 = ['STT', 'Mã lần thực hiện', 'Họ tên nhân sự', 'Vai trò', 'Hệ số điểm', 'Đơn giá trung bình', 'Thành tiền trên lần thực hiện'];
+        const headerRow2 = sheet2.getRow(6);
+        headerRow2.values = header2;
+        headerRow2.eachCell((cell, colNumber) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '5B9BD5' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+
+        // Dữ liệu sheet 2
+        rowIndex = 7;
+        let tongThanhTien = 0;
+        filteredData.forEach((row, index) => {
+            const dataRow = sheet2.getRow(rowIndex);
+            const thanhTien = parseFloat(row[colIndex.thanhTien] || 0);
+            
+            dataRow.values = [
+                index + 1,
+                row[colIndex.maLanThucHien] || '',
+                row[colIndex.hoTen] || '',
+                row[colIndex.vaiTro] || '',
+                parseFloat(row[colIndex.heSoDiem] || 0),
+                parseFloat(row[colIndex.donGiaTB] || 0),
+                thanhTien
+            ];
+            
+            tongThanhTien += thanhTien;
+            
+            // Style cho dòng
+            dataRow.eachCell((cell, colNumber) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                
+                if (colNumber >= 5) { // Cột hệ số điểm trở đi
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                }
+                
+                // Màu xen kẽ
+                if (rowIndex % 2 === 0) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'F2F2F2' }
+                    };
+                }
+            });
+            
+            rowIndex++;
+        });
+
+        // Tổng sheet 2
+        const totalRow2 = sheet2.getRow(rowIndex);
+        totalRow2.getCell(6).value = 'Tổng cộng:';
+        totalRow2.getCell(7).value = tongThanhTien;
+        totalRow2.eachCell((cell, colNumber) => {
+            if (colNumber >= 6) {
+                cell.font = { bold: true };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'C6EFCE' }
+                };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                if (colNumber === 7) {
+                    cell.numFmt = '#,##0';
+                }
             }
         });
+
+        // Auto fit columns sheet 2
+        sheet2.columns.forEach((column, index) => {
+            if (index === 0) column.width = 8; // STT
+            else if (index === 1) column.width = 20; // Mã lần thực hiện
+            else if (index === 2) column.width = 25; // Họ tên
+            else if (index === 3) column.width = 15; // Vai trò
+            else column.width = 20;
+        });
+
+        // Thiết lập response header
+        const fileName = `BC_khoan_LD_${hoTen || manv || 'unknown'}_${thang || ''}_${nam || ''}.xlsx`;
         
-        // Tên file
-        const fileName = `BC_khoan_LD_${filteredData[0].hoTen.replace(/\s+/g, '_')}_${thangNam.replace('/', '_')}.xlsx`;
-        
-        // Set response headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        
-        // Write to response
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=${encodeURIComponent(fileName)}`
+        );
+
         await workbook.xlsx.write(res);
         res.end();
-        
+
     } catch (error) {
-        console.error("❌ Lỗi khi xuất Excel:", error);
-        res.status(500).send("Có lỗi xảy ra khi xuất file Excel");
+        console.error("❌ Lỗi khi xuất Excel lắp đặt:", error);
+        res.status(500).send("Lỗi khi xuất file Excel: " + error.message);
     }
 });
 

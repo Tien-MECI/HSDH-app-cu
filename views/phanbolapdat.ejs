@@ -3,315 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phân bổ khoán lắp đặt</title>
+    <title>Báo Cáo Khoán Lắp Đặt</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .card {
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            border: none;
-        }
         .card-header {
-            background-color: #0d6efd;
-            color: white;
-            border-radius: 10px 10px 0 0 !important;
-            padding: 15px 20px;
-            font-weight: 600;
-        }
-        .table-container {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .table th {
-            background-color: #e9ecef;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        .total-row {
-            background-color: #e8f4f8 !important;
-            font-weight: bold;
-        }
-        .donhang-header {
-            background-color: #f0f7ff !important;
-            font-weight: bold;
-            color: #0d6efd;
-        }
-        .btn-export {
-            background-color: #198754;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 5px;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-export:hover {
-            background-color: #157347;
+            background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
             color: white;
         }
-        .section-title {
-            color: #0d6efd;
-            border-bottom: 2px solid #0d6efd;
-            padding-bottom: 8px;
+        .table-header {
+            background-color: #34495e;
+            color: white;
+        }
+        .number-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        .summary-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 20px;
+            border-left: 4px solid #3498db;
         }
-        .highlight {
-            background-color: #fff3cd;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid #ffc107;
+        .form-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
+    <div class="container-fluid py-4">
+        <!-- Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card">
+                <div class="card shadow">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">
-                            <i class="bi bi-calculator me-2"></i>PHÂN BỔ KHOÁN LẮP ĐẶT
-                        </h4>
-                        <a href="/" class="btn btn-light btn-sm">
-                            <i class="bi bi-house-door"></i> Trang chủ
-                        </a>
+                        <h4 class="mb-0"><i class="bi bi-tools"></i> BÁO CÁO KHOÁN LẮP ĐẶT</h4>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="exportToExcel()">
+                                <i class="bi bi-file-excel"></i> Xuất Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form tìm kiếm -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="form-container">
+                    <form id="searchForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="manv" class="form-label">Mã nhân viên</label>
+                            <input type="text" class="form-control" id="manv" name="manv" 
+                                   value="<%= manv %>" placeholder="Nhập mã nhân viên">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="thang" class="form-label">Tháng</label>
+                            <select class="form-select" id="thang" name="thang">
+                                <option value="">Tất cả</option>
+                                <% for(let i = 1; i <= 12; i++) { %>
+                                    <option value="<%= i %>" <%= thang == i ? 'selected' : '' %>>
+                                        Tháng <%= i %>
+                                    </option>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="nam" class="form-label">Năm</label>
+                            <select class="form-select" id="nam" name="nam">
+                                <% 
+                                    const currentYear = new Date().getFullYear();
+                                    for(let y = currentYear - 5; y <= currentYear; y++) { 
+                                %>
+                                    <option value="<%= y %>" <%= nam == y ? 'selected' : '' %>>
+                                        Năm <%= y %>
+                                    </option>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-search"></i> Lấy báo cáo
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <% if (hoTen) { %>
+                        <div class="mt-3">
+                            <h5>Thông tin nhân viên: <span class="text-primary"><%= hoTen %></span></h5>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thông báo lỗi -->
+        <% if (error) { %>
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> <%= error %>
+                    </div>
+                </div>
+            </div>
+        <% } %>
+
+        <!-- Tóm tắt -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="summary-box">
+                    <h6><i class="bi bi-cash-stack"></i> Tổng số đơn hàng</h6>
+                    <h3 class="text-primary"><%= tongDonHang %></h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-box">
+                    <h6><i class="bi bi-currency-dollar"></i> Tổng thành tiền</h6>
+                    <h3 class="text-success"><%= formatNumber(tongTien) %></h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-box">
+                    <h6><i class="bi bi-calendar-check"></i> Thời gian báo cáo</h6>
+                    <h5>
+                        <% if (thang && nam) { %>
+                            Tháng <%= thang %>/<%= nam %>
+                        <% } else { %>
+                            Tất cả thời gian
+                        <% } %>
+                    </h5>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG 1 -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h5 class="mb-0">BẢNG 1: TỔNG HỢP CÁC ĐƠN HÀNG CÓ SỰ THAM GIA LẮP ĐẶT</h5>
                     </div>
                     <div class="card-body">
-                        <% if (error) { %>
-                            <div class="alert alert-danger">
-                                <i class="bi bi-exclamation-triangle me-2"></i><%= error %>
+                        <% if (table1.length === 0) { %>
+                            <div class="alert alert-info">
+                                Không có dữ liệu đơn hàng nào.
+                            </div>
+                        <% } else { %>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-header">
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã đơn hàng</th>
+                                            <th>Giá trị khoán</th>
+                                            <th>Tổng hệ số điểm khoán đơn hàng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% table1.forEach(item => { %>
+                                            <tr>
+                                                <td><%= item.stt %></td>
+                                                <td><%= item.maDonHang %></td>
+                                                <td class="number-cell"><%= formatNumber(item.giaTriKhoan) %></td>
+                                                <td class="number-cell"><%= formatNumber(item.tongHeSoDiem) %></td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
                             </div>
                         <% } %>
-                        
-                        <form id="searchForm" class="row g-3 mb-4">
-                            <div class="col-md-4">
-                                <label class="form-label">Tháng/Năm báo cáo</label>
-                                <input type="month" 
-                                       class="form-control" 
-                                       id="thangNam" 
-                                       name="thangNam"
-                                       value="<%= thangNam || '' %>"
-                                       required>
-                                <div class="form-text">Định dạng: MM/YYYY (ví dụ: 12/2024)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG 2 -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h5 class="mb-0">BẢNG 2: TỔNG HỢP TIỀN KHOÁN ĐƯỢC HƯỞNG/ĐƠN HÀNG</h5>
+                    </div>
+                    <div class="card-body">
+                        <% if (table2.length === 0) { %>
+                            <div class="alert alert-info">
+                                Không có dữ liệu phân bổ khoán nào.
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Mã nhân viên</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="maNV" 
-                                       name="maNV"
-                                       value="<%= manv %>"
-                                       required>
+                        <% } else { %>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-header">
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã lần thực hiện</th>
+                                            <th>Họ tên nhân sự</th>
+                                            <th>Vai trò</th>
+                                            <th>Hệ số điểm</th>
+                                            <th>Đơn giá trung bình</th>
+                                            <th>Thành tiền trên lần thực hiện</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% table2.forEach(item => { %>
+                                            <tr>
+                                                <td><%= item.stt %></td>
+                                                <td><%= item.maLanThucHien %></td>
+                                                <td><%= item.hoTen %></td>
+                                                <td><%= item.vaiTro %></td>
+                                                <td class="number-cell"><%= formatNumber(item.heSoDiem) %></td>
+                                                <td class="number-cell"><%= formatNumber(item.donGiaTB) %></td>
+                                                <td class="number-cell"><strong><%= formatNumber(item.thanhTien) %></strong></td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-secondary">
+                                            <td colspan="6" class="text-end"><strong>Tổng cộng:</strong></td>
+                                            <td class="number-cell"><strong><%= formatNumber(tongTien) %></strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Họ tên nhân sự</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="hoTen" 
-                                       readonly
-                                       value="<%= summary?.tenNV || '' %>">
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-search me-2"></i>Lấy báo cáo
-                                </button>
-                                
-                                <% if (summary && thangNam && manv) { %>
-                                <a href="/export-lapdat-excel?thangNam=<%= thangNam %>&manv=<%= manv %>" 
-                                   class="btn-export ms-2">
-                                    <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
-                                </a>
-                                <% } %>
-                            </div>
-                        </form>
-                        
-                        <% if (summary && summary.donHangList && summary.donHangList.length > 0) { %>
-                        <!-- Tổng hợp -->
-                        <div class="highlight mb-4">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <strong>Tổng số đơn hàng:</strong> <%= summary.donHangList.length %>
-                                </div>
-                                <div class="col-md-4">
-                                    <strong>Tổng thành tiền:</strong> 
-                                    <span class="text-success fw-bold">
-                                        <%= summary.tongTien.toLocaleString('vi-VN') %> VND
-                                    </span>
-                                </div>
-                                <div class="col-md-4">
-                                    <strong>Tháng báo cáo:</strong> <%= thangNam %>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Bảng 1: Tổng hợp đơn hàng -->
-                        <h5 class="section-title">Bảng 1: Tổng hợp các đơn hàng có sự tham gia lắp đặt</h5>
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-primary">
-                                    <tr>
-                                        <th>STT</th>
-                                        <th>Mã đơn hàng</th>
-                                        <th>Giá trị khoán</th>
-                                        <th>Tổng hệ số điểm khoán</th>
-                                        <th>Tổng thành tiền</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% summary.donHangList.forEach((donHang, index) => { %>
-                                    <tr>
-                                        <td><%= donHang.stt %></td>
-                                        <td><strong><%= donHang.maDonHang %></strong></td>
-                                        <td class="text-end"><%= donHang.giaTriKhoan.toLocaleString('vi-VN') %></td>
-                                        <td class="text-end"><%= donHang.tongDiemHeSo.toFixed(2) %></td>
-                                        <td class="text-end text-success fw-bold">
-                                            <%= donHang.tongThanhTien.toLocaleString('vi-VN') %>
-                                        </td>
-                                    </tr>
-                                    <% }); %>
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <!-- Bảng 2: Chi tiết phân bổ -->
-                        <h5 class="section-title mt-5">Bảng 2: Tổng hợp tiền khoán được hưởng/đơn hàng</h5>
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-primary">
-                                    <tr>
-                                        <th>STT</th>
-                                        <th>Mã lần thực hiện</th>
-                                        <th>Họ tên nhân sự</th>
-                                        <th>Vai trò</th>
-                                        <th>Hệ số điểm</th>
-                                        <th>Đơn giá trung bình</th>
-                                        <th>Thành tiền</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% 
-                                    let currentDonHang = '';
-                                    let donHangSubtotal = 0;
-                                    let totalIndex = 1;
-                                    
-                                    summary.chiTietList.forEach((row, index) => { 
-                                        if (currentDonHang !== row.maDonHang) {
-                                            if (currentDonHang !== '') { 
-                                                // Hiển thị tổng cho đơn hàng trước
-                                    %>
-                                    <tr class="total-row">
-                                        <td colspan="6" class="text-end">
-                                            <strong>Tổng đơn hàng <%= currentDonHang %>:</strong>
-                                        </td>
-                                        <td class="text-end text-success fw-bold">
-                                            <%= donHangSubtotal.toLocaleString('vi-VN') %>
-                                        </td>
-                                    </tr>
-                                    <% 
-                                            }
-                                            // Reset cho đơn hàng mới
-                                            currentDonHang = row.maDonHang;
-                                            donHangSubtotal = 0;
-                                    %>
-                                    <tr class="donhang-header">
-                                        <td colspan="7">
-                                            <i class="bi bi-box me-2"></i>ĐƠN HÀNG: <%= row.maDonHang %>
-                                        </td>
-                                    </tr>
-                                    <% } %>
-                                    
-                                    <tr>
-                                        <td><%= totalIndex++ %></td>
-                                        <td><%= row.maLanThucHien %></td>
-                                        <td><%= row.hoTen %></td>
-                                        <td><%= row.vaiTro %></td>
-                                        <td class="text-end"><%= row.heSoDiem.toFixed(2) %></td>
-                                        <td class="text-end"><%= row.donGiaTrungBinh.toLocaleString('vi-VN') %></td>
-                                        <td class="text-end"><%= row.thanhTien.toLocaleString('vi-VN') %></td>
-                                    </tr>
-                                    
-                                    <% 
-                                        donHangSubtotal += row.thanhTien;
-                                        
-                                        // Nếu là dòng cuối cùng, hiển thị tổng cho đơn hàng cuối
-                                        if (index === summary.chiTietList.length - 1) { 
-                                    %>
-                                    <tr class="total-row">
-                                        <td colspan="6" class="text-end">
-                                            <strong>Tổng đơn hàng <%= currentDonHang %>:</strong>
-                                        </td>
-                                        <td class="text-end text-success fw-bold">
-                                            <%= donHangSubtotal.toLocaleString('vi-VN') %>
-                                        </td>
-                                    </tr>
-                                    <% } %>
-                                    <% }); %>
-                                    
-                                    <!-- Tổng cộng -->
-                                    <tr class="table-success" style="font-size: 1.1em;">
-                                        <td colspan="6" class="text-end fw-bold">TỔNG CỘNG:</td>
-                                        <td class="text-end fw-bold">
-                                            <%= summary.tongTien.toLocaleString('vi-VN') %> VND
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <% } else if (thangNam && manv) { %>
-                        <div class="alert alert-warning text-center mt-4">
-                            <i class="bi bi-info-circle me-2"></i>
-                            Không tìm thấy dữ liệu khoán lắp đặt cho mã nhân viên <%= manv %> 
-                            trong tháng <%= thangNam %>
-                        </div>
                         <% } %>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Format tháng/năm input
-        document.getElementById('thangNam').addEventListener('change', function(e) {
-            if (e.target.value) {
-                const date = new Date(e.target.value);
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const year = date.getFullYear();
-                e.target.value = `${month}/${year}`;
-            }
-        });
-        
-        // Auto-cập nhật tên khi nhập mã NV
-        document.getElementById('maNV').addEventListener('blur', function() {
-            if (this.value) {
-                // Gọi API để lấy tên nếu cần (có thể thêm sau)
-                // Hoặc lưu trữ mapping trong localStorage nếu có
-            }
-        });
-        
-        // Xử lý form submit để format URL đúng
+        // Xử lý form submit
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const thangNam = document.getElementById('thangNam').value;
-            const maNV = document.getElementById('maNV').value;
             
-            if (!thangNam || !maNV) {
-                alert('Vui lòng nhập đầy đủ thông tin');
+            const manv = document.getElementById('manv').value;
+            const thang = document.getElementById('thang').value;
+            const nam = document.getElementById('nam').value;
+            
+            let url = '/lapdat';
+            if (manv) {
+                url = `/lapdat-${manv}`;
+            }
+            
+            // Thêm query parameters
+            const params = new URLSearchParams();
+            if (thang) params.append('thang', thang);
+            if (nam) params.append('nam', nam);
+            
+            const queryString = params.toString();
+            if (queryString) {
+                url += `?${queryString}`;
+            }
+            
+            window.location.href = url;
+        });
+
+        // Xuất Excel
+        function exportToExcel() {
+            const manv = document.getElementById('manv').value;
+            const thang = document.getElementById('thang').value;
+            const nam = document.getElementById('nam').value;
+            
+            if (!manv) {
+                alert('Vui lòng nhập mã nhân viên trước khi xuất Excel!');
                 return;
             }
             
-            // Chuyển đến URL đúng
-            window.location.href = `/lapdat-${maNV}?thangNam=${encodeURIComponent(thangNam)}`;
-        });
+            const params = new URLSearchParams({
+                manv: manv,
+                thang: thang || '',
+                nam: nam || ''
+            });
+            
+            window.location.href = `/export/lapdat?${params.toString()}`;
+        }
+
+        // Auto-focus vào ô mã nhân viên
+        document.getElementById('manv').focus();
     </script>
 </body>
 </html>
