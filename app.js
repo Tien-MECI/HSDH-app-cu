@@ -5796,15 +5796,31 @@ app.get("/baoluongkhoan/export-installation", async (req, res) => {
 
 // --- Route phân bổ khoán lắp đặt theo từng nhân viên ---
 // Thêm helper functions cho EJS khoán lắp đặt
-app.locals.formatNumber = function(num) {
-    if (typeof num !== 'number') {
-        num = parseFloat(num);
-        if (isNaN(num)) return '0';
-    }
-    return num.toLocaleString('vi-VN', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
+
+app.locals.formatNumber = function(num, decimals = 0) {
+  if (num === null || num === undefined || num === '') return "0";
+  
+  // Nếu là chuỗi có dấu phẩy thập phân, chuyển thành dấu chấm
+  if (typeof num === 'string') {
+    num = num.replace(',', '.');
+  }
+  
+  num = Math.abs(parseFloat(num)); // luôn lấy giá trị dương
+  if (isNaN(num)) return "0";
+  
+  // Làm tròn đến số chữ số thập phân được chỉ định
+  let fixedNum = num.toFixed(decimals);
+  
+  // Tách phần nguyên và phần thập phân
+  let parts = fixedNum.toString().split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  
+  // Nếu decimals > 0 thì nối phần thập phân với dấu phẩy
+  if (decimals > 0 && parts.length > 1) {
+    return parts[0] + "," + parts[1];
+  }
+  
+  return parts[0];
 };
 
 app.locals.formatDate = function(dateStr) {
@@ -5815,7 +5831,7 @@ app.locals.formatDate = function(dateStr) {
 };
 
 
-// Route báo cáo lắp đặt (đã sửa theo index cột)
+// Route báo cáo khoán lắp đặt theo nhân sự
 app.get("/lapdat-:manv", async (req, res) => {
     try {
         const { manv } = req.params;
@@ -5842,20 +5858,7 @@ app.get("/lapdat-:manv", async (req, res) => {
             });
         }
 
-        // Xác định index cột (dựa vào cấu trúc bạn đã mô tả)
-        // Cột B (index 1): Họ và tên
-        // Cột C (index 2): Mã nhân viên
-        // Cột D (index 3): Mã đơn hàng
-        // Cột E (index 4): Mã lần thực hiện
-        // Cột F (index 5): Vai trò
-        // Cột G (index 6): Hệ số điểm
-        // Cột I (index 8): Tổng điểm hệ số
-        // Cột J (index 9): Tiền khoán lắp đặt
-        // Cột K (index 10): Đơn giá trung bình
-        // Cột L (index 11): Thành tiền được hưởng/lần thực hiện
-        // Cột M (index 12): Ngày lấy báo cáo
-        // Cột N (index 13): Xác nhận thanh toán
-        
+        // Xác định index cột
         const colIndex = {
             hoTen: 1,        // Cột B
             maNV: 2,         // Cột C
@@ -5874,21 +5877,24 @@ app.get("/lapdat-:manv", async (req, res) => {
         // Bỏ qua dòng tiêu đề nếu có
         let dataRows = data;
         if (data.length > 0) {
-            // Kiểm tra dòng đầu tiên có phải là tiêu đề không
             const firstRow = data[0];
             if (firstRow[colIndex.maNV] === "Mã nhân viên" || 
                 firstRow[colIndex.hoTen] === "Họ và tên") {
-                dataRows = data.slice(1); // Bỏ dòng tiêu đề
+                dataRows = data.slice(1);
             }
         }
 
-        // Lọc dữ liệu theo mã nhân viên và tháng/năm
+        // Lọc dữ liệu theo mã nhân viên, tháng/năm và điều kiện xác nhận thanh toán
         let filteredData = dataRows.filter(row => {
             const maNV = row[colIndex.maNV] || '';
             const ngayStr = row[colIndex.ngayBaoCao] || '';
+            const xacNhanTT = row[colIndex.xacNhanThanhToan] || '';
             
             // Kiểm tra mã nhân viên
             const matchMaNV = !manv || maNV.toString().trim() === manv.trim();
+            
+            // Kiểm tra điều kiện xác nhận thanh toán
+            const matchXacNhan = xacNhanTT.toString().trim().toLowerCase() === "xác nhận thanh toán";
             
             // Kiểm tra ngày tháng
             let matchDate = true;
@@ -5903,7 +5909,7 @@ app.get("/lapdat-:manv", async (req, res) => {
                 }
             }
             
-            return matchMaNV && matchDate;
+            return matchMaNV && matchDate && matchXacNhan;
         });
 
         // Lấy thông tin nhân viên (nếu có dữ liệu)
@@ -5953,7 +5959,7 @@ app.get("/lapdat-:manv", async (req, res) => {
             maLanThucHien: row[colIndex.maLanThucHien] || '',
             hoTen: row[colIndex.hoTen] || '',
             vaiTro: row[colIndex.vaiTro] || '',
-            heSoDiem: parseFloat(row[colIndex.heSoDiem] || 0),
+            heSoDiem: row[colIndex.heSoDiem] || '0', // Giữ nguyên chuỗi để xử lý dấu phẩy
             donGiaTB: parseFloat(row[colIndex.donGiaTB] || 0),
             thanhTien: parseFloat(row[colIndex.thanhTien] || 0),
             maDonHang: row[colIndex.maDonHang] || ''
@@ -5991,7 +5997,7 @@ app.get("/lapdat-:manv", async (req, res) => {
     }
 });
 
-// Route xuất Excel báo cáo lắp đặt (đã sửa theo index cột)
+// Route xuất Excel báo cáo lắp đặt (đã sửa với điều kiện xác nhận thanh toán)
 app.get("/export/lapdat", async (req, res) => {
     try {
         const { manv, thang, nam } = req.query;
@@ -6033,12 +6039,16 @@ app.get("/export/lapdat", async (req, res) => {
             }
         }
 
-        // Lọc dữ liệu
+        // Lọc dữ liệu (thêm điều kiện xác nhận thanh toán)
         let filteredData = dataRows.filter(row => {
             const maNV = row[colIndex.maNV] || '';
             const ngayStr = row[colIndex.ngayBaoCao] || '';
+            const xacNhanTT = row[colIndex.xacNhanThanhToan] || '';
             
             const matchMaNV = !manv || maNV.toString().trim() === manv.trim();
+            
+            // Điều kiện xác nhận thanh toán
+            const matchXacNhan = xacNhanTT.toString().trim().toLowerCase() === "xác nhận thanh toán";
             
             let matchDate = true;
             if (thang && nam) {
@@ -6052,7 +6062,7 @@ app.get("/export/lapdat", async (req, res) => {
                 }
             }
             
-            return matchMaNV && matchDate;
+            return matchMaNV && matchDate && matchXacNhan;
         });
 
         // Lấy tên nhân viên
@@ -6156,8 +6166,11 @@ app.get("/export/lapdat", async (req, res) => {
                     right: { style: 'thin' }
                 };
                 
-                if (colNumber > 2) {
+                if (colNumber === 3) { // Cột giá trị khoán
                     cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                } else if (colNumber === 4) { // Cột tổng hệ số điểm
+                    cell.numFmt = '#,##0.0'; // 1 chữ số thập phân
                     cell.alignment = { horizontal: 'right' };
                 }
                 
@@ -6239,13 +6252,19 @@ app.get("/export/lapdat", async (req, res) => {
             const dataRow = sheet2.getRow(rowIndex);
             const thanhTien = parseFloat(row[colIndex.thanhTien] || 0);
             
+            // Xử lý hệ số điểm (giữ nguyên định dạng dấu phẩy)
+            let heSoDiem = row[colIndex.heSoDiem] || '0';
+            if (typeof heSoDiem === 'string' && heSoDiem.includes('.')) {
+                heSoDiem = heSoDiem.replace('.', ',');
+            }
+            
             dataRow.values = [
                 index + 1,
                 row[colIndex.maDonHang] || '',
                 row[colIndex.maLanThucHien] || '',
                 row[colIndex.hoTen] || '',
                 row[colIndex.vaiTro] || '',
-                parseFloat(row[colIndex.heSoDiem] || 0),
+                heSoDiem,
                 parseFloat(row[colIndex.donGiaTB] || 0),
                 thanhTien
             ];
@@ -6261,7 +6280,12 @@ app.get("/export/lapdat", async (req, res) => {
                     right: { style: 'thin' }
                 };
                 
-                if (colNumber >= 6) { // Cột hệ số điểm trở đi
+                if (colNumber === 6) { // Cột đơn giá trung bình
+                    cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
+                } else if (colNumber === 7) { // Cột hệ số điểm - giữ nguyên chuỗi
+                    cell.alignment = { horizontal: 'right' };
+                } else if (colNumber === 8) { // Cột thành tiền
                     cell.numFmt = '#,##0';
                     cell.alignment = { horizontal: 'right' };
                 }
@@ -6299,6 +6323,7 @@ app.get("/export/lapdat", async (req, res) => {
                 };
                 if (colNumber === 8) {
                     cell.numFmt = '#,##0';
+                    cell.alignment = { horizontal: 'right' };
                 }
             }
         });
@@ -6310,7 +6335,9 @@ app.get("/export/lapdat", async (req, res) => {
             else if (index === 2) column.width = 20; // Mã lần thực hiện
             else if (index === 3) column.width = 25; // Họ tên
             else if (index === 4) column.width = 15; // Vai trò
-            else column.width = 18;
+            else if (index === 5) column.width = 15; // Hệ số điểm
+            else if (index === 6) column.width = 18; // Đơn giá trung bình
+            else if (index === 7) column.width = 18; // Thành tiền
         });
 
         // Thiết lập response header

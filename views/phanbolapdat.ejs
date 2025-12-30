@@ -141,49 +141,59 @@
             </div>
         </div>
 
-        <!-- BẢNG 1 -->
-        <div class="row mb-5">
-            <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header">
-                        <h5 class="mb-0">BẢNG 1: TỔNG HỢP CÁC ĐƠN HÀNG CÓ SỰ THAM GIA LẮP ĐẶT</h5>
+<!-- BẢNG 1 -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">BẢNG 1: TỔNG HỢP CÁC ĐƠN HÀNG CÓ SỰ THAM GIA LẮP ĐẶT</h5>
+            </div>
+            <div class="card-body">
+                <% if (table1.length === 0) { %>
+                    <div class="alert alert-info">
+                        Không có dữ liệu đơn hàng nào.
                     </div>
-                    <div class="card-body">
-                        <% if (table1.length === 0) { %>
-                            <div class="alert alert-info">
-                                Không có dữ liệu đơn hàng nào.
-                            </div>
-                        <% } else { %>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Mã đơn hàng</th>
-                                            <th>Giá trị khoán</th>
-                                            <th>Tổng hệ số điểm khoán đơn hàng</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% table1.forEach(item => { %>
-                                            <tr>
-                                                <td><%= item.stt %></td>
-                                                <td><%= item.maDonHang %></td>
-                                                <td class="number-cell"><%= formatNumber(item.giaTriKhoan) %></td>
-                                                <td class="number-cell"><%= formatNumber(item.tongHeSoDiem) %></td>
-                                            </tr>
-                                        <% }); %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <% } %>
+                <% } else { %>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-header">
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Giá trị khoán</th>
+                                    <th>Tổng hệ số điểm khoán đơn hàng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table1.forEach(item => { %>
+                                    <tr>
+                                        <td><%= item.stt %></td>
+                                        <td><%= item.maDonHang %></td>
+                                        <td class="number-cell"><%= formatNumber(item.giaTriKhoan) %></td>
+                                        <td class="number-cell">
+                                            <% 
+                                                // Xử lý hiển thị số thập phân với dấu phẩy
+                                                let tongHeSo = item.tongHeSoDiem;
+                                                if (typeof tongHeSo === 'string' && tongHeSo.includes(',')) {
+                                                    // Nếu là chuỗi có dấu phẩy, hiển thị nguyên bản
+                                                    tongHeSo = tongHeSo.replace('.', ',');
+                                                } else {
+                                                    // Nếu là số, format với 1 chữ số thập phân
+                                                    tongHeSo = formatNumber(item.tongHeSoDiem, 1);
+                                                }
+                                            %>
+                                            <%= tongHeSo %>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                <% } %>
             </div>
         </div>
-
-        <!-- BẢNG 2 -->
-        <!-- ... các phần trước giữ nguyên ... -->
+    </div>
+</div>
 
 <!-- BẢNG 2 -->
 <div class="row mb-5">
@@ -220,7 +230,20 @@
                                         <td><%= item.maLanThucHien %></td>
                                         <td><%= item.hoTen %></td>
                                         <td><%= item.vaiTro %></td>
-                                        <td class="number-cell"><%= formatNumber(item.heSoDiem) %></td>
+                                        <td class="number-cell">
+                                            <% 
+                                                // Xử lý hiển thị hệ số điểm
+                                                let heSo = item.heSoDiem;
+                                                if (typeof heSo === 'string' && heSo.includes(',')) {
+                                                    // Nếu là chuỗi có dấu phẩy, hiển thị nguyên bản
+                                                    heSo = heSo.replace('.', ',');
+                                                } else {
+                                                    // Nếu là số, format với 1 chữ số thập phân
+                                                    heSo = formatNumber(item.heSoDiem, 1);
+                                                }
+                                            %>
+                                            <%= heSo %>
+                                        </td>
                                         <td class="number-cell"><%= formatNumber(item.donGiaTB) %></td>
                                         <td class="number-cell"><strong><%= formatNumber(item.thanhTien) %></strong></td>
                                     </tr>
