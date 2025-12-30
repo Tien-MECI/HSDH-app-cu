@@ -5814,7 +5814,8 @@ app.locals.formatDate = function(dateStr) {
     return date.toLocaleDateString('vi-VN');
 };
 
-// Route báo cáo lắp đặt
+
+// Route báo cáo lắp đặt (đã sửa theo index cột)
 app.get("/lapdat-:manv", async (req, res) => {
     try {
         const { manv } = req.params;
@@ -5823,7 +5824,7 @@ app.get("/lapdat-:manv", async (req, res) => {
         // Lấy dữ liệu từ sheet TT_khoan_lap_dat
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
-            range: "TT_khoan_lap_dat!A:Z",
+            range: "TT_khoan_lap_dat!A:N",
         });
 
         const data = response.data.values || [];
@@ -5841,25 +5842,45 @@ app.get("/lapdat-:manv", async (req, res) => {
             });
         }
 
-        // Lấy headers
-        const headers = data[0];
-        const dataRows = data.slice(1);
-
-        // Tìm chỉ số cột
+        // Xác định index cột (dựa vào cấu trúc bạn đã mô tả)
+        // Cột B (index 1): Họ và tên
+        // Cột C (index 2): Mã nhân viên
+        // Cột D (index 3): Mã đơn hàng
+        // Cột E (index 4): Mã lần thực hiện
+        // Cột F (index 5): Vai trò
+        // Cột G (index 6): Hệ số điểm
+        // Cột I (index 8): Tổng điểm hệ số
+        // Cột J (index 9): Tiền khoán lắp đặt
+        // Cột K (index 10): Đơn giá trung bình
+        // Cột L (index 11): Thành tiền được hưởng/lần thực hiện
+        // Cột M (index 12): Ngày lấy báo cáo
+        // Cột N (index 13): Xác nhận thanh toán
+        
         const colIndex = {
-            hoTen: headers.indexOf("Họ và tên"),
-            maNV: headers.indexOf("Mã nhân viên"),
-            maDonHang: headers.indexOf("Mã đơn hàng"),
-            maLanThucHien: headers.indexOf("Mã lần thực hiện"),
-            vaiTro: headers.indexOf("Vai trò"),
-            heSoDiem: headers.indexOf("Hệ số điểm"),
-            tongDiemHeSo: headers.indexOf("Tổng điểm hệ số"),
-            tienKhoanLD: headers.indexOf("Tiền khoán lắp đặt"),
-            donGiaTB: headers.indexOf("Đơn giá trung bình"),
-            thanhTien: headers.indexOf("Thành tiền được hưởng/lần thực hiện"),
-            ngayBaoCao: headers.indexOf("Ngày lấy báo cáo"),
-            xacNhanThanhToan: headers.indexOf("Xác nhận thanh toán")
+            hoTen: 1,        // Cột B
+            maNV: 2,         // Cột C
+            maDonHang: 3,    // Cột D
+            maLanThucHien: 4, // Cột E
+            vaiTro: 5,       // Cột F
+            heSoDiem: 6,     // Cột G
+            tongDiemHeSo: 8, // Cột I (bỏ qua cột H index 7)
+            tienKhoanLD: 9,  // Cột J
+            donGiaTB: 10,    // Cột K
+            thanhTien: 11,   // Cột L
+            ngayBaoCao: 12,  // Cột M
+            xacNhanThanhToan: 13 // Cột N
         };
+
+        // Bỏ qua dòng tiêu đề nếu có
+        let dataRows = data;
+        if (data.length > 0) {
+            // Kiểm tra dòng đầu tiên có phải là tiêu đề không
+            const firstRow = data[0];
+            if (firstRow[colIndex.maNV] === "Mã nhân viên" || 
+                firstRow[colIndex.hoTen] === "Họ và tên") {
+                dataRows = data.slice(1); // Bỏ dòng tiêu đề
+            }
+        }
 
         // Lọc dữ liệu theo mã nhân viên và tháng/năm
         let filteredData = dataRows.filter(row => {
@@ -5867,7 +5888,7 @@ app.get("/lapdat-:manv", async (req, res) => {
             const ngayStr = row[colIndex.ngayBaoCao] || '';
             
             // Kiểm tra mã nhân viên
-            const matchMaNV = !manv || maNV.trim() === manv.trim();
+            const matchMaNV = !manv || maNV.toString().trim() === manv.trim();
             
             // Kiểm tra ngày tháng
             let matchDate = true;
@@ -5909,8 +5930,13 @@ app.get("/lapdat-:manv", async (req, res) => {
                 }
                 
                 const donHang = donHangMap.get(maDonHang);
-                donHang.giaTriKhoan = tienKhoan; // Giá trị khoán có thể giống nhau
-                donHang.tongHeSoDiem = tongHeSo; // Tổng hệ số điểm có thể giống nhau
+                // Lấy giá trị lớn nhất hoặc cộng dồn tùy logic
+                if (tienKhoan > donHang.giaTriKhoan) {
+                    donHang.giaTriKhoan = tienKhoan;
+                }
+                if (tongHeSo > donHang.tongHeSoDiem) {
+                    donHang.tongHeSoDiem = tongHeSo;
+                }
             }
         });
 
@@ -5929,7 +5955,8 @@ app.get("/lapdat-:manv", async (req, res) => {
             vaiTro: row[colIndex.vaiTro] || '',
             heSoDiem: parseFloat(row[colIndex.heSoDiem] || 0),
             donGiaTB: parseFloat(row[colIndex.donGiaTB] || 0),
-            thanhTien: parseFloat(row[colIndex.thanhTien] || 0)
+            thanhTien: parseFloat(row[colIndex.thanhTien] || 0),
+            maDonHang: row[colIndex.maDonHang] || ''
         }));
 
         // Tính tổng tiền
@@ -5964,7 +5991,7 @@ app.get("/lapdat-:manv", async (req, res) => {
     }
 });
 
-// Route xuất Excel báo cáo lắp đặt
+// Route xuất Excel báo cáo lắp đặt (đã sửa theo index cột)
 app.get("/export/lapdat", async (req, res) => {
     try {
         const { manv, thang, nam } = req.query;
@@ -5972,7 +5999,7 @@ app.get("/export/lapdat", async (req, res) => {
         // Lấy dữ liệu từ sheet TT_khoan_lap_dat
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
-            range: "TT_khoan_lap_dat!A:Z",
+            range: "TT_khoan_lap_dat!A:N",
         });
 
         const data = response.data.values || [];
@@ -5980,31 +6007,38 @@ app.get("/export/lapdat", async (req, res) => {
             throw new Error("Không có dữ liệu trong sheet");
         }
 
-        // Lấy headers và chỉ số cột (giống như trên)
-        const headers = data[0];
-        const dataRows = data.slice(1);
-        
+        // Xác định index cột
         const colIndex = {
-            hoTen: headers.indexOf("Họ và tên"),
-            maNV: headers.indexOf("Mã nhân viên"),
-            maDonHang: headers.indexOf("Mã đơn hàng"),
-            maLanThucHien: headers.indexOf("Mã lần thực hiện"),
-            vaiTro: headers.indexOf("Vai trò"),
-            heSoDiem: headers.indexOf("Hệ số điểm"),
-            tongDiemHeSo: headers.indexOf("Tổng điểm hệ số"),
-            tienKhoanLD: headers.indexOf("Tiền khoán lắp đặt"),
-            donGiaTB: headers.indexOf("Đơn giá trung bình"),
-            thanhTien: headers.indexOf("Thành tiền được hưởng/lần thực hiện"),
-            ngayBaoCao: headers.indexOf("Ngày lấy báo cáo"),
-            xacNhanThanhToan: headers.indexOf("Xác nhận thanh toán")
+            hoTen: 1,        // Cột B
+            maNV: 2,         // Cột C
+            maDonHang: 3,    // Cột D
+            maLanThucHien: 4, // Cột E
+            vaiTro: 5,       // Cột F
+            heSoDiem: 6,     // Cột G
+            tongDiemHeSo: 8, // Cột I
+            tienKhoanLD: 9,  // Cột J
+            donGiaTB: 10,    // Cột K
+            thanhTien: 11,   // Cột L
+            ngayBaoCao: 12,  // Cột M
+            xacNhanThanhToan: 13 // Cột N
         };
+
+        // Bỏ qua dòng tiêu đề nếu có
+        let dataRows = data;
+        if (data.length > 0) {
+            const firstRow = data[0];
+            if (firstRow[colIndex.maNV] === "Mã nhân viên" || 
+                firstRow[colIndex.hoTen] === "Họ và tên") {
+                dataRows = data.slice(1);
+            }
+        }
 
         // Lọc dữ liệu
         let filteredData = dataRows.filter(row => {
             const maNV = row[colIndex.maNV] || '';
             const ngayStr = row[colIndex.ngayBaoCao] || '';
             
-            const matchMaNV = !manv || maNV.trim() === manv.trim();
+            const matchMaNV = !manv || maNV.toString().trim() === manv.trim();
             
             let matchDate = true;
             if (thang && nam) {
@@ -6086,9 +6120,17 @@ app.get("/export/lapdat", async (req, res) => {
                 if (!donHangMap.has(maDonHang)) {
                     donHangMap.set(maDonHang, {
                         maDonHang: maDonHang,
-                        giaTriKhoan: tienKhoan,
-                        tongHeSoDiem: tongHeSo
+                        giaTriKhoan: 0,
+                        tongHeSoDiem: 0
                     });
+                }
+                
+                const donHang = donHangMap.get(maDonHang);
+                if (tienKhoan > donHang.giaTriKhoan) {
+                    donHang.giaTriKhoan = tienKhoan;
+                }
+                if (tongHeSo > donHang.tongHeSoDiem) {
+                    donHang.tongHeSoDiem = tongHeSo;
                 }
             }
         });
@@ -6151,7 +6193,7 @@ app.get("/export/lapdat", async (req, res) => {
         const sheet2 = workbook.addWorksheet('Phan_bo_khoan');
         
         // Tiêu đề sheet 2
-        sheet2.mergeCells('A1:G1');
+        sheet2.mergeCells('A1:H1');
         const title2 = sheet2.getCell('A1');
         title2.value = 'TỔNG HỢP TIỀN KHOÁN ĐƯỢC HƯỞNG/ĐƠN HÀNG';
         title2.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -6171,7 +6213,7 @@ app.get("/export/lapdat", async (req, res) => {
         sheet2.getCell('B4').value = `${thang}/${nam}`;
 
         // Header sheet 2
-        const header2 = ['STT', 'Mã lần thực hiện', 'Họ tên nhân sự', 'Vai trò', 'Hệ số điểm', 'Đơn giá trung bình', 'Thành tiền trên lần thực hiện'];
+        const header2 = ['STT', 'Mã đơn hàng', 'Mã lần thực hiện', 'Họ tên nhân sự', 'Vai trò', 'Hệ số điểm', 'Đơn giá trung bình', 'Thành tiền trên lần thực hiện'];
         const headerRow2 = sheet2.getRow(6);
         headerRow2.values = header2;
         headerRow2.eachCell((cell, colNumber) => {
@@ -6199,6 +6241,7 @@ app.get("/export/lapdat", async (req, res) => {
             
             dataRow.values = [
                 index + 1,
+                row[colIndex.maDonHang] || '',
                 row[colIndex.maLanThucHien] || '',
                 row[colIndex.hoTen] || '',
                 row[colIndex.vaiTro] || '',
@@ -6218,7 +6261,7 @@ app.get("/export/lapdat", async (req, res) => {
                     right: { style: 'thin' }
                 };
                 
-                if (colNumber >= 5) { // Cột hệ số điểm trở đi
+                if (colNumber >= 6) { // Cột hệ số điểm trở đi
                     cell.numFmt = '#,##0';
                     cell.alignment = { horizontal: 'right' };
                 }
@@ -6238,10 +6281,10 @@ app.get("/export/lapdat", async (req, res) => {
 
         // Tổng sheet 2
         const totalRow2 = sheet2.getRow(rowIndex);
-        totalRow2.getCell(6).value = 'Tổng cộng:';
-        totalRow2.getCell(7).value = tongThanhTien;
+        totalRow2.getCell(7).value = 'Tổng cộng:';
+        totalRow2.getCell(8).value = tongThanhTien;
         totalRow2.eachCell((cell, colNumber) => {
-            if (colNumber >= 6) {
+            if (colNumber >= 7) {
                 cell.font = { bold: true };
                 cell.fill = {
                     type: 'pattern',
@@ -6254,7 +6297,7 @@ app.get("/export/lapdat", async (req, res) => {
                     bottom: { style: 'thin' },
                     right: { style: 'thin' }
                 };
-                if (colNumber === 7) {
+                if (colNumber === 8) {
                     cell.numFmt = '#,##0';
                 }
             }
@@ -6263,10 +6306,11 @@ app.get("/export/lapdat", async (req, res) => {
         // Auto fit columns sheet 2
         sheet2.columns.forEach((column, index) => {
             if (index === 0) column.width = 8; // STT
-            else if (index === 1) column.width = 20; // Mã lần thực hiện
-            else if (index === 2) column.width = 25; // Họ tên
-            else if (index === 3) column.width = 15; // Vai trò
-            else column.width = 20;
+            else if (index === 1) column.width = 15; // Mã đơn hàng
+            else if (index === 2) column.width = 20; // Mã lần thực hiện
+            else if (index === 3) column.width = 25; // Họ tên
+            else if (index === 4) column.width = 15; // Vai trò
+            else column.width = 18;
         });
 
         // Thiết lập response header

@@ -183,57 +183,63 @@
         </div>
 
         <!-- BẢNG 2 -->
-        <div class="row mb-5">
-            <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header">
-                        <h5 class="mb-0">BẢNG 2: TỔNG HỢP TIỀN KHOÁN ĐƯỢC HƯỞNG/ĐƠN HÀNG</h5>
+        <!-- ... các phần trước giữ nguyên ... -->
+
+<!-- BẢNG 2 -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">BẢNG 2: TỔNG HỢP TIỀN KHOÁN ĐƯỢC HƯỞNG/ĐƠN HÀNG</h5>
+            </div>
+            <div class="card-body">
+                <% if (table2.length === 0) { %>
+                    <div class="alert alert-info">
+                        Không có dữ liệu phân bổ khoán nào.
                     </div>
-                    <div class="card-body">
-                        <% if (table2.length === 0) { %>
-                            <div class="alert alert-info">
-                                Không có dữ liệu phân bổ khoán nào.
-                            </div>
-                        <% } else { %>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Mã lần thực hiện</th>
-                                            <th>Họ tên nhân sự</th>
-                                            <th>Vai trò</th>
-                                            <th>Hệ số điểm</th>
-                                            <th>Đơn giá trung bình</th>
-                                            <th>Thành tiền trên lần thực hiện</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% table2.forEach(item => { %>
-                                            <tr>
-                                                <td><%= item.stt %></td>
-                                                <td><%= item.maLanThucHien %></td>
-                                                <td><%= item.hoTen %></td>
-                                                <td><%= item.vaiTro %></td>
-                                                <td class="number-cell"><%= formatNumber(item.heSoDiem) %></td>
-                                                <td class="number-cell"><%= formatNumber(item.donGiaTB) %></td>
-                                                <td class="number-cell"><strong><%= formatNumber(item.thanhTien) %></strong></td>
-                                            </tr>
-                                        <% }); %>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="table-secondary">
-                                            <td colspan="6" class="text-end"><strong>Tổng cộng:</strong></td>
-                                            <td class="number-cell"><strong><%= formatNumber(tongTien) %></strong></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        <% } %>
+                <% } else { %>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-header">
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Mã lần thực hiện</th>
+                                    <th>Họ tên nhân sự</th>
+                                    <th>Vai trò</th>
+                                    <th>Hệ số điểm</th>
+                                    <th>Đơn giá trung bình</th>
+                                    <th>Thành tiền trên lần thực hiện</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% table2.forEach(item => { %>
+                                    <tr>
+                                        <td><%= item.stt %></td>
+                                        <td><%= item.maDonHang %></td>
+                                        <td><%= item.maLanThucHien %></td>
+                                        <td><%= item.hoTen %></td>
+                                        <td><%= item.vaiTro %></td>
+                                        <td class="number-cell"><%= formatNumber(item.heSoDiem) %></td>
+                                        <td class="number-cell"><%= formatNumber(item.donGiaTB) %></td>
+                                        <td class="number-cell"><strong><%= formatNumber(item.thanhTien) %></strong></td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-secondary">
+                                    <td colspan="7" class="text-end"><strong>Tổng cộng:</strong></td>
+                                    <td class="number-cell"><strong><%= formatNumber(tongTien) %></strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
-                </div>
+                <% } %>
             </div>
         </div>
+    </div>
+</div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
