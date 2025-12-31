@@ -8272,7 +8272,7 @@ async function tinhBaoGiaDonHangTheoNV(data) {
         
         if (trangThai === "Báo giá") {
             result[maNV].tongBaoGia++;
-        } else if (trangThai === "Đơn hàng" && tinhTrang === "Hoàn thành") {
+        } else if (trangThai === "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") {
             result[maNV].tongDonHang++;
         }
     });
@@ -8299,11 +8299,12 @@ async function tinhDoanhSoTheoNV(data) {
         
         const tenNV = row[2] || '';
         const maNV = row[3] || '';
+        const tinhTrang = row[35] || ''; // Cột AJ
         const trangThai = row[38] || '';
         const thanhTien = parseFloat(row[56] || 0); // Cột BE
         const doanhSo = parseFloat(row[69] || 0); // Cột BR
         
-        if (!tenNV || !maNV || trangThai !== "Đơn hàng") return;
+        if (!tenNV || !maNV || trangThai !== "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") return;
         
         if (!result[maNV]) {
             result[maNV] = {
@@ -8354,10 +8355,10 @@ async function tinhDonHangHuy(data) {
         const doanhSo = parseFloat(row[69] || 0); // BR
 
         if (trangThai === "Đơn hàng") {
-            if (tinhTrang === "Hủy") {
+            if (tinhTrang === "Hủy đơn") {
                 soLuongHuy++;
                 giaTriHuy += doanhSo;
-            } else if (tinhTrang === "Hoàn thành") {
+            } else if (tinhTrang === "Kế hoạch sản xuất") {
                 soLuongHoanThanh++;
             }
         }
@@ -8578,14 +8579,14 @@ async function tinhKhachHangMoi(dataKhachHangData, filters) {
         quy: filters.filterQuy,
         tuan: filters.filterTuan,
         ngay: filters.filterNgay
-    }, 36); // Cột AG là ngày tạo khách (index 36)
+    }, 32); // Cột AG là ngày tạo khách (index 36)
 
     const result = {};
     
     filteredData.forEach((row, index) => {
         if (index === 0) return;
         
-        const nguoiTao = row[37] || ''; // AH
+        const nguoiTao = row[33] || ''; // AH
         
         if (nguoiTao) {
             if (!result[nguoiTao]) {
@@ -8613,7 +8614,7 @@ async function tinhDaiLyMoi(dataKhachHangData, filters) {
         quy: filters.filterQuy,
         tuan: filters.filterTuan,
         ngay: filters.filterNgay
-    }, 36); // Cột AG
+    }, 32); // Cột AG
 
     const daiLyCount = {};
     
@@ -8621,7 +8622,7 @@ async function tinhDaiLyMoi(dataKhachHangData, filters) {
         if (index === 0) return;
         
         const loaiKhach = row[3] || ''; // D
-        const nguoiTao = row[37] || ''; // AH
+        const nguoiTao = row[33] || ''; // AH
         
         if (loaiKhach === "Đại lý" && nguoiTao) {
             if (!daiLyCount[nguoiTao]) {
@@ -8658,7 +8659,7 @@ async function tinhKhachHangBanGiao(dataKhachHangData, filters) {
     filteredData.forEach((row, index) => {
         if (index === 0) return;
         
-        const nvPhuTrach = row[34] || ''; // AE
+        const nvPhuTrach = row[30] || ''; // AE
         
         if (nvPhuTrach) {
             if (!result[nvPhuTrach]) {
