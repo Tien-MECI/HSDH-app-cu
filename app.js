@@ -7888,5 +7888,577 @@ async function generateExcelReport() {
         throw error;
     }
 }
+
+
+////BÁO CÁO - KPI PHÒNG KINH DOANH
+
+// Route báo cáo KPI phòng kinh doanh
+app.get("/baocao-kpi-phong-kinhdoanh", async (req, res) => {
+    try {
+        const { 
+            loaiBaoCao = 'kinhdoanh',
+            filterType = 'thang',
+            filterThang = new Date().getMonth() + 1,
+            filterNam = new Date().getFullYear(),
+            filterQuy = Math.ceil((new Date().getMonth() + 1) / 3),
+            filterTuan,
+            filterNgay
+        } = req.query;
+
+        // Lấy dữ liệu từ các sheet
+        const [donHangRes, dataKhachHangRes, chamSocKHRes, baoCaoBaiDangRes, dataFileBanVeRes, giaoViecKDRes] = await Promise.all([
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang!A:BR",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Data_khach_hang!A:AH",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Cham_soc_khach_hang!A:L",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Bao_cao_bai_dang_ban_hang!A:G",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "data_file_ban_ve_dinh_kem!A:M",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Giao_viec_kinh_doanh!A:O",
+            })
+        ]);
+
+        const donHangData = donHangRes.data.values || [];
+        const dataKhachHangData = dataKhachHangRes.data.values || [];
+        const chamSocKHData = chamSocKHRes.data.values || [];
+        const baoCaoBaiDangData = baoCaoBaiDangRes.data.values || [];
+        const dataFileBanVeData = dataFileBanVeRes.data.values || [];
+        const giaoViecKDData = giaoViecKDRes.data.values || [];
+
+        // Xử lý theo loại báo cáo
+        let baoCaoData = {};
+        switch(loaiBaoCao) {
+            case 'kinhdoanh':
+                baoCaoData = await xuLyBaoCaoKinhDoanh(
+                    donHangData, 
+                    dataKhachHangData,
+                    { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay }
+                );
+                break;
+            case 'marketing':
+                baoCaoData = await xuLyBaoCaoMarketing(
+                    baoCaoBaiDangData,
+                    { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay }
+                );
+                break;
+            case 'chamsoc':
+                baoCaoData = await xuLyBaoCaoChamSoc(
+                    chamSocKHData,
+                    { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay }
+                );
+                break;
+            case 'kythuat':
+                baoCaoData = await xuLyBaoCaoKyThuat(
+                    dataFileBanVeData,
+                    { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay }
+                );
+                break;
+            case 'giaoviec':
+                baoCaoData = await xuLyBaoCaoGiaoViec(
+                    giaoViecKDData,
+                    { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay }
+                );
+                break;
+        }
+
+        res.render("BaocaoKPIphongkinhdoanh", {
+            loaiBaoCao,
+            filterType,
+            filterThang,
+            filterNam,
+            filterQuy,
+            filterTuan,
+            filterNgay,
+            ...baoCaoData,
+            currentYear: new Date().getFullYear()
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy báo cáo KPI:", error);
+        res.status(500).send("Lỗi server khi xử lý báo cáo KPI");
+    }
+});
+
+// Route xuất Excel KPI
+app.get("/export/kpi-phong-kinhdoanh", async (req, res) => {
+    try {
+        const workbook = await generateKPIExcelReport(req.query);
+        
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=bao-cao-KPI-phong-KD-${new Date().toISOString().split('T')[0]}.xlsx`
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error("❌ Lỗi khi xuất Excel KPI:", error);
+        res.status(500).send("Lỗi khi xuất file Excel KPI");
+    }
+});
+
+// Hàm xử lý báo cáo KPI Kinh Doanh
+async function xuLyBaoCaoKinhDoanh(donHangData, dataKhachHangData, filters) {
+    const { filterType, filterThang, filterNam, filterQuy, filterTuan, filterNgay } = filters;
+    
+    // Lọc dữ liệu theo thời gian
+    const filteredDonHang = locDuLieuTheoThoiGian(donHangData, filterType, {
+        thang: filterThang,
+        nam: filterNam,
+        quy: filterQuy,
+        tuan: filterTuan,
+        ngay: filterNgay
+    }, 1); // Cột B là ngày tạo (index 1)
+
+    // 1️⃣ Báo cáo báo giá & đơn hàng theo nhân viên
+    const baoCaoBaoGiaDonHang = await tinhBaoGiaDonHangTheoNV(filteredDonHang);
+    
+    // 2️⃣ Doanh số theo nhân viên
+    const baoCaoDoanhSoNV = await tinhDoanhSoTheoNV(filteredDonHang);
+    
+    // 3️⃣ Đơn hàng hủy
+    const baoCaoDonHangHuy = await tinhDonHangHuy(filteredDonHang);
+    
+    // 4️⃣ Top 100 khách hàng doanh số cao nhất
+    const top100KH = await tinhTop100KhachHang(filteredDonHang);
+    
+    // 5️⃣ Doanh số khách hàng cũ
+    const doanhSoKHCu = await tinhDoanhSoKHCu(filteredDonHang, dataKhachHangData);
+    
+    // 6️⃣ Doanh số khách hàng mới
+    const doanhSoKHNew = await tinhDoanhSoKHNew(filteredDonHang, dataKhachHangData);
+    
+    // 7️⃣ Số khách chuyển từ báo giá → đơn hàng
+    const chuyenDoiBaoGia = await tinhChuyenDoiBaoGia(filteredDonHang);
+    
+    // 8️⃣ Số đơn hàng được phê duyệt theo nhân viên
+    const donHangPheDuyet = await tinhDonHangPheDuyet(filteredDonHang);
+    
+    // 9️⃣ Khách hàng mới được tạo
+    const khachHangMoi = await tinhKhachHangMoi(dataKhachHangData, filters);
+    
+    // 🔟 Khách hàng đại lý mới
+    const daiLyMoi = await tinhDaiLyMoi(dataKhachHangData, filters);
+    
+    // 1️⃣1️⃣ Khách hàng được bàn giao
+    const khachHangBanGiao = await tinhKhachHangBanGiao(dataKhachHangData, filters);
+
+    return {
+        baoCaoBaoGiaDonHang,
+        baoCaoDoanhSoNV,
+        baoCaoDonHangHuy,
+        top100KH,
+        doanhSoKHCu,
+        doanhSoKHNew,
+        chuyenDoiBaoGia,
+        donHangPheDuyet,
+        khachHangMoi,
+        daiLyMoi,
+        khachHangBanGiao
+    };
+}
+
+// Hàm xử lý báo cáo Marketing
+async function xuLyBaoCaoMarketing(baoCaoBaiDangData, filters) {
+    const filteredData = locDuLieuTheoThoiGian(baoCaoBaiDangData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 3); // Cột D là ngày báo cáo (index 3)
+
+    // Tổng hợp theo nhân viên
+    const tongHopNV = {};
+    // Tổng hợp theo kênh
+    const tongHopKenh = {};
+
+    filteredData.forEach((row, index) => {
+        if (index === 0) return; // Bỏ header
+        
+        const maNV = row[1] || ''; // Cột B
+        const tenNV = row[2] || ''; // Cột C
+        const kenh = row[4] || ''; // Cột E
+
+        if (maNV && tenNV) {
+            if (!tongHopNV[maNV]) {
+                tongHopNV[maNV] = {
+                    tenNV,
+                    tongBaiDang: 0
+                };
+            }
+            tongHopNV[maNV].tongBaiDang++;
+        }
+
+        if (kenh) {
+            if (!tongHopKenh[kenh]) {
+                tongHopKenh[kenh] = 0;
+            }
+            tongHopKenh[kenh]++;
+        }
+    });
+
+    return {
+        tongHopNV: Object.entries(tongHopNV).map(([maNV, data]) => ({
+            maNV,
+            ...data
+        })),
+        tongHopKenh: Object.entries(tongHopKenh).map(([kenh, soLuong]) => ({
+            kenh,
+            soLuong
+        }))
+    };
+}
+
+// Hàm xử lý báo cáo Chăm sóc khách hàng
+async function xuLyBaoCaoChamSoc(chamSocKHData, filters) {
+    const filteredData = locDuLieuTheoThoiGian(chamSocKHData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 5); // Cột F là ngày chăm sóc (index 5)
+
+    const danhSachChamSoc = [];
+    const tongHopNV = {};
+
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[1] || '';
+        const tenKH = row[2] || '';
+        const hinhThuc = row[3] || '';
+        const noiDung = row[4] || '';
+        const ngayChamSoc = row[5] || '';
+        const maNV = row[6] || '';
+        const tenNV = row[7] || '';
+        const ketQua = row[8] || '';
+        const noiDungTiep = row[9] || '';
+        const ngayHenTiep = row[10] || '';
+        const thoiGian = row[11] || '';
+
+        danhSachChamSoc.push({
+            stt: danhSachChamSoc.length + 1,
+            khachHangID,
+            tenKH,
+            hinhThuc,
+            noiDung,
+            ngayChamSoc,
+            maNV,
+            tenNV,
+            ketQua,
+            noiDungTiep,
+            ngayHenTiep,
+            thoiGian
+        });
+
+        // Tổng hợp theo NV
+        if (maNV && tenNV) {
+            if (!tongHopNV[maNV]) {
+                tongHopNV[maNV] = {
+                    tenNV,
+                    soLuotChamSoc: 0
+                };
+            }
+            tongHopNV[maNV].soLuotChamSoc++;
+        }
+    });
+
+    return {
+        danhSachChamSoc,
+        tongHopNV: Object.entries(tongHopNV).map(([maNV, data]) => ({
+            maNV,
+            ...data
+        }))
+    };
+}
+
+// Hàm lọc dữ liệu theo thời gian
+function locDuLieuTheoThoiGian(data, filterType, filterValues, colDateIndex) {
+    if (data.length === 0) return data;
+    
+    // Bỏ header
+    const headers = data[0];
+    let dataRows = data.slice(1);
+    
+    // Nếu không có filter hoặc filter là "all"
+    if (!filterType || filterType === 'nam') {
+        return dataRows;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const { thang, nam = currentYear, quy, tuan, ngay } = filterValues;
+
+    return dataRows.filter(row => {
+        const dateStr = row[colDateIndex];
+        if (!dateStr) return false;
+
+        const ngayObj = parseGoogleSheetDate(dateStr);
+        if (!ngayObj) return false;
+
+        switch(filterType) {
+            case 'ngay':
+                if (!ngay) return true;
+                return ngayObj.getDate() === parseInt(ngay) &&
+                       ngayObj.getMonth() + 1 === parseInt(thang) &&
+                       ngayObj.getFullYear() === parseInt(nam);
+            
+            case 'tuan':
+                if (!tuan) return true;
+                // Tính tuần của tháng (đơn giản hóa)
+                const weekOfMonth = Math.ceil(ngayObj.getDate() / 7);
+                return weekOfMonth === parseInt(tuan) &&
+                       ngayObj.getMonth() + 1 === parseInt(thang) &&
+                       ngayObj.getFullYear() === parseInt(nam);
+            
+            case 'thang':
+                return ngayObj.getMonth() + 1 === parseInt(thang) &&
+                       ngayObj.getFullYear() === parseInt(nam);
+            
+            case 'quy':
+                if (!quy) return true;
+                const quarter = Math.ceil((ngayObj.getMonth() + 1) / 3);
+                return quarter === parseInt(quy) &&
+                       ngayObj.getFullYear() === parseInt(nam);
+            
+            default:
+                return true;
+        }
+    });
+}
+
+// Hàm tính báo giá & đơn hàng theo NV
+async function tinhBaoGiaDonHangTheoNV(data) {
+    const result = {};
+    
+    data.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const tenNV = row[2] || ''; // Cột C
+        const maNV = row[3] || ''; // Cột D
+        const tinhTrang = row[35] || ''; // Cột AJ
+        const trangThai = row[38] || ''; // Cột AM
+        
+        if (!tenNV || !maNV) return;
+        
+        if (!result[maNV]) {
+            result[maNV] = {
+                tenNV,
+                tongBaoGia: 0,
+                tongDonHang: 0,
+                tyLeChuyenDoi: 0
+            };
+        }
+        
+        if (trangThai === "Báo giá") {
+            result[maNV].tongBaoGia++;
+        } else if (trangThai === "Đơn hàng" && tinhTrang === "Hoàn thành") {
+            result[maNV].tongDonHang++;
+        }
+    });
+    
+    // Tính tỷ lệ chuyển đổi
+    Object.keys(result).forEach(maNV => {
+        const item = result[maNV];
+        item.tyLeChuyenDoi = item.tongBaoGia > 0 ? 
+            (item.tongDonHang / item.tongBaoGia * 100).toFixed(2) : 0;
+    });
+    
+    return Object.entries(result).map(([maNV, data]) => ({
+        maNV,
+        ...data
+    }));
+}
+
+// Hàm tính doanh số theo NV
+async function tinhDoanhSoTheoNV(data) {
+    const result = {};
+    
+    data.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const tenNV = row[2] || '';
+        const maNV = row[3] || '';
+        const trangThai = row[38] || '';
+        const thanhTien = parseFloat(row[56] || 0); // Cột BE
+        const doanhSo = parseFloat(row[69] || 0); // Cột BR
+        
+        if (!tenNV || !maNV || trangThai !== "Đơn hàng") return;
+        
+        if (!result[maNV]) {
+            result[maNV] = {
+                tenNV,
+                tongThanhTien: 0,
+                tongDoanhSo: 0
+            };
+        }
+        
+        result[maNV].tongThanhTien += thanhTien;
+        result[maNV].tongDoanhSo += doanhSo;
+    });
+    
+    return Object.entries(result).map(([maNV, data]) => ({
+        maNV,
+        ...data
+    }));
+}
+
+// Hàm tạo file Excel KPI
+async function generateKPIExcelReport(filters) {
+    const workbook = new exceljs.Workbook();
+    workbook.creator = 'Hệ thống báo cáo KPI Phòng Kinh Doanh';
+    workbook.created = new Date();
+
+    // Tạo các sheet cho từng loại báo cáo
+    const baoCaoTypes = ['kinhdoanh', 'marketing', 'chamsoc', 'kythuat', 'giaoviec'];
+    
+    for (const type of baoCaoTypes) {
+        // Lấy dữ liệu tương ứng
+        // ... (code xử lý từng loại báo cáo)
+    }
+
+    return workbook;
+}
+
+// Hàm tính đơn hàng hủy
+async function tinhDonHangHuy(data) {
+    let soLuongHuy = 0;
+    let giaTriHuy = 0;
+    let soLuongHoanThanh = 0;
+
+    data.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const tinhTrang = row[35] || ''; // AJ
+        const trangThai = row[38] || ''; // AM
+        const doanhSo = parseFloat(row[69] || 0); // BR
+
+        if (trangThai === "Đơn hàng") {
+            if (tinhTrang === "Hủy") {
+                soLuongHuy++;
+                giaTriHuy += doanhSo;
+            } else if (tinhTrang === "Hoàn thành") {
+                soLuongHoanThanh++;
+            }
+        }
+    });
+
+    const tyLeHoanThanh = (soLuongHoanThanh + soLuongHuy) > 0 ? 
+        (soLuongHoanThanh / (soLuongHoanThanh + soLuongHuy) * 100) : 0;
+
+    return {
+        soLuongHuy,
+        giaTriHuy,
+        soLuongHoanThanh,
+        tyLeHoanThanh
+    };
+}
+
+// Hàm tính top 100 khách hàng
+async function tinhTop100KhachHang(data) {
+    const khachHangMap = new Map();
+
+    data.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || ''; // H
+        const tenKH = row[9] || ''; // J
+        const trangThai = row[38] || ''; // AM
+        const pheDuyet = row[39] || ''; // AN
+        const thanhTien = parseFloat(row[56] || 0); // BE
+        const doanhSo = parseFloat(row[69] || 0); // BR
+
+        if (trangThai === "Đơn hàng" && pheDuyet === "Phê duyệt" && khachHangID) {
+            if (!khachHangMap.has(khachHangID)) {
+                khachHangMap.set(khachHangID, {
+                    tenKH,
+                    tongThanhTien: 0,
+                    tongDoanhSo: 0
+                });
+            }
+            
+            const khachHang = khachHangMap.get(khachHangID);
+            khachHang.tongThanhTien += thanhTien;
+            khachHang.tongDoanhSo += doanhSo;
+        }
+    });
+
+    // Sắp xếp theo doanh số giảm dần và lấy top 100
+    return Array.from(khachHangMap.entries())
+        .map(([khachHangID, data]) => ({
+            khachHangID,
+            ...data
+        }))
+        .sort((a, b) => b.tongDoanhSo - a.tongDoanhSo)
+        .slice(0, 100);
+}
+
+// Hàm tính doanh số khách hàng cũ
+async function tinhDoanhSoKHCu(donHangData, khachHangData) {
+    // Đếm số đơn hàng của từng khách
+    const soDonHangMap = new Map();
+    
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || '';
+        const trangThai = row[38] || '';
+        
+        if (trangThai === "Đơn hàng" && khachHangID) {
+            soDonHangMap.set(khachHangID, (soDonHangMap.get(khachHangID) || 0) + 1);
+        }
+    });
+
+    // Lọc khách có từ 2 đơn hàng trở lên
+    const khachHangCu = Array.from(soDonHangMap.entries())
+        .filter(([_, soDon]) => soDon >= 2)
+        .map(([khachHangID]) => khachHangID);
+
+    // Tính doanh số của khách hàng cũ
+    let tongThanhTien = 0;
+    let tongDoanhSo = 0;
+
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || '';
+        const thanhTien = parseFloat(row[56] || 0);
+        const doanhSo = parseFloat(row[69] || 0);
+        const trangThai = row[38] || '';
+
+        if (trangThai === "Đơn hàng" && khachHangCu.includes(khachHangID)) {
+            tongThanhTien += thanhTien;
+            tongDoanhSo += doanhSo;
+        }
+    });
+
+    return {
+        soLuongKH: khachHangCu.length,
+        tongThanhTien,
+        tongDoanhSo
+    };
+}
+
+
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));

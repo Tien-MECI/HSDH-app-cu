@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo KPI Phòng Kinh Doanh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .kpi-card {
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .kpi-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .kpi-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        .kpi-target {
+            background-color: #e3f2fd;
+        }
+        .kpi-result {
+            background-color: #e8f5e9;
+        }
+        .table-kpi {
+            font-size: 0.9rem;
+        }
+        .table-kpi th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .filter-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0"><i class="bi bi-graph-up"></i> HỆ THỐNG BÁO CÁO KPI PHÒNG KINH DOANH</h4>
+                            <small class="text-white-50">Đánh giá hiệu suất nhân sự - KPI 3 bộ phận: Kinh doanh, Marketing, Kỹ thuật</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="exportToExcel()">
+                                <i class="bi bi-file-excel"></i> Xuất Excel
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="window.print()">
+                                <i class="bi bi-printer"></i> In báo cáo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="filter-section">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Loại báo cáo</label>
+                            <select name="loaiBaoCao" class="form-select" onchange="changeReportType(this.value)">
+                                <option value="kinhdoanh" <%= loaiBaoCao === 'kinhdoanh' ? 'selected' : '' %>>Kinh doanh</option>
+                                <option value="marketing" <%= loaiBaoCao === 'marketing' ? 'selected' : '' %>>Marketing</option>
+                                <option value="chamsoc" <%= loaiBaoCao === 'chamsoc' ? 'selected' : '' %>>Chăm sóc KH</option>
+                                <option value="kythuat" <%= loaiBaoCao === 'kythuat' ? 'selected' : '' %>>Kỹ thuật</option>
+                                <option value="giaoviec" <%= loaiBaoCao === 'giaoviec' ? 'selected' : '' %>>Giao việc</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Thời gian</label>
+                            <select name="filterType" class="form-select" onchange="changeTimeFilter(this.value)">
+                                <option value="ngay" <%= filterType === 'ngay' ? 'selected' : '' %>>Theo ngày</option>
+                                <option value="tuan" <%= filterType === 'tuan' ? 'selected' : '' %>>Theo tuần</option>
+                                <option value="thang" <%= filterType === 'thang' ? 'selected' : '' %>>Theo tháng</option>
+                                <option value="quy" <%= filterType === 'quy' ? 'selected' : '' %>>Theo quý</option>
+                                <option value="nam" <%= filterType === 'nam' ? 'selected' : '' %>>Theo năm</option>
+                            </select>
+                        </div>
+                        
+                        <div id="timeFilterControls" class="col-md-6">
+                            <!-- Dynamic time controls will be inserted here -->
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Lấy báo cáo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="kpiTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <%= loaiBaoCao === 'kinhdoanh' ? 'active' : '' %>" 
+                                onclick="loadReport('kinhdoanh')">Kinh Doanh</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <%= loaiBaoCao === 'marketing' ? 'active' : '' %>" 
+                                onclick="loadReport('marketing')">Marketing</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <%= loaiBaoCao === 'chamsoc' ? 'active' : '' %>" 
+                                onclick="loadReport('chamsoc')">Chăm sóc KH</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <%= loaiBaoCao === 'kythuat' ? 'active' : '' %>" 
+                                onclick="loadReport('kythuat')">Kỹ thuật</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link <%= loaiBaoCao === 'giaoviec' ? 'active' : '' %>" 
+                                onclick="loadReport('giaoviec')">Giao việc</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Report Content -->
+        <div class="row">
+            <div class="col-12">
+                <!-- Kinh Doanh Reports -->
+                <% if (loaiBaoCao === 'kinhdoanh') { %>
+                    <!-- 1️⃣ Báo cáo báo giá & đơn hàng theo nhân viên -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">1️⃣ BÁO CÁO BÁO GIÁ & ĐƠN HÀNG THEO NHÂN VIÊN</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover table-kpi">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Tên NV</th>
+                                            <th>Tổng báo giá</th>
+                                            <th>Tổng đơn hàng</th>
+                                            <th>Tỷ lệ chuyển đổi (%)</th>
+                                            <th>Mục tiêu</th>
+                                            <th>Kết quả</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (baoCaoBaoGiaDonHang && baoCaoBaoGiaDonHang.length > 0) { %>
+                                            <% baoCaoBaoGiaDonHang.forEach((item, index) => { %>
+                                                <tr>
+                                                    <td><%= index + 1 %></td>
+                                                    <td><%= item.maNV %></td>
+                                                    <td><%= item.tenNV %></td>
+                                                    <td class="text-end"><%= formatNumber(item.tongBaoGia) %></td>
+                                                    <td class="text-end"><%= formatNumber(item.tongDonHang) %></td>
+                                                    <td class="text-end"><%= item.tyLeChuyenDoi %>%</td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-target" placeholder="Nhập mục tiêu"></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-result" placeholder="Kết quả thực tế"></td>
+                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr>
+                                                <td colspan="9" class="text-center">Không có dữ liệu</td>
+                                            </tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2️⃣ Doanh số theo nhân viên -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">2️⃣ DOANH SỐ THEO NHÂN VIÊN</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover table-kpi">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Tên NV</th>
+                                            <th>Tổng thành tiền (BE)</th>
+                                            <th>Tổng doanh số KPI (BR)</th>
+                                            <th>Mục tiêu</th>
+                                            <th>Kết quả</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (baoCaoDoanhSoNV && baoCaoDoanhSoNV.length > 0) { %>
+                                            <% baoCaoDoanhSoNV.forEach((item, index) => { %>
+                                                <tr>
+                                                    <td><%= index + 1 %></td>
+                                                    <td><%= item.maNV %></td>
+                                                    <td><%= item.tenNV %></td>
+                                                    <td class="text-end"><%= formatNumber(item.tongThanhTien) %></td>
+                                                    <td class="text-end"><%= formatNumber(item.tongDoanhSo) %></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-target" placeholder="Nhập mục tiêu"></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-result" placeholder="Kết quả thực tế"></td>
+                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr>
+                                                <td colspan="8" class="text-center">Không có dữ liệu</td>
+                                            </tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3️⃣ Đơn hàng hủy -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">3️⃣ ĐƠN HÀNG HỦY</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="kpi-card p-3">
+                                        <div class="kpi-label">Số lượng đơn hủy</div>
+                                        <div class="kpi-value"><%= baoCaoDonHangHuy?.soLuongHuy || 0 %></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="kpi-card p-3">
+                                        <div class="kpi-label">Giá trị hủy (BR)</div>
+                                        <div class="kpi-value"><%= formatNumber(baoCaoDonHangHuy?.giaTriHuy || 0) %></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="kpi-card p-3">
+                                        <div class="kpi-label">Tỷ lệ hoàn thành/hủy</div>
+                                        <div class="kpi-value"><%= (baoCaoDonHangHuy?.tyLeHoanThanh || 0).toFixed(2) %>%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                <% } else if (loaiBaoCao === 'marketing') { %>
+                    <!-- Marketing Reports -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">📊 BÁO CÁO MARKETING - TRUYỀN THÔNG</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Theo nhân viên -->
+                            <h6>Số lượng bài đăng theo nhân viên</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Tên NV</th>
+                                            <th>Số lượng bài đăng</th>
+                                            <th>Mục tiêu</th>
+                                            <th>Kết quả</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (tongHopNV && tongHopNV.length > 0) { %>
+                                            <% tongHopNV.forEach((item, index) => { %>
+                                                <tr>
+                                                    <td><%= index + 1 %></td>
+                                                    <td><%= item.maNV %></td>
+                                                    <td><%= item.tenNV %></td>
+                                                    <td class="text-end"><%= item.tongBaiDang %></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-target" placeholder="Mục tiêu"></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-result" placeholder="Kết quả"></td>
+                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Theo kênh -->
+                            <h6>Số lượng bài đăng theo kênh</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Kênh đăng bài</th>
+                                            <th>Số lượng bài</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (tongHopKenh && tongHopKenh.length > 0) { %>
+                                            <% tongHopKenh.forEach((item, index) => { %>
+                                                <tr>
+                                                    <td><%= index + 1 %></td>
+                                                    <td><%= item.kenh %></td>
+                                                    <td class="text-end"><%= item.soLuong %></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr><td colspan="3" class="text-center">Không có dữ liệu</td></tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                <% } else if (loaiBaoCao === 'chamsoc') { %>
+                    <!-- Chăm sóc KH Reports -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">👥 BÁO CÁO CHĂM SÓC KHÁCH HÀNG</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Tổng hợp theo NV -->
+                            <h6>Số lượt chăm sóc theo nhân viên</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Mã NV</th>
+                                            <th>Tên NV</th>
+                                            <th>Số lượt chăm sóc</th>
+                                            <th>Mục tiêu</th>
+                                            <th>Kết quả</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (tongHopNV && tongHopNV.length > 0) { %>
+                                            <% tongHopNV.forEach((item, index) => { %>
+                                                <tr>
+                                                    <td><%= index + 1 %></td>
+                                                    <td><%= item.maNV %></td>
+                                                    <td><%= item.tenNV %></td>
+                                                    <td class="text-end"><%= item.soLuotChamSoc %></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-target" placeholder="Mục tiêu"></td>
+                                                    <td><input type="text" class="form-control form-control-sm kpi-result" placeholder="Kết quả"></td>
+                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Danh sách chi tiết -->
+                            <h6>Danh sách chi tiết chăm sóc</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Khách hàng ID</th>
+                                            <th>Tên KH</th>
+                                            <th>Hình thức</th>
+                                            <th>Nội dung</th>
+                                            <th>Ngày chăm sóc</th>
+                                            <th>Nhân viên</th>
+                                            <th>Kết quả</th>
+                                            <th>Ngày hẹn tiếp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (danhSachChamSoc && danhSachChamSoc.length > 0) { %>
+                                            <% danhSachChamSoc.forEach((item) => { %>
+                                                <tr>
+                                                    <td><%= item.stt %></td>
+                                                    <td><%= item.khachHangID %></td>
+                                                    <td><%= item.tenKH %></td>
+                                                    <td><%= item.hinhThuc %></td>
+                                                    <td><%= item.noiDung %></td>
+                                                    <td><%= item.ngayChamSoc %></td>
+                                                    <td><%= item.tenNV %></td>
+                                                    <td><%= item.ketQua %></td>
+                                                    <td><%= item.ngayHenTiep %></td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Khởi tạo time filter controls
+        function initTimeFilterControls() {
+            const filterType = '<%= filterType %>';
+            const controlsDiv = document.getElementById('timeFilterControls');
+            
+            let html = '';
+            
+            if (filterType === 'ngay') {
+                html = `
+                    <div class="col-md-2">
+                        <label class="form-label">Ngày</label>
+                        <input type="number" name="filterNgay" class="form-control" 
+                               value="<%= filterNgay || '' %>" min="1" max="31">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Tháng</label>
+                        <select name="filterThang" class="form-select">
+                            <% for(let m = 1; m <= 12; m++) { %>
+                                <option value="<%= m %>" <%= parseInt(filterThang) === m ? 'selected' : '' %>>
+                                    Tháng <%= m %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Năm</label>
+                        <select name="filterNam" class="form-select">
+                            <% for(let y = currentYear - 2; y <= currentYear; y++) { %>
+                                <option value="<%= y %>" <%= parseInt(filterNam) === y ? 'selected' : '' %>>
+                                    Năm <%= y %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                `;
+            } else if (filterType === 'tuan') {
+                html = `
+                    <div class="col-md-2">
+                        <label class="form-label">Tuần</label>
+                        <select name="filterTuan" class="form-select">
+                            <% for(let w = 1; w <= 5; w++) { %>
+                                <option value="<%= w %>" <%= parseInt(filterTuan) === w ? 'selected' : '' %>>
+                                    Tuần <%= w %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Tháng</label>
+                        <select name="filterThang" class="form-select">
+                            <% for(let m = 1; m <= 12; m++) { %>
+                                <option value="<%= m %>" <%= parseInt(filterThang) === m ? 'selected' : '' %>>
+                                    Tháng <%= m %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Năm</label>
+                        <select name="filterNam" class="form-select">
+                            <% for(let y = currentYear - 2; y <= currentYear; y++) { %>
+                                <option value="<%= y %>" <%= parseInt(filterNam) === y ? 'selected' : '' %>>
+                                    Năm <%= y %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                `;
+            } else if (filterType === 'thang') {
+                html = `
+                    <div class="col-md-2">
+                        <label class="form-label">Tháng</label>
+                        <select name="filterThang" class="form-select">
+                            <% for(let m = 1; m <= 12; m++) { %>
+                                <option value="<%= m %>" <%= parseInt(filterThang) === m ? 'selected' : '' %>>
+                                    Tháng <%= m %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Năm</label>
+                        <select name="filterNam" class="form-select">
+                            <% for(let y = currentYear - 2; y <= currentYear; y++) { %>
+                                <option value="<%= y %>" <%= parseInt(filterNam) === y ? 'selected' : '' %>>
+                                    Năm <%= y %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                `;
+            } else if (filterType === 'quy') {
+                html = `
+                    <div class="col-md-2">
+                        <label class="form-label">Quý</label>
+                        <select name="filterQuy" class="form-select">
+                            <% for(let q = 1; q <= 4; q++) { %>
+                                <option value="<%= q %>" <%= parseInt(filterQuy) === q ? 'selected' : '' %>>
+                                    Quý <%= q %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Năm</label>
+                        <select name="filterNam" class="form-select">
+                            <% for(let y = currentYear - 2; y <= currentYear; y++) { %>
+                                <option value="<%= y %>" <%= parseInt(filterNam) === y ? 'selected' : '' %>>
+                                    Năm <%= y %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                `;
+            } else if (filterType === 'nam') {
+                html = `
+                    <div class="col-md-2">
+                        <label class="form-label">Năm</label>
+                        <select name="filterNam" class="form-select">
+                            <% for(let y = currentYear - 2; y <= currentYear; y++) { %>
+                                <option value="<%= y %>" <%= parseInt(filterNam) === y ? 'selected' : '' %>>
+                                    Năm <%= y %>
+                                </option>
+                            <% } %>
+                        </select>
+                    </div>
+                `;
+            }
+            
+            controlsDiv.innerHTML = html;
+        }
+
+        // Thay đổi loại báo cáo
+        function loadReport(type) {
+            const form = document.getElementById('filterForm');
+            const loaiBaoCaoInput = form.querySelector('[name="loaiBaoCao"]');
+            loaiBaoCaoInput.value = type;
+            form.submit();
+        }
+
+        // Thay đổi loại filter thời gian
+        function changeTimeFilter(type) {
+            const form = document.getElementById('filterForm');
+            const filterTypeInput = form.querySelector('[name="filterType"]');
+            filterTypeInput.value = type;
+            
+            // Update UI
+            initTimeFilterControls();
+        }
+
+        // Xuất Excel
+        function exportToExcel() {
+            const form = document.getElementById('filterForm');
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+            
+            for (let [key, value] of formData.entries()) {
+                params.append(key, value);
+            }
+            
+            window.location.href = `/export/kpi-phong-kinhdoanh?${params.toString()}`;
+        }
+
+        // Khởi tạo khi trang load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTimeFilterControls();
+        });
+    </script>
+</body>
+</html>
