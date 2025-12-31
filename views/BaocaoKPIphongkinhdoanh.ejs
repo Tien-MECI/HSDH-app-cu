@@ -274,6 +274,191 @@
                         </div>
                     </div>
 
+     <!-- 4️⃣ Top 100 khách hàng doanh số cao nhất -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">4️⃣ TOP 100 KHÁCH HÀNG DOANH SỐ CAO NHẤT</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Khách hàng ID</th>
+                            <th>Tên khách hàng</th>
+                            <th>Tổng thành tiền (BE)</th>
+                            <th>Tổng doanh số (BR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (top100KH && top100KH.length > 0) { %>
+                            <% top100KH.slice(0, 20).forEach((item, index) => { %>
+                                <tr>
+                                    <td><%= index + 1 %></td>
+                                    <td><%= item.khachHangID %></td>
+                                    <td><%= item.tenKH %></td>
+                                    <td class="text-end"><%= formatNumber(item.tongThanhTien) %></td>
+                                    <td class="text-end"><%= formatNumber(item.tongDoanhSo) %></td>
+                                </tr>
+                            <% }); %>
+                            <% if (top100KH.length > 20) { %>
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        <em>Hiển thị 20/100 khách hàng. Xem đầy đủ trong file Excel.</em>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        <% } else { %>
+                            <tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5️⃣ & 6️⃣ Khách hàng cũ và mới -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">5️⃣ KHÁCH HÀNG CŨ (≥2 đơn)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Số lượng KH</div>
+                        <div class="kpi-value"><%= doanhSoKHCu?.soLuongKH || 0 %></div>
+                        <hr>
+                        <div class="kpi-label">Doanh số (BR)</div>
+                        <div class="kpi-value"><%= formatNumber(doanhSoKHCu?.tongDoanhSo || 0) %></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">6️⃣ KHÁCH HÀNG MỚI (1 đơn)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Số lượng KH</div>
+                        <div class="kpi-value"><%= doanhSoKHNew?.soLuongKH || 0 %></div>
+                        <hr>
+                        <div class="kpi-label">Doanh số (BR)</div>
+                        <div class="kpi-value"><%= formatNumber(doanhSoKHNew?.tongDoanhSo || 0) %></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7️⃣ Chuyển đổi báo giá -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">7️⃣ CHUYỂN ĐỔI BÁO GIÁ → ĐƠN HÀNG</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Số khách chuyển đổi</div>
+                        <div class="kpi-value"><%= chuyenDoiBaoGia?.soKhachChuyenDoi || 0 %></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Tổng báo giá</div>
+                        <div class="kpi-value"><%= chuyenDoiBaoGia?.tongBaoGia || 0 %></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Tỷ lệ chuyển đổi</div>
+                        <div class="kpi-value"><%= chuyenDoiBaoGia?.tyLeChuyenDoi || 0 %>%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8️⃣ Đơn hàng phê duyệt -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">8️⃣ ĐƠN HÀNG ĐƯỢC PHÊ DUYỆT THEO NV</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Nhân viên phê duyệt</th>
+                            <th>Số đơn hàng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (donHangPheDuyet && donHangPheDuyet.length > 0) { %>
+                            <% donHangPheDuyet.forEach((item, index) => { %>
+                                <tr>
+                                    <td><%= index + 1 %></td>
+                                    <td><%= item.nvPheDuyet %></td>
+                                    <td class="text-end"><%= item.soDon %></td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr><td colspan="3" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9️⃣-1️⃣1️⃣ Các báo cáo khác -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">9️⃣ KHÁCH HÀNG MỚI TẠO</h6>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Tổng KH mới</div>
+                        <div class="kpi-value"><%= khachHangMoi?.tongKhachHang || 0 %></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">🔟 ĐẠI LÝ MỚI</h6>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Tổng đại lý</div>
+                        <div class="kpi-value"><%= daiLyMoi?.tongDaiLy || 0 %></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">1️⃣1️⃣ KHÁCH HÀNG BÀN GIAO</h6>
+                </div>
+                <div class="card-body">
+                    <div class="kpi-card p-3 text-center">
+                        <div class="kpi-label">Tổng KH bàn giao</div>
+                        <div class="kpi-value"><%= khachHangBanGiao?.tongKhachBanGiao || 0 %></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
                 <% } else if (loaiBaoCao === 'marketing') { %>
                     <!-- Marketing Reports -->
                     <div class="card mb-4">
@@ -428,6 +613,231 @@
                         </div>
                     </div>
                 <% } %>
+
+<!-- Báo cáo Kỹ thuật -->
+<% if (loaiBaoCao === 'kythuat') { %>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">🔧 BÁO CÁO KỸ THUẬT - THIẾT KẾ</h5>
+        </div>
+        <div class="card-body">
+            <!-- Tổng hợp -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">Tổng đơn hàng</div>
+                        <div class="kpi-value"><%= tongDonHang %></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">Tổng lần thiết kế</div>
+                        <div class="kpi-value"><%= tongLanThietKe %></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">TB lần thiết kế/đơn</div>
+                        <div class="kpi-value">
+                            <% 
+                                const tbThietKe = tongDonHang > 0 ? (tongLanThietKe / tongDonHang).toFixed(1) : 0;
+                            %>
+                            <%= tbThietKe %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Theo loại bản vẽ -->
+            <h6>Theo loại bản vẽ</h6>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Loại bản vẽ</th>
+                            <th>Số lượng</th>
+                            <th>Tỷ lệ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            const loaiBanVeEntries = Object.entries(theoLoaiBanVe || {});
+                            if (loaiBanVeEntries.length > 0) {
+                                loaiBanVeEntries.forEach(([loai, soLuong], index) => {
+                        %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><%= loai %></td>
+                                <td class="text-end"><%= soLuong %></td>
+                                <td class="text-end">
+                                    <%= ((soLuong / tongDonHang) * 100).toFixed(1) %>%
+                                </td>
+                            </tr>
+                        <% 
+                                });
+                            } else {
+                        %>
+                            <tr><td colspan="4" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Theo nhân sự -->
+            <h6>Theo nhân sự kỹ thuật</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Nhân sự</th>
+                            <th>Số đơn hàng</th>
+                            <th>Số lần thiết kế</th>
+                            <th>TB lần/đơn</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            const nhanSuEntries = Object.entries(theoNhanSu || {});
+                            if (nhanSuEntries.length > 0) {
+                                nhanSuEntries.forEach(([nhanSu, data], index) => {
+                        %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><%= nhanSu %></td>
+                                <td class="text-end"><%= data.soDonHang %></td>
+                                <td class="text-end"><%= data.soLanThietKe %></td>
+                                <td class="text-end">
+                                    <%= (data.soLanThietKe / data.soDonHang).toFixed(1) %>
+                                </td>
+                            </tr>
+                        <% 
+                                });
+                            } else {
+                        %>
+                            <tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<% } %>
+
+<!-- Báo cáo Giao việc -->
+<% if (loaiBaoCao === 'giaoviec') { %>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">📋 BÁO CÁO GIAO VIỆC KINH DOANH</h5>
+        </div>
+        <div class="card-body">
+            <!-- Tổng hợp -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">Tổng công việc</div>
+                        <div class="kpi-value"><%= tongCongViec %></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">Tỷ lệ tiếp nhận</div>
+                        <div class="kpi-value"><%= tyLeTiepNhan %>%</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="kpi-card p-3">
+                        <div class="kpi-label">Tỷ lệ hoàn thành</div>
+                        <div class="kpi-value"><%= tyLeHoanThanh %>%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Theo người tiếp nhận -->
+            <h6>Theo người tiếp nhận</h6>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Người tiếp nhận</th>
+                            <th>Tổng công việc</th>
+                            <th>Đã tiếp nhận</th>
+                            <th>Đã hoàn thành</th>
+                            <th>Tỷ lệ hoàn thành</th>
+                            <th>Mục tiêu</th>
+                            <th>Kết quả</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            const nguoiTiepNhanEntries = Object.entries(theoNguoiTiepNhan || {});
+                            if (nguoiTiepNhanEntries.length > 0) {
+                                nguoiTiepNhanEntries.forEach(([ten, data], index) => {
+                        %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><%= ten %></td>
+                                <td class="text-end"><%= data.tongCongViec %></td>
+                                <td class="text-end"><%= data.daTiepNhan %></td>
+                                <td class="text-end"><%= data.daHoanThanh %></td>
+                                <td class="text-end">
+                                    <%= ((data.daHoanThanh / data.tongCongViec) * 100).toFixed(1) %>%
+                                </td>
+                                <td><input type="text" class="form-control form-control-sm kpi-target" placeholder="Mục tiêu"></td>
+                                <td><input type="text" class="form-control form-control-sm kpi-result" placeholder="Kết quả"></td>
+                                <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
+                            </tr>
+                        <% 
+                                });
+                            } else {
+                        %>
+                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Theo trạng thái -->
+            <h6>Theo trạng thái</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Trạng thái</th>
+                            <th>Số lượng</th>
+                            <th>Tỷ lệ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            const trangThaiEntries = Object.entries(theoTrangThai || {});
+                            if (trangThaiEntries.length > 0) {
+                                trangThaiEntries.forEach(([trangThai, soLuong], index) => {
+                        %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><%= trangThai %></td>
+                                <td class="text-end"><%= soLuong %></td>
+                                <td class="text-end">
+                                    <%= ((soLuong / tongCongViec) * 100).toFixed(1) %>%
+                                </td>
+                            </tr>
+                        <% 
+                                });
+                            } else {
+                        %>
+                            <tr><td colspan="4" class="text-center">Không có dữ liệu</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<% } %>
             </div>
         </div>
     </div>

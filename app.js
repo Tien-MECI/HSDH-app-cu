@@ -8414,7 +8414,7 @@ async function tinhTop100KhachHang(data) {
 }
 
 // Hàm tính doanh số khách hàng cũ
-async function tinhDoanhSoKHCu(donHangData, khachHangData) {
+async function tinhDoanhSoKHCu(donHangData, dataKhachHangData) {
     // Đếm số đơn hàng của từng khách
     const soDonHangMap = new Map();
     
@@ -8457,6 +8457,367 @@ async function tinhDoanhSoKHCu(donHangData, khachHangData) {
         tongThanhTien,
         tongDoanhSo
     };
+}
+
+// Hàm tính doanh số khách hàng mới
+async function tinhDoanhSoKHNew(donHangData, dataKhachHangData) {
+    // Tạo map để đếm số đơn hàng của mỗi khách
+    const donHangTheoKH = new Map();
+    
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || '';
+        const trangThai = row[38] || '';
+        
+        if (trangThai === "Đơn hàng" && khachHangID) {
+            donHangTheoKH.set(khachHangID, (donHangTheoKH.get(khachHangID) || 0) + 1);
+        }
+    });
+
+    // Lọc khách chỉ có 1 đơn hàng
+    const khachHangMoi = Array.from(donHangTheoKH.entries())
+        .filter(([_, soDon]) => soDon === 1)
+        .map(([khachHangID]) => khachHangID);
+
+    // Tính doanh số của khách hàng mới
+    let tongThanhTien = 0;
+    let tongDoanhSo = 0;
+
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || '';
+        const thanhTien = parseFloat(row[56] || 0);
+        const doanhSo = parseFloat(row[69] || 0);
+        const trangThai = row[38] || '';
+
+        if (trangThai === "Đơn hàng" && khachHangMoi.includes(khachHangID)) {
+            tongThanhTien += thanhTien;
+            tongDoanhSo += doanhSo;
+        }
+    });
+
+    return {
+        soLuongKH: khachHangMoi.length,
+        tongThanhTien,
+        tongDoanhSo
+    };
+}
+
+// Hàm tính số khách chuyển từ báo giá → đơn hàng
+async function tinhChuyenDoiBaoGia(donHangData) {
+    const khachChuyenDoi = new Set();
+    const baoGiaMap = new Map();
+    const donHangMap = new Map();
+
+    // Đếm báo giá và đơn hàng theo khách
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const khachHangID = row[7] || '';
+        const trangThai = row[38] || '';
+        
+        if (khachHangID) {
+            if (trangThai === "Báo giá") {
+                baoGiaMap.set(khachHangID, (baoGiaMap.get(khachHangID) || 0) + 1);
+            } else if (trangThai === "Đơn hàng") {
+                donHangMap.set(khachHangID, (donHangMap.get(khachHangID) || 0) + 1);
+            }
+        }
+    });
+
+    // Tìm khách có cả báo giá và đơn hàng
+    let soKhachChuyenDoi = 0;
+    baoGiaMap.forEach((soBaoGia, khachHangID) => {
+        if (donHangMap.has(khachHangID)) {
+            soKhachChuyenDoi++;
+            khachChuyenDoi.add(khachHangID);
+        }
+    });
+
+    return {
+        soKhachChuyenDoi,
+        tongBaoGia: Array.from(baoGiaMap.values()).reduce((a, b) => a + b, 0),
+        tongDonHang: Array.from(donHangMap.values()).reduce((a, b) => a + b, 0),
+        tyLeChuyenDoi: (soKhachChuyenDoi / baoGiaMap.size * 100).toFixed(2)
+    };
+}
+
+// Hàm tính số đơn hàng được phê duyệt theo nhân viên
+async function tinhDonHangPheDuyet(donHangData) {
+    const result = {};
+    
+    donHangData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const nvPheDuyet = row[39] || ''; // AO
+        const trangThai = row[38] || ''; // AM
+        const pheDuyet = row[39] || ''; // AN
+        
+        if (trangThai === "Đơn hàng" && pheDuyet === "Phê duyệt" && nvPheDuyet) {
+            if (!result[nvPheDuyet]) {
+                result[nvPheDuyet] = 0;
+            }
+            result[nvPheDuyet]++;
+        }
+    });
+    
+    return Object.entries(result).map(([nvPheDuyet, soDon]) => ({
+        nvPheDuyet,
+        soDon
+    })).sort((a, b) => b.soDon - a.soDon);
+}
+
+// Hàm tính khách hàng mới được tạo
+async function tinhKhachHangMoi(dataKhachHangData, filters) {
+    // Lọc dữ liệu theo thời gian
+    const filteredData = locDuLieuTheoThoiGian(dataKhachHangData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 36); // Cột AG là ngày tạo khách (index 36)
+
+    const result = {};
+    
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const nguoiTao = row[37] || ''; // AH
+        
+        if (nguoiTao) {
+            if (!result[nguoiTao]) {
+                result[nguoiTao] = 0;
+            }
+            result[nguoiTao]++;
+        }
+    });
+    
+    return {
+        tongKhachHang: filteredData.length - 1,
+        theoNguoiTao: Object.entries(result).map(([nguoiTao, soLuong]) => ({
+            nguoiTao,
+            soLuong
+        }))
+    };
+}
+
+// Hàm tính khách hàng đại lý mới
+async function tinhDaiLyMoi(dataKhachHangData, filters) {
+    // Lọc dữ liệu theo thời gian
+    const filteredData = locDuLieuTheoThoiGian(dataKhachHangData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 36); // Cột AG
+
+    const daiLyCount = {};
+    
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const loaiKhach = row[3] || ''; // D
+        const nguoiTao = row[37] || ''; // AH
+        
+        if (loaiKhach === "Đại lý" && nguoiTao) {
+            if (!daiLyCount[nguoiTao]) {
+                daiLyCount[nguoiTao] = 0;
+            }
+            daiLyCount[nguoiTao]++;
+        }
+    });
+    
+    const tongDaiLy = Object.values(daiLyCount).reduce((a, b) => a + b, 0);
+    
+    return {
+        tongDaiLy,
+        theoNguoiTao: Object.entries(daiLyCount).map(([nguoiTao, soLuong]) => ({
+            nguoiTao,
+            soLuong
+        }))
+    };
+}
+
+// Hàm tính khách hàng được bàn giao
+async function tinhKhachHangBanGiao(dataKhachHangData, filters) {
+    // Lọc dữ liệu theo thời gian
+    const filteredData = locDuLieuTheoThoiGian(dataKhachHangData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 35); // Cột AF là ngày bàn giao
+
+    const result = {};
+    
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const nvPhuTrach = row[34] || ''; // AE
+        
+        if (nvPhuTrach) {
+            if (!result[nvPhuTrach]) {
+                result[nvPhuTrach] = 0;
+            }
+            result[nvPhuTrach]++;
+        }
+    });
+    
+    return {
+        tongKhachBanGiao: filteredData.length - 1,
+        theoNhanVien: Object.entries(result).map(([nhanVien, soLuong]) => ({
+            nhanVien,
+            soLuong
+        }))
+    };
+}
+
+// Hàm xử lý báo cáo Kỹ thuật
+async function xuLyBaoCaoKyThuat(dataFileBanVeData, filters) {
+    const filteredData = locDuLieuTheoThoiGian(dataFileBanVeData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 6); // Cột G là ngày tạo
+
+    const result = {
+        tongDonHang: 0,
+        tongLanThietKe: 0,
+        theoLoaiBanVe: {},
+        theoNhanSu: {},
+        danhSachChiTiet: []
+    };
+
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const maDonHang = row[1] || '';
+        const soLanThietKe = parseInt(row[2] || 0);
+        const loaiFile = row[3] || '';
+        const loaiBanVe = row[9] || '';
+        const nhanSu = row[12] || '';
+        const thoiGianBatDau = row[10] || '';
+        const thoiGianHoanThanh = row[11] || '';
+
+        if (maDonHang) {
+            result.tongDonHang++;
+            result.tongLanThietKe += soLanThietKe;
+
+            // Thống kê theo loại bản vẽ
+            if (loaiBanVe) {
+                result.theoLoaiBanVe[loaiBanVe] = (result.theoLoaiBanVe[loaiBanVe] || 0) + 1;
+            }
+
+            // Thống kê theo nhân sự
+            if (nhanSu) {
+                if (!result.theoNhanSu[nhanSu]) {
+                    result.theoNhanSu[nhanSu] = {
+                        soLanThietKe: 0,
+                        soDonHang: 0
+                    };
+                }
+                result.theoNhanSu[nhanSu].soLanThietKe += soLanThietKe;
+                result.theoNhanSu[nhanSu].soDonHang++;
+            }
+
+            // Thêm vào danh sách chi tiết
+            result.danhSachChiTiet.push({
+                stt: result.danhSachChiTiet.length + 1,
+                maDonHang,
+                soLanThietKe,
+                loaiFile,
+                loaiBanVe,
+                nhanSu,
+                thoiGianBatDau,
+                thoiGianHoanThanh
+            });
+        }
+    });
+
+    return result;
+}
+
+// Hàm xử lý báo cáo Giao việc
+async function xuLyBaoCaoGiaoViec(giaoViecKDData, filters) {
+    const filteredData = locDuLieuTheoThoiGian(giaoViecKDData, filters.filterType, {
+        thang: filters.filterThang,
+        nam: filters.filterNam,
+        quy: filters.filterQuy,
+        tuan: filters.filterTuan,
+        ngay: filters.filterNgay
+    }, 1); // Cột B là ngày tạo
+
+    const result = {
+        tongCongViec: 0,
+        theoNguoiTiepNhan: {},
+        theoTrangThai: {},
+        danhSachChiTiet: []
+    };
+
+    filteredData.forEach((row, index) => {
+        if (index === 0) return;
+        
+        const nguoiTiepNhan = row[9] || ''; // J
+        const trangThai = row[13] || ''; // N
+        const ketQua = row[14] || ''; // O
+        const tenCongViec = row[7] || ''; // H
+        const thoiGianYeuCau = row[11] || ''; // L
+        const thoiGianHoanThanh = row[12] || ''; // M
+
+        result.tongCongViec++;
+
+        // Thống kê theo người tiếp nhận
+        if (nguoiTiepNhan) {
+            if (!result.theoNguoiTiepNhan[nguoiTiepNhan]) {
+                result.theoNguoiTiepNhan[nguoiTiepNhan] = {
+                    tongCongViec: 0,
+                    daTiepNhan: 0,
+                    daHoanThanh: 0
+                };
+            }
+            result.theoNguoiTiepNhan[nguoiTiepNhan].tongCongViec++;
+            
+            if (trangThai === "Đã tiếp nhận") {
+                result.theoNguoiTiepNhan[nguoiTiepNhan].daTiepNhan++;
+            }
+            
+            if (ketQua === "Hoàn thành") {
+                result.theoNguoiTiepNhan[nguoiTiepNhan].daHoanThanh++;
+            }
+        }
+
+        // Thống kê theo trạng thái
+        if (trangThai) {
+            result.theoTrangThai[trangThai] = (result.theoTrangThai[trangThai] || 0) + 1;
+        }
+
+        // Thêm vào danh sách chi tiết
+        result.danhSachChiTiet.push({
+            stt: result.danhSachChiTiet.length + 1,
+            tenCongViec,
+            nguoiTiepNhan,
+            trangThai,
+            ketQua,
+            thoiGianYeuCau,
+            thoiGianHoanThanh
+        });
+    });
+
+    // Tính tỷ lệ tiếp nhận và hoàn thành
+    result.tyLeTiepNhan = result.tongCongViec > 0 ? 
+        (Object.values(result.theoNguoiTiepNhan).reduce((sum, nv) => sum + nv.daTiepNhan, 0) / result.tongCongViec * 100).toFixed(2) : 0;
+    
+    result.tyLeHoanThanh = result.tongCongViec > 0 ? 
+        (Object.values(result.theoNguoiTiepNhan).reduce((sum, nv) => sum + nv.daHoanThanh, 0) / result.tongCongViec * 100).toFixed(2) : 0;
+
+    return result;
 }
 
 
