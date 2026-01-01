@@ -8254,8 +8254,8 @@ async function tinhBaoGiaDonHangTheoNV(data) {
     data.forEach((row, index) => {
         if (index === 0) return;
         
-        const tenNV = row[2] || ''; // Cột C
-        const maNV = row[3] || ''; // Cột D
+        const tenNV = row[2] || '';      // Cột C
+        const maNV = row[3] || '';       // Cột D
         const tinhTrang = row[35] || ''; // Cột AJ
         const trangThai = row[38] || ''; // Cột AM
         
@@ -8264,24 +8264,36 @@ async function tinhBaoGiaDonHangTheoNV(data) {
         if (!result[maNV]) {
             result[maNV] = {
                 tenNV,
-                tongBaoGia: 0,
-                tongDonHang: 0,
+                tongBaoGia: 0,     // Số báo giá chưa chốt
+                tongDonHang: 0,    // Số đơn hàng chốt thành công
+                tongGiaoDich: 0,   // Tổng báo giá ban đầu
                 tyLeChuyenDoi: 0
             };
         }
         
+        // Báo giá
         if (trangThai === "Báo giá") {
             result[maNV].tongBaoGia++;
-        } else if (trangThai === "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") {
+            result[maNV].tongGiaoDich++;
+        }
+        
+        // Đơn hàng chốt thành công
+        else if (
+            trangThai === "Đơn hàng" &&
+            tinhTrang === "Kế hoạch sản xuất"
+        ) {
             result[maNV].tongDonHang++;
+            result[maNV].tongGiaoDich++;
         }
     });
     
     // Tính tỷ lệ chuyển đổi
     Object.keys(result).forEach(maNV => {
         const item = result[maNV];
-        item.tyLeChuyenDoi = item.tongBaoGia > 0 ? 
-            (item.tongDonHang / item.tongBaoGia * 100).toFixed(2) : 0;
+        
+        item.tyLeChuyenDoi = item.tongGiaoDich > 0
+            ? ((item.tongDonHang / item.tongGiaoDich) * 100).toFixed(2)
+            : "0.00";
     });
     
     return Object.entries(result).map(([maNV, data]) => ({
@@ -8289,6 +8301,7 @@ async function tinhBaoGiaDonHangTheoNV(data) {
         ...data
     }));
 }
+
 
 // Hàm tính doanh số theo NV
 async function tinhDoanhSoTheoNV(data) {
