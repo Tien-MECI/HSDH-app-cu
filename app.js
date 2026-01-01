@@ -8652,7 +8652,7 @@ async function tinhKhachHangBanGiao(dataKhachHangData, filters) {
         quy: filters.filterQuy,
         tuan: filters.filterTuan,
         ngay: filters.filterNgay
-    }, 35); // Cột AF là ngày bàn giao
+    }, 31); // Cột AF là ngày bàn giao
 
     const result = {};
     
