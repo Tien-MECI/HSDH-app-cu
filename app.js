@@ -8833,6 +8833,306 @@ async function xuLyBaoCaoGiaoViec(giaoViecKDData, filters) {
 
     return result;
 }
+//// LÀM THANH TOÁN KHOÁN LẮP ĐẶT
+// Route làm thanh toán lắp đặt
+app.get("/lamthanhtoanlapdat", async (req, res) => {
+    try {
+        // Lấy danh sách mã đơn hàng từ sheet Don_hang
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A:AC",
+        });
+
+        const data = response.data.values || [];
+        const maDonHangList = [];
+
+        // Lọc mã đơn hàng có AC = "Lắp đặt" hoặc "Sửa chữa"
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            const maDonHang = row[6]; // Cột G
+            const loaiDonHang = row[28]; // Cột AC
+            
+            if (maDonHang && (loaiDonHang === "Lắp đặt" || loaiDonHang === "Sửa chữa")) {
+                maDonHangList.push(maDonHang);
+            }
+        }
+
+        res.render("lamthanhtoanlapdat", {
+            maDonHangList: maDonHangList
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách đơn hàng:", error);
+        res.status(500).send("Lỗi server khi lấy dữ liệu");
+    }
+});
+
+// API lấy thông tin đơn hàng thanh toán khoán lắp đặt
+app.get("/api/donhang/:maDonHang", async (req, res) => {
+    try {
+        const { maDonHang } = req.params;
+
+        // Lấy dữ liệu từ các sheet
+        const [donHangRes, pvcRes, nkRes] = await Promise.all([
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang!A:AC",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_PVC_ct!A:W",
+            }),
+            sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: "Don_hang_nk_ct!A:P",
+            })
+        ]);
+
+        const donHangData = donHangRes.data.values || [];
+        const pvcData = pvcRes.data.values || [];
+        const nkData = nkRes.data.values || [];
+
+        // Tìm thông tin đơn hàng
+        let thongTinDonHang = null;
+        for (let i = 1; i < donHangData.length; i++) {
+            const row = donHangData[i];
+            if (row[6] === maDonHang) { // Cột G
+                thongTinDonHang = {
+                    tenKhachHang: row[9] || '', // Cột J
+                    diaChiThucHien: row[20] || '', // Cột U
+                    tenNguoiLienHe: row[17] || '', // Cột R
+                    nhomSanPham: row[26] || '', // Cột AA
+                    loaiDonHang: row[28] || '' // Cột AC
+                };
+                break;
+            }
+        }
+
+        if (!thongTinDonHang) {
+            return res.status(404).json({ error: "Không tìm thấy đơn hàng" });
+        }
+
+        // Lấy danh sách sản phẩm
+        let danhSachSanPham = [];
+        const nhomSanPham = thongTinDonHang.nhomSanPham;
+
+        if (nhomSanPham !== "NK" && nhomSanPham !== "PKNK") {
+            // Tìm trong sheet Don_hang_PVC_ct
+            for (let i = 1; i < pvcData.length; i++) {
+                const row = pvcData[i];
+                if (row[1] === maDonHang) { // Cột B
+                    danhSachSanPham.push({
+                        tenSanPham: row[8] || '', // Cột I
+                        dai: row[16] || '', // Cột Q
+                        rong: row[17] || '', // Cột R
+                        cao: row[18] || '', // Cột S
+                        soLuong: row[21] || '', // Cột V
+                        donViTinh: row[22] || '' // Cột W
+                    });
+                }
+            }
+        } else {
+            // Tìm trong sheet Don_hang_nk_ct
+            for (let i = 1; i < nkData.length; i++) {
+                const row = nkData[i];
+                if (row[1] === maDonHang) { // Cột B
+                    danhSachSanPham.push({
+                        tenSanPham: row[8] || '', // Cột I
+                        dai: row[9] || '', // Cột J
+                        rong: row[10] || '', // Cột K
+                        cao: row[11] || '', // Cột L
+                        soLuong: row[14] || '', // Cột O
+                        donViTinh: row[13] || '' // Cột N
+                    });
+                }
+            }
+        }
+
+        res.json({
+            thongTinDonHang,
+            danhSachSanPham
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy thông tin đơn hàng:", error);
+        res.status(500).json({ error: "Lỗi server" });
+    }
+});
+
+// Route xuất Excel làm thanh toán khoán lắp đặt
+app.post("/export/lamthanhtoanlapdat", async (req, res) => {
+    try {
+        const { donHangData } = req.body;
+        
+        const workbook = new exceljs.Workbook();
+        workbook.creator = 'Hệ thống thanh toán lắp đặt';
+        workbook.created = new Date();
+
+        // Tạo sheet cho từng đơn hàng
+        for (const donHang of donHangData) {
+            const sheet = workbook.addWorksheet(donHang.maDonHang);
+            
+            // Tiêu đề
+            sheet.mergeCells('A1:L1');
+            const title = sheet.getCell('A1');
+            title.value = `THANH TOÁN LẮP ĐẶT - ${donHang.maDonHang}`;
+            title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+            title.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '4472C4' }
+            };
+            title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // Thông tin đơn hàng
+            sheet.getCell('A2').value = 'Thông tin đơn hàng:';
+            sheet.getCell('A2').font = { bold: true };
+            
+            sheet.getCell('A3').value = 'Tên khách hàng:';
+            sheet.getCell('B3').value = donHang.tenKhachHang;
+            
+            sheet.getCell('A4').value = 'Địa chỉ thực hiện:';
+            sheet.getCell('B4').value = donHang.diaChiThucHien;
+            
+            sheet.getCell('A5').value = 'Tên người liên hệ:';
+            sheet.getCell('B5').value = donHang.tenNguoiLienHe;
+            
+            sheet.getCell('A6').value = 'Nhóm sản phẩm:';
+            sheet.getCell('B6').value = donHang.nhomSanPham;
+
+            // Header bảng
+            const headers = ['STT', 'Tên sản phẩm', 'Dài (mm)', 'Rộng (mm)', 'Cao (mm)', 
+                           'Diện tích (m²)', 'Số lượng', 'Tổng số lượng (m²)', 
+                           'Đơn vị tính', 'Đơn giá (VNĐ)', 'Thành tiền (VNĐ)', 'Ghi chú'];
+            
+            const headerRow = sheet.getRow(8);
+            headerRow.values = headers;
+            headerRow.eachCell((cell, colNumber) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: '5B9BD5' }
+                };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            });
+
+            // Dữ liệu sản phẩm
+            let rowIndex = 9;
+            let tongThanhTien = 0;
+
+            donHang.danhSachSanPham.forEach((sp, index) => {
+                const row = sheet.getRow(rowIndex);
+                
+                row.values = [
+                    index + 1,
+                    sp.tenSanPham,
+                    sp.dai || 0,
+                    sp.rong || 0,
+                    sp.cao || 0,
+                    parseFloat(sp.dienTich) || 0,
+                    sp.soLuong || 0,
+                    parseFloat(sp.tongSoLuong) || 0,
+                    sp.donViTinh || '',
+                    parseFloat(sp.donGia) || 0,
+                    parseFloat(sp.thanhTien) || 0,
+                    sp.ghiChu || ''
+                ];
+
+                // Style cho dòng
+                row.eachCell((cell, colNumber) => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    
+                    // Định dạng số
+                    if (colNumber >= 3 && colNumber <= 7) {
+                        cell.numFmt = '#,##0';
+                        cell.alignment = { horizontal: 'right' };
+                    } else if (colNumber === 6 || colNumber === 8) { // Diện tích và tổng số lượng
+                        cell.numFmt = '#,##0.000';
+                        cell.alignment = { horizontal: 'right' };
+                    } else if (colNumber === 10 || colNumber === 11) { // Đơn giá và thành tiền
+                        cell.numFmt = '#,##0';
+                        cell.alignment = { horizontal: 'right' };
+                    }
+                    
+                    // Màu xen kẽ
+                    if (rowIndex % 2 === 0) {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'F2F2F2' }
+                        };
+                    }
+                });
+
+                tongThanhTien += parseFloat(sp.thanhTien) || 0;
+                rowIndex++;
+            });
+
+            // Dòng tổng
+            const totalRow = sheet.getRow(rowIndex);
+            totalRow.getCell(10).value = 'TỔNG CỘNG:';
+            totalRow.getCell(11).value = tongThanhTien;
+            
+            totalRow.eachCell((cell, colNumber) => {
+                if (colNumber >= 10) {
+                    cell.font = { bold: true };
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'C6EFCE' }
+                    };
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                    if (colNumber === 11) {
+                        cell.numFmt = '#,##0';
+                    }
+                }
+            });
+
+            // Auto fit columns
+            sheet.columns.forEach((column, index) => {
+                if (index === 1) column.width = 30; // Tên sản phẩm
+                else if (index === 11) column.width = 25; // Ghi chú
+                else column.width = 15;
+            });
+        }
+
+        // Thiết lập response
+        const fileName = `Thong-ke-thanh-toan-lap-dat-${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename=${encodeURIComponent(fileName)}`
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error("❌ Lỗi khi xuất Excel thanh toán lắp đặt:", error);
+        res.status(500).json({ error: "Lỗi khi xuất file Excel" });
+    }
+});
 
 
 // --- Start server ---

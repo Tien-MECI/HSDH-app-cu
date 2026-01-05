@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thanh Toán Lắp Đặt</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
+    <style>
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .donhang-section {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .table th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        .number-cell {
+            text-align: right;
+        }
+        .total-row {
+            background-color: #2ecc71;
+            color: white;
+            font-weight: bold;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+        .form-section {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="bi bi-calculator"></i> THANH TOÁN LẮP ĐẶT/SỬA CHỮA</h4>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="exportToExcel()">
+                                <i class="bi bi-file-excel"></i> Xuất Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container cho các đơn hàng -->
+        <div id="donHangContainer"></div>
+
+        <!-- Form thêm đơn hàng mới -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Thêm đơn hàng mới</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Mã đơn hàng</label>
+                                <select id="maDonHangSelect" class="form-select select2">
+                                    <option value="">Chọn mã đơn hàng</option>
+                                    <% maDonHangList.forEach(maDon => { %>
+                                        <option value="<%= maDon %>"><%= maDon %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button class="btn btn-primary" onclick="themDonHang()">
+                                    <i class="bi bi-plus-circle"></i> Thêm đơn hàng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template cho một đơn hàng -->
+    <template id="donHangTemplate">
+        <div class="donhang-section" data-ma-don-hang="">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Đơn hàng: <span class="ma-don-hang"></span></h5>
+                <button class="btn btn-danger btn-sm" onclick="xoaDonHang(this)">
+                    <i class="bi bi-trash"></i> Xóa
+                </button>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Tên khách hàng</label>
+                    <input type="text" class="form-control ten-khach-hang" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Địa chỉ thực hiện</label>
+                    <input type="text" class="form-control dia-chi" readonly>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Tên người liên hệ</label>
+                    <input type="text" class="form-control nguoi-lien-he" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Nhóm sản phẩm</label>
+                    <input type="text" class="form-control nhom-san-pham" readonly>
+                </div>
+            </div>
+
+            <h6>BẢNG THỐNG KÊ</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Tên sản phẩm</th>
+                            <th>Dài (mm)</th>
+                            <th>Rộng (mm)</th>
+                            <th>Cao (mm)</th>
+                            <th>Diện tích (m²)</th>
+                            <th>Số lượng</th>
+                            <th>Tổng số lượng (m²)</th>
+                            <th>Đơn vị tính</th>
+                            <th>Đơn giá (VNĐ)</th>
+                            <th>Thành tiền (VNĐ)</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <!-- Sản phẩm sẽ được thêm vào đây -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="9" class="text-end">TỔNG CỘNG:</td>
+                            <td colspan="2" class="text-end tong-thanh-tien">0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template cho một dòng sản phẩm -->
+    <template id="sanPhamTemplate">
+        <tr>
+            <td class="stt"></td>
+            <td class="ten-san-pham"></td>
+            <td><input type="number" class="form-control dai-input" min="0" step="1"></td>
+            <td><input type="number" class="form-control rong-input" min="0" step="1"></td>
+            <td><input type="number" class="form-control cao-input" min="0" step="1"></td>
+            <td class="dien-tich number-cell">0</td>
+            <td><input type="number" class="form-control so-luong-input" min="0" step="1"></td>
+            <td class="tong-so-luong number-cell">0</td>
+            <td><input type="text" class="form-control don-vi-tinh-input"></td>
+            <td><input type="number" class="form-control don-gia-input" min="0" step="1000"></td>
+            <td class="thanh-tien number-cell">0</td>
+            <td><input type="text" class="form-control ghi-chu-input"></td>
+        </tr>
+    </template>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script>
+        // Khởi tạo select2
+        $(document).ready(function() {
+            $('#maDonHangSelect').select2({
+                placeholder: "Tìm kiếm mã đơn hàng",
+                allowClear: true
+            });
+        });
+
+        // Danh sách đơn hàng
+        const danhSachDonHang = [];
+
+        // Thêm đơn hàng
+        async function themDonHang() {
+            const maDonHang = $('#maDonHangSelect').val();
+            
+            if (!maDonHang) {
+                alert('Vui lòng chọn mã đơn hàng');
+                return;
+            }
+
+            // Kiểm tra đã tồn tại chưa
+            if (danhSachDonHang.includes(maDonHang)) {
+                alert('Đơn hàng đã được thêm');
+                return;
+            }
+
+            try {
+                // Gọi API lấy thông tin đơn hàng
+                const response = await fetch(`/api/donhang/${maDonHang}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Không tìm thấy đơn hàng');
+                }
+
+                // Thêm vào danh sách
+                danhSachDonHang.push(maDonHang);
+
+                // Clone template
+                const template = document.getElementById('donHangTemplate');
+                const clone = template.content.cloneNode(true);
+                const section = clone.querySelector('.donhang-section');
+                
+                // Đặt mã đơn hàng
+                section.dataset.maDonHang = maDonHang;
+                section.querySelector('.ma-don-hang').textContent = maDonHang;
+                
+                // Điền thông tin
+                section.querySelector('.ten-khach-hang').value = data.thongTinDonHang.tenKhachHang;
+                section.querySelector('.dia-chi').value = data.thongTinDonHang.diaChiThucHien;
+                section.querySelector('.nguoi-lien-he').value = data.thongTinDonHang.tenNguoiLienHe;
+                section.querySelector('.nhom-san-pham').value = data.thongTinDonHang.nhomSanPham;
+
+                // Thêm sản phẩm
+                const tbody = section.querySelector('.table-body');
+                const spTemplate = document.getElementById('sanPhamTemplate');
+
+                data.danhSachSanPham.forEach((sp, index) => {
+                    const spClone = spTemplate.content.cloneNode(true);
+                    const tr = spClone.querySelector('tr');
+                    
+                    // Đặt STT
+                    tr.querySelector('.stt').textContent = index + 1;
+                    
+                    // Đặt tên sản phẩm
+                    tr.querySelector('.ten-san-pham').textContent = sp.tenSanPham;
+                    
+                    // Đặt giá trị ban đầu
+                    tr.querySelector('.dai-input').value = sp.dai || '';
+                    tr.querySelector('.rong-input').value = sp.rong || '';
+                    tr.querySelector('.cao-input').value = sp.cao || '';
+                    tr.querySelector('.so-luong-input').value = sp.soLuong || '';
+                    tr.querySelector('.don-vi-tinh-input').value = sp.donViTinh || '';
+                    
+                    // Gắn sự kiện tính toán
+                    const inputs = tr.querySelectorAll('input');
+                    inputs.forEach(input => {
+                        input.addEventListener('input', () => tinhToanDonHang(maDonHang));
+                    });
+
+                    tbody.appendChild(tr);
+                });
+
+                // Thêm vào container
+                document.getElementById('donHangContainer').prepend(section);
+                
+                // Tính toán lần đầu
+                tinhToanDonHang(maDonHang);
+                
+                // Reset select
+                $('#maDonHangSelect').val(null).trigger('change');
+
+            } catch (error) {
+                alert('Lỗi: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // Xóa đơn hàng
+        function xoaDonHang(button) {
+            const section = button.closest('.donhang-section');
+            const maDonHang = section.dataset.maDonHang;
+            
+            // Xóa khỏi danh sách
+            const index = danhSachDonHang.indexOf(maDonHang);
+            if (index > -1) {
+                danhSachDonHang.splice(index, 1);
+            }
+            
+            section.remove();
+        }
+
+        // Tính toán cho một đơn hàng
+        function tinhToanDonHang(maDonHang) {
+            const section = document.querySelector(`[data-ma-don-hang="${maDonHang}"]`);
+            const rows = section.querySelectorAll('.table-body tr');
+            
+            let tongThanhTien = 0;
+            
+            rows.forEach((row, index) => {
+                // Lấy giá trị
+                const dai = parseFloat(row.querySelector('.dai-input').value) || 0;
+                const rong = parseFloat(row.querySelector('.rong-input').value) || 0;
+                const cao = parseFloat(row.querySelector('.cao-input').value) || 0;
+                const soLuong = parseFloat(row.querySelector('.so-luong-input').value) || 0;
+                const donGia = parseFloat(row.querySelector('.don-gia-input').value) || 0;
+                
+                // Tính diện tích
+                let dienTich = 0;
+                if (cao === 0) {
+                    dienTich = (dai * rong) / 1000;
+                } else {
+                    dienTich = (rong * cao) / 1000;
+                }
+                
+                // Tính tổng số lượng
+                const tongSoLuong = dienTich * soLuong;
+                
+                // Tính thành tiền
+                const thanhTien = donGia * tongSoLuong;
+                tongThanhTien += thanhTien;
+                
+                // Cập nhật hiển thị
+                row.querySelector('.dien-tich').textContent = dienTich.toFixed(3);
+                row.querySelector('.tong-so-luong').textContent = tongSoLuong.toFixed(3);
+                row.querySelector('.thanh-tien').textContent = formatNumber(thanhTien);
+            });
+            
+            // Cập nhật tổng thành tiền
+            section.querySelector('.tong-thanh-tien').textContent = formatNumber(tongThanhTien);
+        }
+
+        // Format số
+        function formatNumber(num) {
+            if (!num) return "0";
+            num = Math.abs(num);
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        // Xuất Excel
+        async function exportToExcel() {
+            if (danhSachDonHang.length === 0) {
+                alert('Chưa có đơn hàng nào để xuất');
+                return;
+            }
+
+            // Thu thập dữ liệu
+            const donHangData = [];
+            
+            document.querySelectorAll('.donhang-section').forEach(section => {
+                const maDonHang = section.dataset.maDonHang;
+                const danhSachSanPham = [];
+                
+                // Lấy thông tin đơn hàng
+                const tenKhachHang = section.querySelector('.ten-khach-hang').value;
+                const diaChiThucHien = section.querySelector('.dia-chi').value;
+                const tenNguoiLienHe = section.querySelector('.nguoi-lien-he').value;
+                const nhomSanPham = section.querySelector('.nhom-san-pham').value;
+                
+                // Lấy danh sách sản phẩm
+                section.querySelectorAll('.table-body tr').forEach((row, index) => {
+                    danhSachSanPham.push({
+                        tenSanPham: row.querySelector('.ten-san-pham').textContent,
+                        dai: row.querySelector('.dai-input').value,
+                        rong: row.querySelector('.rong-input').value,
+                        cao: row.querySelector('.cao-input').value,
+                        dienTich: row.querySelector('.dien-tich').textContent,
+                        soLuong: row.querySelector('.so-luong-input').value,
+                        tongSoLuong: row.querySelector('.tong-so-luong').textContent,
+                        donViTinh: row.querySelector('.don-vi-tinh-input').value,
+                        donGia: row.querySelector('.don-gia-input').value,
+                        thanhTien: row.querySelector('.thanh-tien').textContent.replace(/\./g, ''),
+                        ghiChu: row.querySelector('.ghi-chu-input').value
+                    });
+                });
+                
+                donHangData.push({
+                    maDonHang,
+                    tenKhachHang,
+                    diaChiThucHien,
+                    tenNguoiLienHe,
+                    nhomSanPham,
+                    danhSachSanPham
+                });
+            });
+
+            // Gửi dữ liệu đến server
+            try {
+                const response = await fetch('/export/lamthanhtoanlapdat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ donHangData })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Lỗi khi xuất Excel');
+                }
+
+                // Tạo blob để tải file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Thong-ke-thanh-toan-lap-dat-${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+            } catch (error) {
+                alert('Lỗi khi xuất Excel: ' + error.message);
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
