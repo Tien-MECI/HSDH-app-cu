@@ -317,6 +317,7 @@
                 const cao = parseFloat(row.querySelector('.cao-input').value) || 0;
                 const soLuong = parseFloat(row.querySelector('.so-luong-input').value) || 0;
                 const donGia = parseFloat(row.querySelector('.don-gia-input').value) || 0;
+                const donViTinh = (row.querySelector('.don-vi-tinh-input').value || '').toLowerCase();
                 
                 // Tính diện tích
                 let dienTich = 0;

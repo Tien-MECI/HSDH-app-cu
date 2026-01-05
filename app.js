@@ -9028,13 +9028,13 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
             let tongThanhTien = 0;
 
             donHang.danhSachSanPham.forEach((sp, index) => {
-                // Tính toán lại theo công thức chính xác
+                // Lấy giá trị
                 const dai = parseFloat(sp.dai) || 0;
                 const rong = parseFloat(sp.rong) || 0;
                 const cao = parseFloat(sp.cao) || 0;
                 const soLuong = parseFloat(sp.soLuong) || 0;
                 const donGia = parseFloat(sp.donGia) || 0;
-                const donViTinh = (sp.donViTinh || '').toLowerCase();
+                const donViTinh = (sp.donViTinh || '').toLowerCase(); // THÊM DÒNG NÀY
                 
                 // Tính diện tích: chia cho 1,000,000
                 let dienTich = 0;
@@ -9084,7 +9084,7 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
                     };
                     
                     // Định dạng số
-                    if (colNumber >= 3 && colNumber <= 4) { // Dài, Rộng, Cao
+                    if (colNumber >= 3 && colNumber <= 5) { // Dài, Rộng, Cao (chỉnh sửa cột này)
                         cell.numFmt = '#,##0';
                         cell.alignment = { horizontal: 'right' };
                     } else if (colNumber === 6) { // Diện tích
