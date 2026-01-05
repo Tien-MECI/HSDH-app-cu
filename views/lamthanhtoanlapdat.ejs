@@ -40,6 +40,12 @@
             border-radius: 5px;
             margin-bottom: 15px;
         }
+        .btn-xoa-sanpham {
+        padding: 2px 8px;
+        }
+        input[readonly] {
+        background-color: #e9ecef;
+        }
     </style>
 </head>
 <body>
@@ -92,87 +98,93 @@
     </div>
 
     <!-- Template cho một đơn hàng -->
-    <template id="donHangTemplate">
-        <div class="donhang-section" data-ma-don-hang="">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Đơn hàng: <span class="ma-don-hang"></span></h5>
-                <button class="btn btn-danger btn-sm" onclick="xoaDonHang(this)">
-                    <i class="bi bi-trash"></i> Xóa
-                </button>
+<template id="donHangTemplate">
+    <div class="donhang-section" data-ma-don-hang="">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Đơn hàng: <span class="ma-don-hang"></span></h5>
+            <button class="btn btn-danger btn-sm" onclick="xoaDonHang(this)">
+                <i class="bi bi-trash"></i> Xóa đơn
+            </button>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Tên khách hàng</label>
+                <input type="text" class="form-control ten-khach-hang" readonly>
             </div>
-            
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Tên khách hàng</label>
-                    <input type="text" class="form-control ten-khach-hang" readonly>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Địa chỉ thực hiện</label>
-                    <input type="text" class="form-control dia-chi" readonly>
-                </div>
-            </div>
-            
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Tên người liên hệ</label>
-                    <input type="text" class="form-control nguoi-lien-he" readonly>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Nhóm sản phẩm</label>
-                    <input type="text" class="form-control nhom-san-pham" readonly>
-                </div>
-            </div>
-
-            <h6>BẢNG THỐNG KÊ</h6>
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Tên sản phẩm</th>
-                            <th>Dài (mm)</th>
-                            <th>Rộng (mm)</th>
-                            <th>Cao (mm)</th>
-                            <th>Diện tích (m²)</th>
-                            <th>Số lượng</th>
-                            <th>Tổng số lượng (m²)</th>
-                            <th>Đơn vị tính</th>
-                            <th>Đơn giá (VNĐ)</th>
-                            <th>Thành tiền (VNĐ)</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody class="table-body">
-                        <!-- Sản phẩm sẽ được thêm vào đây -->
-                    </tbody>
-                    <tfoot>
-                        <tr class="total-row">
-                            <td colspan="9" class="text-end">TỔNG CỘNG:</td>
-                            <td colspan="2" class="text-end tong-thanh-tien">0</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
+            <div class="col-md-6">
+                <label class="form-label">Địa chỉ thực hiện</label>
+                <input type="text" class="form-control dia-chi" readonly>
             </div>
         </div>
-    </template>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Tên người liên hệ</label>
+                <input type="text" class="form-control nguoi-lien-he" readonly>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nhóm sản phẩm</label>
+                <input type="text" class="form-control nhom-san-pham" readonly>
+            </div>
+        </div>
+
+        <h6>BẢNG THỐNG KÊ</h6>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Dài (mm)</th>
+                        <th>Rộng (mm)</th>
+                        <th>Cao (mm)</th>
+                        <th>Diện tích (m²)</th>
+                        <th>Số lượng</th>
+                        <th>Tổng số lượng (m²)</th>
+                        <th>Đơn vị tính</th>
+                        <th>Đơn giá (VNĐ)</th>
+                        <th>Thành tiền (VNĐ)</th>
+                        <th>Ghi chú</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="table-body">
+                    <!-- Sản phẩm sẽ được thêm vào đây -->
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="10" class="text-end">TỔNG CỘNG:</td>
+                        <td colspan="2" class="text-end tong-thanh-tien">0</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</template>
 
     <!-- Template cho một dòng sản phẩm -->
     <template id="sanPhamTemplate">
-        <tr>
-            <td class="stt"></td>
-            <td class="ten-san-pham"></td>
-            <td><input type="number" class="form-control dai-input" min="0" step="1"></td>
-            <td><input type="number" class="form-control rong-input" min="0" step="1"></td>
-            <td><input type="number" class="form-control cao-input" min="0" step="1"></td>
-            <td class="dien-tich number-cell">0</td>
-            <td><input type="number" class="form-control so-luong-input" min="0" step="1"></td>
-            <td class="tong-so-luong number-cell">0</td>
-            <td><input type="text" class="form-control don-vi-tinh-input"></td>
-            <td><input type="number" class="form-control don-gia-input" min="0" step="1000"></td>
-            <td class="thanh-tien number-cell">0</td>
-            <td><input type="text" class="form-control ghi-chu-input"></td>
-        </tr>
+    <tr data-index="">
+        <td class="stt"></td>
+        <td class="ten-san-pham"></td>
+        <td><input type="number" class="form-control dai-input" min="0" step="1"></td>
+        <td><input type="number" class="form-control rong-input" min="0" step="1"></td>
+        <td><input type="number" class="form-control cao-input" min="0" step="1"></td>
+        <td class="dien-tich number-cell">0</td>
+        <td><input type="number" class="form-control so-luong-input" min="0" step="1"></td>
+        <td class="tong-so-luong number-cell">0</td>
+        <td><input type="text" class="form-control don-vi-tinh-input"></td>
+        <td><input type="number" class="form-control don-gia-input" min="0" step="1000"></td>
+        <td class="thanh-tien number-cell">0</td>
+        <td><input type="text" class="form-control ghi-chu-input"></td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm btn-xoa-sanpham" onclick="xoaSanPham(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
     </template>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -309,22 +321,32 @@
                 // Tính diện tích
                 let dienTich = 0;
                 if (cao === 0) {
-                    dienTich = (dai * rong) / 1000;
+                    dienTich = (dai * rong) / 1000000;
                 } else {
-                    dienTich = (rong * cao) / 1000;
+                    dienTich = (rong * cao) / 1000000;
                 }
                 
                 // Tính tổng số lượng
                 const tongSoLuong = dienTich * soLuong;
                 
                 // Tính thành tiền
-                const thanhTien = donGia * tongSoLuong;
+                
+                // Tính thành tiền: kiểm tra đơn vị tính
+                let thanhTien = 0;
+                if (donViTinh === 'm2') {
+                    thanhTien = donGia * tongSoLuong;
+                } else {
+                    thanhTien = donGia * soLuong;
+                }
                 tongThanhTien += thanhTien;
                 
                 // Cập nhật hiển thị
                 row.querySelector('.dien-tich').textContent = dienTich.toFixed(3);
                 row.querySelector('.tong-so-luong').textContent = tongSoLuong.toFixed(3);
                 row.querySelector('.thanh-tien').textContent = formatNumber(thanhTien);
+                // Cập nhật STT
+                row.querySelector('.stt').textContent = index + 1;
+                row.dataset.index = index;
             });
             
             // Cập nhật tổng thành tiền
@@ -336,6 +358,19 @@
             if (!num) return "0";
             num = Math.abs(num);
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        // Xóa sản phẩm (HÀM MỚI)
+        function xoaSanPham(button) {
+            const row = button.closest('tr');
+            const section = row.closest('.donhang-section');
+            const maDonHang = section.dataset.maDonHang;
+            
+            // Xóa dòng
+            row.remove();
+            
+            // Tính toán lại
+            tinhToanDonHang(maDonHang);
         }
 
         // Xuất Excel

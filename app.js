@@ -9028,20 +9028,49 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
             let tongThanhTien = 0;
 
             donHang.danhSachSanPham.forEach((sp, index) => {
+                // Tính toán lại theo công thức chính xác
+                const dai = parseFloat(sp.dai) || 0;
+                const rong = parseFloat(sp.rong) || 0;
+                const cao = parseFloat(sp.cao) || 0;
+                const soLuong = parseFloat(sp.soLuong) || 0;
+                const donGia = parseFloat(sp.donGia) || 0;
+                const donViTinh = (sp.donViTinh || '').toLowerCase();
+                
+                // Tính diện tích: chia cho 1,000,000
+                let dienTich = 0;
+                if (cao === 0) {
+                    dienTich = (dai * rong) / 1000000;
+                } else {
+                    dienTich = (rong * cao) / 1000000;
+                }
+                
+                // Tính tổng số lượng
+                const tongSoLuong = dienTich * soLuong;
+                
+                // Tính thành tiền theo đơn vị
+                let thanhTien = 0;
+                if (donViTinh === 'm2') {
+                    thanhTien = donGia * tongSoLuong;
+                } else {
+                    thanhTien = donGia * soLuong;
+                }
+                
+                tongThanhTien += thanhTien;
+
                 const row = sheet.getRow(rowIndex);
                 
                 row.values = [
                     index + 1,
                     sp.tenSanPham,
-                    sp.dai || 0,
-                    sp.rong || 0,
-                    sp.cao || 0,
-                    parseFloat(sp.dienTich) || 0,
-                    sp.soLuong || 0,
-                    parseFloat(sp.tongSoLuong) || 0,
+                    dai,
+                    rong,
+                    cao,
+                    dienTich,
+                    soLuong,
+                    tongSoLuong,
                     sp.donViTinh || '',
-                    parseFloat(sp.donGia) || 0,
-                    parseFloat(sp.thanhTien) || 0,
+                    donGia,
+                    thanhTien,
                     sp.ghiChu || ''
                 ];
 
@@ -9055,10 +9084,16 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
                     };
                     
                     // Định dạng số
-                    if (colNumber >= 3 && colNumber <= 7) {
+                    if (colNumber >= 3 && colNumber <= 4) { // Dài, Rộng, Cao
                         cell.numFmt = '#,##0';
                         cell.alignment = { horizontal: 'right' };
-                    } else if (colNumber === 6 || colNumber === 8) { // Diện tích và tổng số lượng
+                    } else if (colNumber === 6) { // Diện tích
+                        cell.numFmt = '#,##0.000';
+                        cell.alignment = { horizontal: 'right' };
+                    } else if (colNumber === 7) { // Số lượng
+                        cell.numFmt = '#,##0';
+                        cell.alignment = { horizontal: 'right' };
+                    } else if (colNumber === 8) { // Tổng số lượng
                         cell.numFmt = '#,##0.000';
                         cell.alignment = { horizontal: 'right' };
                     } else if (colNumber === 10 || colNumber === 11) { // Đơn giá và thành tiền
@@ -9076,7 +9111,6 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
                     }
                 });
 
-                tongThanhTien += parseFloat(sp.thanhTien) || 0;
                 rowIndex++;
             });
 
