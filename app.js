@@ -14,6 +14,7 @@ import { buildAttendanceData } from "./helpers/chamcong.js";
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import { userGroups, notificationRules } from './config/userGroups.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
@@ -9168,6 +9169,228 @@ app.post("/export/lamthanhtoanlapdat", async (req, res) => {
     }
 });
 
+
+////THÊM NHÂN SỰ ĐƠN HÀNG VÀO SHETT TT_KHOAN_LAP_DAT
+
+/// webhook (đặt sau các import và trước phần khởi động server)
+// Middleware để xác thực webhook
+const authenticateWebhook = (req, res, next) => {
+    // Lấy token từ các nguồn khác nhau
+    const tokenSources = [
+        req.headers['x-auth-token'],
+        req.headers['authorization']?.replace('Bearer ', ''),
+        req.query.token,
+        req.body?.token // Nếu gửi trong body
+    ];
+    
+    const authToken = tokenSources.find(t => t !== undefined && t !== '');
+    const expectedToken = process.env.WEBHOOK_AUTH_TOKEN;
+    
+    // Nếu không có token trong env, cho phép tất cả (chỉ dùng cho dev)
+    if (!expectedToken) {
+        console.warn('⚠️  Cảnh báo: WEBHOOK_AUTH_TOKEN chưa được cấu hình');
+        return next();
+    }
+    
+    // Nếu có token nhưng không khớp
+    if (authToken !== expectedToken) {
+        console.warn(`❌ Token không hợp lệ. Nhận được: ${authToken ? authToken.substring(0, 10) + '...' : 'null'}`);
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized: Invalid or missing authentication token',
+            hint: 'Include token in header: X-Auth-Token or query parameter: ?token=YOUR_TOKEN'
+        });
+    }
+    
+    // Token hợp lệ
+    console.log('✅ Token xác thực thành công');
+    next();
+};
+
+// Áp dụng middleware cho webhook
+app.post('/webhook/import-khoan-lap-dat', 
+    express.json(), 
+    authenticateWebhook, 
+    async (req, res) => {
+        try {
+            // Thêm logging chi tiết
+            console.log('📥 Nhận webhook request:', {
+                time: new Date().toISOString(),
+                body: req.body,
+                headers: req.headers
+            });
+            
+            // Gọi hàm import
+            await importLastRowWithCoefficients();
+            
+            res.status(200).json({
+                success: true,
+                message: 'Dữ liệu đã được import thành công',
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('❌ Lỗi import dữ liệu:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Lỗi khi import dữ liệu',
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+);
+/// hàm xử lý dữ liệu để ghi nhân sự và đơn hàng vào sheet TT_KHOAN_LAP_DAT
+async function importLastRowWithCoefficients() {
+    try {
+        const SPREADSHEET_HC_ID = process.env.SPREADSHEET_HC_ID;
+        const SHEET1_NAME = 'danh_sach_don_tra_khoan_lap_dat';
+        const SHEET2_NAME = 'TT_khoan_lap_dat';
+        const SHEET3_NAME = 'Data_he_so_khoan_lap_dat';
+        const SHEET4_NAME = 'Nhan_vien'; // Sheet mới
+
+        // Lấy dữ liệu từ Sheet4 (Nhan_vien) để tạo map tên -> mã NV
+        const nhanVienResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: `${SHEET4_NAME}!A:B`, // Lấy cột A (mã NV) và B (tên NV)
+        });
+
+        const nhanVienData = nhanVienResponse.data.values || [];
+        const nvMap = {};
+        
+        // Tạo map từ tên nhân viên (cột B) sang mã nhân viên (cột A)
+        // Bỏ qua header row
+        for (let i = 1; i < nhanVienData.length; i++) {
+            const row = nhanVienData[i];
+            if (row && row.length >= 2) {
+                const maNV = row[0] || ''; // Cột A
+                const tenNV = row[1] || ''; // Cột B
+                if (tenNV) {
+                    // Chuẩn hóa tên để so sánh (cắt khoảng trắng, chuyển chữ thường)
+                    const tenChuanHoa = tenNV.toString().trim().toLowerCase();
+                    nvMap[tenChuanHoa] = maNV;
+                }
+            }
+        }
+
+        // Lấy dữ liệu từ Sheet3 (hệ số)
+        const heSoResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: `${SHEET3_NAME}!A:E`,
+        });
+
+        const data3 = heSoResponse.data.values || [];
+        const hsMap = {};
+        
+        for (let i = 1; i < data3.length; i++) {
+            const row3 = data3[i];
+            if (row3 && row3.length >= 5) {
+                const key = row3[1] || '';  // cột B
+                const val = row3[4] || '';  // cột E (index 4)
+                if (key) {
+                    hsMap[key.toString().trim()] = val;
+                }
+            }
+        }
+
+        // Lấy dữ liệu từ Sheet1 (danh sách đơn)
+        const sheet1Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: SHEET1_NAME,
+        });
+
+        const sheet1Data = sheet1Response.data.values || [];
+        
+        if (sheet1Data.length < 2) {
+            console.log('Không có dữ liệu trong sheet1');
+            return;
+        }
+
+        // Lấy dòng cuối cùng
+        const lastRowValues = sheet1Data[sheet1Data.length - 1];
+        
+        // Ánh xạ các cột (index bắt đầu từ 0)
+        const colB = lastRowValues[1] || '';  // B
+        const colC = lastRowValues[2] || '';  // C
+        const colD = lastRowValues[3] || '';  // D
+        const colJ = lastRowValues[9] || '';  // J
+        const colK = lastRowValues[10] || ''; // K
+
+        // Lấy dữ liệu hiện tại từ Sheet2 để xác định dòng tiếp theo
+        const sheet2Response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_HC_ID,
+            range: `${SHEET2_NAME}!A:M`,
+        });
+
+        const sheet2Data = sheet2Response.data.values || [];
+        const startRow = sheet2Data.length + 1; // +1 vì Sheets API index từ 1 và cần +1 cho dòng mới
+
+        const rowsToWrite = [];
+
+        // Helper function để lấy mã NV từ tên
+        const getMaNVFromTen = (ten) => {
+            if (!ten) return '';
+            const tenChuanHoa = ten.toString().trim().toLowerCase();
+            return nvMap[tenChuanHoa] || '';
+        };
+
+        // Lần ghi 1: Chủ nhiệm
+        const maChuNhiem = getMaNVFromTen(colJ);
+        rowsToWrite.push([
+            uuidv4(),           // A: ID duy nhất
+            colJ,               // B: Tên chủ nhiệm (từ colJ)
+            maChuNhiem,         // C: Mã NV (tìm từ sheet Nhan_vien)
+            colC,               // D: C bảng1
+            colD,               // E: D bảng1
+            'Chủ nhiệm',        // F: Vai trò
+            '1,20',             // G: Hệ số cố định
+            '', '', '', '', '', // H->L: Các cột trống
+            colB                // M: B bảng1
+        ]);
+
+        // Lần ghi 2..n: Hỗ trợ
+        if (colK && typeof colK === 'string') {
+            const persons = colK.split(/\s*,\s*/);
+            persons.forEach((p) => {
+                if (!p.trim()) return;
+                
+                const coeff = hsMap[p.trim()] !== undefined ? hsMap[p.trim()] : '';
+                const maHoTro = getMaNVFromTen(p);
+                
+                rowsToWrite.push([
+                    uuidv4(),       // A: ID duy nhất
+                    p.trim(),       // B: Tên người hỗ trợ
+                    maHoTro,        // C: Mã NV (tìm từ sheet Nhan_vien)
+                    colC,           // D: C bảng1
+                    colD,           // E: D bảng1
+                    'Hỗ trợ',       // F: Vai trò
+                    coeff,          // G: Hệ số từ Sheet3
+                    '', '', '', '', '', // H->L: Các cột trống
+                    colB            // M: B bảng1
+                ]);
+            });
+        }
+
+        // Ghi dữ liệu vào Sheet2
+        if (rowsToWrite.length > 0) {
+            await sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_HC_ID,
+                range: `${SHEET2_NAME}!A${startRow}`,
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS',
+                resource: {
+                    values: rowsToWrite
+                }
+            });
+
+            console.log(`✅ Đã ghi ${rowsToWrite.length} dòng vào ${SHEET2_NAME}`);
+        }
+
+    } catch (error) {
+        console.error('❌ Lỗi trong hàm importLastRowWithCoefficients:', error);
+        throw error;
+    }
+}
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
