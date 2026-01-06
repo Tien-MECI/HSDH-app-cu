@@ -2070,8 +2070,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
       const totalAfterTax = parseFloat(row[totalAfterTaxIndex]) || 0;// Thành tiền sau thuế
 
       // 👉 Tính toán lại theo chuẩn kế toán
-      const amount = amountchuathue;            // đơn giá chưa thuế
-      const unitPrice = amount * quantity;        // thành tiền chưa thuế
+      const amount = amountchuathue/ (1 + taxRate / 100);            // đơn giá chưa thuế
+      const unitPrice = amount;        // thành tiền chưa thuế
       const taxAmount = unitPrice * (taxRate / 100);                    // Tiền thuế GTGT
 
       return {
