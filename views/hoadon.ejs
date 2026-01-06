@@ -222,8 +222,8 @@
               <td><%= p.description || "" %></td>
               <td style="text-align:center;"><%= p.unit || "" %></td>
               <td class="right"><%= formatNumber1(p.quantity) %></td>
-              <td class="right"><%= formatNumber1(p.unitPrice) %></td>
               <td class="right"><%= formatNumber1(p.amount) %></td>
+              <td class="right"><%= formatNumber1(p.unitPrice) %></td>
               <td style="text-align:center;"><%= p.taxRate != null ? p.taxRate + '%' : '' %></td>
               <td class="right"><%= formatNumber1(p.taxAmount) %></td>
               <td class="right"><%= formatNumber1(p.totalAmount) %></td>

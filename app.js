@@ -2071,7 +2071,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
 
       // 👉 Tính toán lại theo chuẩn kế toán
       const amount = amountchuathue/ (1 + taxRate / 100);            // đơn giá chưa thuế
-      const unitPrice = amount;        // thành tiền chưa thuế
+      const unitPrice = amount * quantity;        // thành tiền chưa thuế
       const taxAmount = unitPrice * (taxRate / 100);                    // Tiền thuế GTGT
 
       return {
