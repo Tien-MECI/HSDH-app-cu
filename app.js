@@ -9207,42 +9207,85 @@ const authenticateWebhook = (req, res, next) => {
     next();
 };
 
-// Áp dụng middleware cho webhook
-app.post('/webhook/import-khoan-lap-dat', 
-    express.json(), 
-    authenticateWebhook, 
-    async (req, res) => {
-        try {
-            // Thêm logging chi tiết
-            console.log('📥 Nhận webhook request:', {
-                time: new Date().toISOString(),
-                body: req.body,
-                headers: req.headers
-            });
-            
-            // Gọi hàm import
-            await importLastRowWithCoefficients();
-            
-            res.status(200).json({
-                success: true,
-                message: 'Dữ liệu đã được import thành công',
-                timestamp: new Date().toISOString()
-            });
-            
-        } catch (error) {
-            console.error('❌ Lỗi import dữ liệu:', error);
-            res.status(500).json({
+// Thêm route GET để test 
+app.get('/webhook/import-khoan-lap-dat', async (req, res) => {
+    try {
+        console.log('📥 GET request received from AppSheet (test)');
+        
+        // Kiểm tra token từ query parameter
+        const authToken = req.query.token || req.headers['x-auth-token'];
+        const expectedToken = process.env.WEBHOOK_AUTH_TOKEN;
+        
+        if (expectedToken && authToken !== expectedToken) {
+            return res.status(401).json({
                 success: false,
-                message: 'Lỗi khi import dữ liệu',
-                error: error.message,
-                timestamp: new Date().toISOString()
+                message: 'Unauthorized: Invalid token',
+                hint: 'Token provided: ' + (authToken ? 'yes' : 'no')
             });
         }
+        
+        // Trả về thông báo thành công cho GET request
+        res.status(200).json({
+            success: true,
+            message: 'Webhook endpoint is active',
+            method: 'GET',
+            timestamp: new Date().toISOString(),
+            expected_method: 'POST (for actual import)'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in GET handler:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
     }
-);
+});
+
+// Route POST chính 
+app.post('/webhook/import-khoan-lap-dat', express.json(), async (req, res) => {
+    try {
+        console.log('📥 POST request received from AppSheet');
+        
+        // Kiểm tra token
+        const authToken = req.query.token || req.headers['x-auth-token'] || req.body?.token;
+        const expectedToken = process.env.WEBHOOK_AUTH_TOKEN;
+        
+        if (expectedToken && authToken !== expectedToken) {
+            console.log('❌ Token mismatch. Expected:', expectedToken, 'Got:', authToken);
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized: Invalid token'
+            });
+        }
+        
+        console.log('✅ Token verified, starting import...');
+        
+        // Gọi hàm import
+        const result = await importLastRowWithCoefficients();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Data imported successfully',
+            timestamp: new Date().toISOString(),
+            rows_processed: result || 'unknown'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in POST handler:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error importing data',
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
 /// hàm xử lý dữ liệu để ghi nhân sự và đơn hàng vào sheet TT_KHOAN_LAP_DAT
 async function importLastRowWithCoefficients() {
     try {
+        console.log('🚀 Starting importLastRowWithCoefficients...');
         const SPREADSHEET_HC_ID = process.env.SPREADSHEET_HC_ID;
         const SHEET1_NAME = 'danh_sach_don_tra_khoan_lap_dat';
         const SHEET2_NAME = 'TT_khoan_lap_dat';
@@ -9370,24 +9413,36 @@ async function importLastRowWithCoefficients() {
                 ]);
             });
         }
+        console.log('📊 Data from sheet1 last row:', {
+            colB, colC, colD, colJ, colK
+        });
+        
+        console.log('👥 Persons to process:', persons);
+        console.log('📝 Rows to write:', rowsToWrite.length);
 
         // Ghi dữ liệu vào Sheet2
         if (rowsToWrite.length > 0) {
+            console.log('✍️ Writing', rowsToWrite.length, 'rows to sheet...');
+            
             await sheets.spreadsheets.values.append({
                 spreadsheetId: SPREADSHEET_HC_ID,
                 range: `${SHEET2_NAME}!A${startRow}`,
                 valueInputOption: 'USER_ENTERED',
                 insertDataOption: 'INSERT_ROWS',
-                resource: {
-                    values: rowsToWrite
-                }
+                resource: { values: rowsToWrite }
             });
-
-            console.log(`✅ Đã ghi ${rowsToWrite.length} dòng vào ${SHEET2_NAME}`);
+            
+            console.log('✅ Successfully wrote', rowsToWrite.length, 'rows');
+            
+            // Trả về số dòng đã xử lý
+            return rowsToWrite.length;
+        } else {
+            console.log('⚠️ No rows to write');
+            return 0;
         }
-
+        
     } catch (error) {
-        console.error('❌ Lỗi trong hàm importLastRowWithCoefficients:', error);
+        console.error('❌ Error in import function:', error);
         throw error;
     }
 }
