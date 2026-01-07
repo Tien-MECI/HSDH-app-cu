@@ -9285,157 +9285,168 @@ app.post('/webhook/import-khoan-lap-dat', express.json(), async (req, res) => {
 /// hàm xử lý dữ liệu để ghi nhân sự và đơn hàng vào sheet TT_KHOAN_LAP_DAT
 async function importLastRowWithCoefficients() {
     try {
-        console.log('🚀 Starting importLastRowWithCoefficients...');
+        console.log('🚀 Starting import function...');
+        
         const SPREADSHEET_HC_ID = process.env.SPREADSHEET_HC_ID;
         const SHEET1_NAME = 'danh_sach_don_tra_khoan_lap_dat';
         const SHEET2_NAME = 'TT_khoan_lap_dat';
         const SHEET3_NAME = 'Data_he_so_khoan_lap_dat';
-        const SHEET4_NAME = 'Nhan_vien'; // Sheet mới
+        const SHEET4_NAME = 'Nhan_vien';
 
-        // Lấy dữ liệu từ Sheet4 (Nhan_vien) để tạo map tên -> mã NV
+        // 1. Lấy dữ liệu nhân viên
         const nhanVienResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
-            range: `${SHEET4_NAME}!A:B`, // Lấy cột A (mã NV) và B (tên NV)
+            range: `${SHEET4_NAME}!A:B`,
         });
-
+        
         const nhanVienData = nhanVienResponse.data.values || [];
         const nvMap = {};
         
-        // Tạo map từ tên nhân viên (cột B) sang mã nhân viên (cột A)
-        // Bỏ qua header row
         for (let i = 1; i < nhanVienData.length; i++) {
             const row = nhanVienData[i];
             if (row && row.length >= 2) {
-                const maNV = row[0] || ''; // Cột A
-                const tenNV = row[1] || ''; // Cột B
+                const maNV = row[0] || '';
+                const tenNV = row[1] || '';
                 if (tenNV) {
-                    // Chuẩn hóa tên để so sánh (cắt khoảng trắng, chuyển chữ thường)
-                    const tenChuanHoa = tenNV.toString().trim().toLowerCase();
-                    nvMap[tenChuanHoa] = maNV;
+                    nvMap[tenNV.toString().trim().toLowerCase()] = maNV;
                 }
             }
         }
+        
+        console.log(`✅ Loaded ${Object.keys(nvMap).length} employee records`);
 
-        // Lấy dữ liệu từ Sheet3 (hệ số)
+        // 2. Lấy hệ số
         const heSoResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
             range: `${SHEET3_NAME}!A:E`,
         });
-
+        
         const data3 = heSoResponse.data.values || [];
         const hsMap = {};
         
         for (let i = 1; i < data3.length; i++) {
             const row3 = data3[i];
             if (row3 && row3.length >= 5) {
-                const key = row3[1] || '';  // cột B
-                const val = row3[4] || '';  // cột E (index 4)
+                const key = row3[1] || '';
+                const val = row3[4] || '';
                 if (key) {
                     hsMap[key.toString().trim()] = val;
                 }
             }
         }
 
-        // Lấy dữ liệu từ Sheet1 (danh sách đơn)
+        // 3. Lấy dữ liệu sheet1
         const sheet1Response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
             range: SHEET1_NAME,
         });
-
+        
         const sheet1Data = sheet1Response.data.values || [];
         
         if (sheet1Data.length < 2) {
-            console.log('Không có dữ liệu trong sheet1');
-            return;
+            console.log('⚠️ No data in sheet1');
+            return 0;
         }
 
         // Lấy dòng cuối cùng
         const lastRowValues = sheet1Data[sheet1Data.length - 1];
         
-        // Ánh xạ các cột (index bắt đầu từ 0)
-        const colB = lastRowValues[1] || '';  // B
-        const colC = lastRowValues[2] || '';  // C
-        const colD = lastRowValues[3] || '';  // D
-        const colJ = lastRowValues[9] || '';  // J
-        const colK = lastRowValues[10] || ''; // K
+        // Ánh xạ cột (bắt đầu từ index 0)
+        const colB = lastRowValues[1] || '';  // Cột B
+        const colC = lastRowValues[2] || '';  // Cột C
+        const colD = lastRowValues[3] || '';  // Cột D
+        const colJ = lastRowValues[9] || '';  // Cột J
+        const colK = lastRowValues[10] || ''; // Cột K
 
-        // Lấy dữ liệu hiện tại từ Sheet2 để xác định dòng tiếp theo
+        console.log('📊 Last row data:', { 
+            colB, 
+            colC, 
+            colD, 
+            colJ, 
+            colK,
+            hasColK: !!colK && colK.trim() !== ''
+        });
+
+        // 4. Lấy dòng hiện tại trong sheet2
         const sheet2Response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_HC_ID,
             range: `${SHEET2_NAME}!A:M`,
         });
-
+        
         const sheet2Data = sheet2Response.data.values || [];
-        const startRow = sheet2Data.length + 1; // +1 vì Sheets API index từ 1 và cần +1 cho dòng mới
+        const startRow = sheet2Data.length + 1;
 
         const rowsToWrite = [];
 
-        // Helper function để lấy mã NV từ tên
+        // Helper function
         const getMaNVFromTen = (ten) => {
-            if (!ten) return '';
-            const tenChuanHoa = ten.toString().trim().toLowerCase();
-            return nvMap[tenChuanHoa] || '';
+            if (!ten || typeof ten !== 'string') return '';
+            return nvMap[ten.trim().toLowerCase()] || '';
         };
 
-        // Lần ghi 1: Chủ nhiệm
+        // 5.1 Chủ nhiệm (LUÔN LUÔN CÓ)
         const maChuNhiem = getMaNVFromTen(colJ);
         rowsToWrite.push([
-            uuidv4(),           // A: ID duy nhất
-            colJ,               // B: Tên chủ nhiệm (từ colJ)
-            maChuNhiem,         // C: Mã NV (tìm từ sheet Nhan_vien)
-            colC,               // D: C bảng1
-            colD,               // E: D bảng1
-            'Chủ nhiệm',        // F: Vai trò
-            '1,20',             // G: Hệ số cố định
-            '', '', '', '', '', // H->L: Các cột trống
-            colB                // M: B bảng1
+            uuidv4(),
+            colJ || '',  // Đảm bảo không bị undefined
+            maChuNhiem,
+            colC || '',
+            colD || '',
+            'Chủ nhiệm',
+            '1,20',
+            '', '', '', '', '',
+            colB || ''
         ]);
+        console.log(`👨‍💼 Chủ nhiệm: "${colJ}" - Mã: "${maChuNhiem}"`);
 
-        // Lần ghi 2..n: Hỗ trợ
-        if (colK && typeof colK === 'string') {
-            const persons = colK.split(/\s*,\s*/);
+        // 5.2 Hỗ trợ (CHỈ KHI colK CÓ DỮ LIỆU)
+        if (colK && typeof colK === 'string' && colK.trim() !== '') {
+            // Tách danh sách người hỗ trợ
+            const persons = colK.split(/\s*,\s*/).filter(p => p.trim() !== '');
+            console.log(`👥 Danh sách hỗ trợ: ${persons.length} người`, persons);
+            
             persons.forEach((p) => {
-                if (!p.trim()) return;
-                
-                const coeff = hsMap[p.trim()] !== undefined ? hsMap[p.trim()] : '';
-                const maHoTro = getMaNVFromTen(p);
+                const trimmedP = p.trim();
+                const coeff = hsMap[trimmedP] !== undefined ? hsMap[trimmedP] : '';
+                const maHoTro = getMaNVFromTen(trimmedP);
                 
                 rowsToWrite.push([
-                    uuidv4(),       // A: ID duy nhất
-                    p.trim(),       // B: Tên người hỗ trợ
-                    maHoTro,        // C: Mã NV (tìm từ sheet Nhan_vien)
-                    colC,           // D: C bảng1
-                    colD,           // E: D bảng1
-                    'Hỗ trợ',       // F: Vai trò
-                    coeff,          // G: Hệ số từ Sheet3
-                    '', '', '', '', '', // H->L: Các cột trống
-                    colB            // M: B bảng1
+                    uuidv4(),
+                    trimmedP,
+                    maHoTro,
+                    colC || '',
+                    colD || '',
+                    'Hỗ trợ',
+                    coeff,
+                    '', '', '', '', '',
+                    colB || ''
                 ]);
+                
+                console.log(`   👤 "${trimmedP}" - Mã: "${maHoTro}" - HS: "${coeff}"`);
             });
+        } else {
+            console.log('👥 Không có người hỗ trợ (colK rỗng)');
         }
-        console.log('📊 Data from sheet1 last row:', {
-            colB, colC, colD, colJ, colK
-        });
-        
-        console.log('👥 Persons to process:', persons);
-        console.log('📝 Rows to write:', rowsToWrite.length);
 
-        // Ghi dữ liệu vào Sheet2
+        // 6. Ghi dữ liệu
         if (rowsToWrite.length > 0) {
-            console.log('✍️ Writing', rowsToWrite.length, 'rows to sheet...');
+            console.log(`✍️ Writing ${rowsToWrite.length} rows to ${SHEET2_NAME} starting at row ${startRow}...`);
             
-            await sheets.spreadsheets.values.append({
-                spreadsheetId: SPREADSHEET_HC_ID,
-                range: `${SHEET2_NAME}!A${startRow}`,
-                valueInputOption: 'USER_ENTERED',
-                insertDataOption: 'INSERT_ROWS',
-                resource: { values: rowsToWrite }
-            });
-            
-            console.log('✅ Successfully wrote', rowsToWrite.length, 'rows');
-            
-            // Trả về số dòng đã xử lý
-            return rowsToWrite.length;
+            try {
+                await sheets.spreadsheets.values.append({
+                    spreadsheetId: SPREADSHEET_HC_ID,
+                    range: `${SHEET2_NAME}!A${startRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: { values: rowsToWrite }
+                });
+                
+                console.log('✅ Import completed successfully');
+                return rowsToWrite.length;
+            } catch (writeError) {
+                console.error('❌ Error writing to sheet:', writeError);
+                throw writeError;
+            }
         } else {
             console.log('⚠️ No rows to write');
             return 0;
@@ -9443,6 +9454,13 @@ async function importLastRowWithCoefficients() {
         
     } catch (error) {
         console.error('❌ Error in import function:', error);
+        // Log chi tiết hơn để debug
+        if (error.response) {
+            console.error('Google API Error:', {
+                status: error.response.status,
+                data: error.response.data
+            });
+        }
         throw error;
     }
 }
