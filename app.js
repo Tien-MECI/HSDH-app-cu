@@ -7892,7 +7892,7 @@ async function generateExcelReport() {
 
 
 ////BÁO CÁO - KPI PHÒNG KINH DOANH
-// Thêm route KPI
+// Route báo cáo KPI
 app.get("/baocao-kpi", async (req, res) => {
     try {
         const {
@@ -7911,27 +7911,39 @@ app.get("/baocao-kpi", async (req, res) => {
         } = req.query;
 
         // Lấy dữ liệu từ tất cả các sheet
-        const [
-            donHangData,
-            dataKhachHang,
-            chamSocKhachHang,
-            baoCaoBaiDang,
-            dataFileBanVe,
-            giaoViecKD,
-            giaoViecKDChiTiet,
-            kpiChiTieu,
-            chamCongData
-        ] = await Promise.all([
-            getSheetData(SPREADSHEET_ID, "Don_hang!A:BR"),
-            getSheetData(SPREADSHEET_ID, "Data_khach_hang!A:AH"),
-            getSheetData(SPREADSHEET_ID, "Cham_soc_khach_hang!A:L"),
-            getSheetData(SPREADSHEET_ID, "Bao_cao_bai_dang_ban_hang!A:G"),
-            getSheetData(SPREADSHEET_ID, "data_file_ban_ve_dinh_kem!A:M"),
-            getSheetData(SPREADSHEET_ID, "Giao_viec_kinh_doanh!A:O"),
-            getSheetData(SPREADSHEET_ID, "Giao_viec_kd_chi_tiet!A:N"),
-            getSheetData(SPREADSHEET_ID, "KPI_CHI_TIEU!A:R"),
-            getSheetData(SPREADSHEET_HC_ID, "Cham_cong!A:R")
-        ]);
+        let allData;
+        try {
+            allData = await getAllKpiData();
+            if (!allData) {
+                throw new Error("Không thể lấy dữ liệu từ Google Sheets");
+            }
+        } catch (error) {
+            console.error("❌ Lỗi khi lấy dữ liệu từ Google Sheets:", error);
+            return res.status(500).render("BaocaoKPIphongkinhdoanh", {
+                reportType,
+                reportData: {},
+                employees: [],
+                dateRange: { start: new Date(), end: new Date() },
+                employeeCode,
+                pagination: {},
+                filterType,
+                customDate,
+                week,
+                month: month || new Date().getMonth() + 1,
+                quarter: quarter || Math.ceil((new Date().getMonth() + 1) / 3),
+                year: parseInt(year),
+                currentPage: parseInt(page),
+                periods: {
+                    ngay: 'Hôm nay',
+                    tuan: 'Tuần này',
+                    thang: 'Tháng này',
+                    quy: 'Quý này',
+                    nam: 'Năm nay',
+                    custom: 'Tùy chỉnh'
+                },
+                error: "Không thể kết nối đến dữ liệu. Vui lòng thử lại sau."
+            });
+        }
 
         // Xác định khoảng thời gian
         const dateRange = calculateDateRange(filterType, {
@@ -7942,89 +7954,90 @@ app.get("/baocao-kpi", async (req, res) => {
         let reportData = {};
         let pagination = {};
 
-        switch (reportType) {
-            case 'bao-giao-don-hang':
-                reportData = await processBaoGiaoDonHang(donHangData, dateRange, employeeCode);
-                break;
-            case 'doanh-so-theo-nv':
-                reportData = await processDoanhSoTheoNV(donHangData, kpiChiTieu, dateRange, employeeCode);
-                break;
-            case 'don-hang-huy':
-                const resultHuy = await processDonHangHuy(donHangData, dateRange, employeeCode, parseInt(page), 10);
-                reportData = resultHuy.data;
-                pagination = resultHuy.pagination;
-                break;
-            case 'top-100-khach-hang':
-                reportData = await processTop100KhachHang(donHangData, dateRange);
-                break;
-            case 'khach-hang-cu':
-                const resultCu = await processKhachHangCu(donHangData, dateRange, parseInt(page), 10);
-                reportData = resultCu.data;
-                pagination = resultCu.pagination;
-                break;
-            case 'khach-hang-moi':
-                const resultMoi = await processKhachHangMoi(donHangData, dateRange, parseInt(page), 10);
-                reportData = resultMoi.data;
-                pagination = resultMoi.pagination;
-                break;
-            case 'chuyen-doi-bao-gia':
-                const resultChuyenDoi = await processChuyenDoiBaoGia(donHangData, dateRange, parseInt(page), 10);
-                reportData = resultChuyenDoi.data;
-                pagination = resultChuyenDoi.pagination;
-                break;
-            case 'don-hang-phe-duyet':
-                reportData = await processDonHangPheDuyet(donHangData, dateRange);
-                break;
-            case 'khach-hang-moi-tao':
-                reportData = await processKhachHangMoiTao(dataKhachHang, dateRange);
-                break;
-            case 'khach-hang-dai-ly-moi':
-                reportData = await processKhachHangDaiLyMoi(dataKhachHang, dateRange);
-                break;
-            case 'khach-hang-ban-giao':
-                reportData = await processKhachHangBanGiao(dataKhachHang, dateRange);
-                break;
-            case 'marketing-bai-dang':
-                reportData = await processMarketingBaiDang(baoCaoBaiDang, dateRange);
-                break;
-            case 'marketing-chien-dich':
-                reportData = await processMarketingChienDich(giaoViecKDChiTiet, dateRange);
-                break;
-            case 'cham-soc-khach-hang':
-                reportData = await processChamSocKhachHang(chamSocKhachHang, dateRange);
-                break;
-            case 'ky-thuat-ban-ve':
-                reportData = await processKyThuatBanVe(dataFileBanVe, dateRange);
-                break;
-            case 'thuc-hien-cong-viec':
-                reportData = await processThucHienCongViec(giaoViecKD, giaoViecKDChiTiet, dateRange);
-                break;
-            case 'cham-cong':
-                reportData = await processChamCong(chamCongData, dateRange);
-                break;
-            case 'khao-sat-cong-trinh':
-                reportData = await processKhaoSatCongTrinh(chamCongData, dateRange);
-                break;
-            case 'lam-viec-van-phong':
-                reportData = await processLamViecVanPhong(chamCongData, dateRange);
-                break;
-            case 'tong-quan':
-            default:
-                reportData = await processTongQuan(
-                    donHangData, dataKhachHang, chamSocKhachHang,
-                    baoCaoBaiDang, dataFileBanVe, giaoViecKD,
-                    giaoViecKDChiTiet, kpiChiTieu, chamCongData,
-                    dateRange
-                );
-                break;
+        try {
+            switch (reportType) {
+                case 'bao-giao-don-hang':
+                    reportData = await processBaoGiaoDonHang(allData.donHangData || [], dateRange, employeeCode);
+                    break;
+                case 'doanh-so-theo-nv':
+                    reportData = await processDoanhSoTheoNV(allData.donHangData || [], allData.kpiChiTieu || [], dateRange, employeeCode);
+                    break;
+                case 'don-hang-huy':
+                    const resultHuy = await processDonHangHuy(allData.donHangData || [], dateRange, employeeCode, parseInt(page), 10);
+                    reportData = resultHuy.data;
+                    pagination = resultHuy.pagination;
+                    break;
+                case 'top-100-khach-hang':
+                    reportData = await processTop100KhachHang(allData.donHangData || [], dateRange);
+                    break;
+                case 'khach-hang-cu':
+                    const resultCu = await processKhachHangCu(allData.donHangData || [], dateRange, parseInt(page), 10);
+                    reportData = resultCu.data;
+                    pagination = resultCu.pagination;
+                    break;
+                case 'khach-hang-moi':
+                    const resultMoi = await processKhachHangMoi(allData.donHangData || [], dateRange, parseInt(page), 10);
+                    reportData = resultMoi.data;
+                    pagination = resultMoi.pagination;
+                    break;
+                case 'chuyen-doi-bao-gia':
+                    const resultChuyenDoi = await processChuyenDoiBaoGia(allData.donHangData || [], dateRange, parseInt(page), 10);
+                    reportData = resultChuyenDoi.data;
+                    pagination = resultChuyenDoi.pagination;
+                    break;
+                case 'don-hang-phe-duyet':
+                    reportData = await processDonHangPheDuyet(allData.donHangData || [], dateRange);
+                    break;
+                case 'khach-hang-moi-tao':
+                    reportData = await processKhachHangMoiTao(allData.dataKhachHang || [], dateRange);
+                    break;
+                case 'khach-hang-dai-ly-moi':
+                    reportData = await processKhachHangDaiLyMoi(allData.dataKhachHang || [], dateRange);
+                    break;
+                case 'khach-hang-ban-giao':
+                    reportData = await processKhachHangBanGiao(allData.dataKhachHang || [], dateRange);
+                    break;
+                case 'marketing-bai-dang':
+                    reportData = await processMarketingBaiDang(allData.baoCaoBaiDang || [], dateRange);
+                    break;
+                case 'marketing-chien-dich':
+                    reportData = await processMarketingChienDich(allData.giaoViecKDChiTiet || [], dateRange);
+                    break;
+                case 'cham-soc-khach-hang':
+                    reportData = await processChamSocKhachHang(allData.chamSocKhachHang || [], dateRange);
+                    break;
+                case 'ky-thuat-ban-ve':
+                    reportData = await processKyThuatBanVe(allData.dataFileBanVe || [], dateRange);
+                    break;
+                case 'thuc-hien-cong-viec':
+                    reportData = await processThucHienCongViec(allData.giaoViecKD || [], allData.giaoViecKDChiTiet || [], dateRange);
+                    break;
+                case 'cham-cong':
+                    reportData = await processChamCong(allData.chamCongData || [], dateRange);
+                    break;
+                case 'khao-sat-cong-trinh':
+                    reportData = await processKhaoSatCongTrinh(allData.chamCongData || [], dateRange);
+                    break;
+                case 'lam-viec-van-phong':
+                    reportData = await processLamViecVanPhong(allData.chamCongData || [], dateRange);
+                    break;
+                case 'tong-quan':
+                default:
+                    reportData = await processTongQuan(allData, dateRange);
+                    break;
+            }
+        } catch (processError) {
+            console.error(`❌ Lỗi xử lý báo cáo ${reportType}:`, processError);
+            reportData = {};
+            pagination = {};
         }
 
         // Lấy danh sách nhân viên cho filter
-        const employees = await getEmployeeList(donHangData, dataKhachHang);
+        const employees = await getEmployeeList(allData.donHangData || [], allData.dataKhachHang || []);
 
         res.render("BaocaoKPIphongkinhdoanh", {
             reportType,
-            reportData,
+            reportData: reportData || {},
             employees,
             dateRange,
             employeeCode,
@@ -8043,12 +8056,37 @@ app.get("/baocao-kpi", async (req, res) => {
                 quy: 'Quý này',
                 nam: 'Năm nay',
                 custom: 'Tùy chỉnh'
-            }
+            },
+            error: null
         });
 
     } catch (error) {
         console.error("❌ Lỗi khi lấy báo cáo KPI:", error);
-        res.status(500).render("error", { message: "Lỗi server khi xử lý báo cáo KPI", error });
+        // Render template với thông báo lỗi
+        res.render("BaocaoKPIphongkinhdoanh", {
+            reportType: req.query.reportType || 'tong-quan',
+            reportData: {},
+            employees: [],
+            dateRange: { start: new Date(), end: new Date() },
+            employeeCode: req.query.employeeCode || '',
+            pagination: {},
+            filterType: req.query.filterType || 'date',
+            customDate: req.query.customDate || '',
+            week: req.query.week || '',
+            month: req.query.month || new Date().getMonth() + 1,
+            quarter: req.query.quarter || Math.ceil((new Date().getMonth() + 1) / 3),
+            year: parseInt(req.query.year || new Date().getFullYear()),
+            currentPage: parseInt(req.query.page || 1),
+            periods: {
+                ngay: 'Hôm nay',
+                tuan: 'Tuần này',
+                thang: 'Tháng này',
+                quy: 'Quý này',
+                nam: 'Năm nay',
+                custom: 'Tùy chỉnh'
+            },
+            error: "Đã xảy ra lỗi khi xử lý báo cáo: " + error.message
+        });
     }
 });
 
@@ -8091,11 +8129,25 @@ app.post("/kpi/nhap-danh-gia", async (req, res) => {
 
 // Hàm lấy dữ liệu từ sheet
 async function getSheetData(spreadsheetId, range) {
-    const response = await sheets.spreadsheets.values.get({
-        spreadsheetId: spreadsheetId,
-        range: range,
-    });
-    return response.data.values || [];
+    try {
+        if (!spreadsheetId) {
+            console.error("❌ Thiếu spreadsheetId cho range:", range);
+            return [];
+        }
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: spreadsheetId,
+            range: range,
+        }).catch(error => {
+            console.error(`❌ Lỗi khi lấy dữ liệu từ ${range}:`, error.message);
+            return { data: { values: [] } };
+        });
+
+        return response?.data?.values || [];
+    } catch (error) {
+        console.error(`❌ Lỗi nghiêm trọng khi lấy dữ liệu từ ${range}:`, error);
+        return [];
+    }
 }
 
 // Hàm tính toán khoảng thời gian
@@ -8163,78 +8215,130 @@ function calculateDateRange(filterType, options) {
 
 // Hàm xử lý báo cáo tổng quan
 async function processTongQuan(allData, dateRange) {
-    // Xử lý tất cả các chỉ số tổng quan
-    const tongQuanData = {
-        baoGiaoDonHang: await processBaoGiaoDonHang(allData.donHangData, dateRange),
-        doanhSo: await processDoanhSoTheoNV(allData.donHangData, allData.kpiChiTieu, dateRange),
-        donHangHuy: await processDonHangHuy(allData.donHangData, dateRange, null, 1, 5),
-        khachHangMoi: await processKhachHangMoiTao(allData.dataKhachHang, dateRange),
-        chamSoc: await processChamSocKhachHang(allData.chamSocKhachHang, dateRange),
-        kyThuat: await processKyThuatBanVe(allData.dataFileBanVe, dateRange),
-        chamCong: await processChamCong(allData.chamCongData, dateRange)
-    };
+    // Kiểm tra dữ liệu đầu vào
+    if (!allData || typeof allData !== 'object') {
+        console.error("❌ Dữ liệu allData không hợp lệ");
+        return {
+            baoGiaoDonHang: [],
+            doanhSo: [],
+            donHangHuy: { data: [], pagination: { total: 0, page: 1, limit: 5, totalPages: 0 } },
+            khachHangMoi: [],
+            chamSoc: { chiTiet: [], thongKeNhanVien: [] },
+            kyThuat: { chiTiet: [], thongKeKySu: [] },
+            chamCong: []
+        };
+    }
 
-    return tongQuanData;
+    try {
+        // Xử lý tất cả các chỉ số tổng quan
+        const tongQuanData = {
+            baoGiaoDonHang: allData.donHangData ? await processBaoGiaoDonHang(allData.donHangData, dateRange) : [],
+            doanhSo: (allData.donHangData && allData.kpiChiTieu) ? await processDoanhSoTheoNV(allData.donHangData, allData.kpiChiTieu, dateRange) : [],
+            donHangHuy: allData.donHangData ? await processDonHangHuy(allData.donHangData, dateRange, null, 1, 5) : { data: [], pagination: { total: 0, page: 1, limit: 5, totalPages: 0 } },
+            khachHangMoi: allData.dataKhachHang ? await processKhachHangMoiTao(allData.dataKhachHang, dateRange) : [],
+            chamSoc: allData.chamSocKhachHang ? await processChamSocKhachHang(allData.chamSocKhachHang, dateRange) : { chiTiet: [], thongKeNhanVien: [] },
+            kyThuat: allData.dataFileBanVe ? await processKyThuatBanVe(allData.dataFileBanVe, dateRange) : { chiTiet: [], thongKeKySu: [] },
+            chamCong: allData.chamCongData ? await processChamCong(allData.chamCongData, dateRange) : []
+        };
+
+        return tongQuanData;
+    } catch (error) {
+        console.error("❌ Lỗi trong processTongQuan:", error);
+        return {
+            baoGiaoDonHang: [],
+            doanhSo: [],
+            donHangHuy: { data: [], pagination: { total: 0, page: 1, limit: 5, totalPages: 0 } },
+            khachHangMoi: [],
+            chamSoc: { chiTiet: [], thongKeNhanVien: [] },
+            kyThuat: { chiTiet: [], thongKeKySu: [] },
+            chamCong: []
+        };
+    }
 }
 
 // Hàm xử lý báo cáo báo giá & đơn hàng
 async function processBaoGiaoDonHang(donHangData, dateRange, employeeCode = null) {
-    const result = [];
-    const employeeMap = new Map();
-
-    donHangData.slice(1).forEach(row => {
-        try {
-            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
-            const nhanVien = row[2]; // Cột C
-            const maNV = row[3]; // Cột D
-            const trangThai = row[38]; // Cột AM
-            const tinhTrang = row[35]; // Cột AJ
-
-            // Lọc theo thời gian và nhân viên
-            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
-            if (employeeCode && maNV !== employeeCode) return;
-
-            if (!employeeMap.has(maNV)) {
-                employeeMap.set(maNV, {
-                    maNV,
-                    tenNV: nhanVien,
-                    tongBaoGia: 0,
-                    tongDonHang: 0,
-                    doanhSoBR: 0
-                });
-            }
-
-            const employeeData = employeeMap.get(maNV);
-
-            // Tổng số báo giá (AM = "Báo giá" hoặc "Đơn hàng")
-            if (trangThai === "Báo giá" || trangThai === "Đơn hàng") {
-                employeeData.tongBaoGia++;
-            }
-
-            // Tổng số đơn hàng (AM = "Đơn hàng" và AJ = "Kế hoạch sản xuất")
-            if (trangThai === "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") {
-                employeeData.tongDonHang++;
-                const doanhSo = parseFloat(row[69] || 0); // Cột BR
-                employeeData.doanhSoBR += doanhSo;
-            }
-        } catch (error) {
-            console.error("Lỗi xử lý dòng báo giá:", error);
+    try {
+        const result = [];
+        
+        // Kiểm tra dữ liệu đầu vào
+        if (!donHangData || !Array.isArray(donHangData) || donHangData.length === 0) {
+            console.warn("⚠️ Dữ liệu đơn hàng trống hoặc không hợp lệ");
+            return result;
         }
-    });
 
-    // Tính tỷ lệ chuyển đổi và thêm vào kết quả
-    employeeMap.forEach(employeeData => {
-        const tyLeChuyenDoi = employeeData.tongBaoGia > 0 
-            ? (employeeData.tongDonHang / employeeData.tongBaoGia) * 100 
-            : 0;
+        const employeeMap = new Map();
 
-        result.push({
-            ...employeeData,
-            tyLeChuyenDoi: tyLeChuyenDoi.toFixed(2)
+        // Bắt đầu từ dòng 1 (bỏ qua header)
+        const startRow = donHangData.length > 0 && donHangData[0] ? 1 : 0;
+        
+        for (let i = startRow; i < donHangData.length; i++) {
+            const row = donHangData[i];
+            
+            // Kiểm tra row có tồn tại và có đủ phần tử
+            if (!row || row.length < 70) {
+                continue;
+            }
+
+            try {
+                const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+                const nhanVien = row[2] || ''; // Cột C
+                const maNV = row[3] || ''; // Cột D
+                const trangThai = row[38] || ''; // Cột AM
+                const tinhTrang = row[35] || ''; // Cột AJ
+
+                // Lọc theo thời gian và nhân viên
+                if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) continue;
+                if (employeeCode && maNV !== employeeCode) continue;
+
+                if (maNV && !employeeMap.has(maNV)) {
+                    employeeMap.set(maNV, {
+                        maNV,
+                        tenNV: nhanVien,
+                        tongBaoGia: 0,
+                        tongDonHang: 0,
+                        doanhSoBR: 0
+                    });
+                }
+
+                if (!maNV) continue;
+
+                const employeeData = employeeMap.get(maNV);
+
+                // Tổng số báo giá (AM = "Báo giá" hoặc "Đơn hàng")
+                if (trangThai === "Báo giá" || trangThai === "Đơn hàng") {
+                    employeeData.tongBaoGia++;
+                }
+
+                // Tổng số đơn hàng (AM = "Đơn hàng" và AJ = "Kế hoạch sản xuất")
+                if (trangThai === "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") {
+                    employeeData.tongDonHang++;
+                    const doanhSo = parseFloat(row[69] || 0); // Cột BR
+                    employeeData.doanhSoBR += doanhSo;
+                }
+            } catch (error) {
+                console.warn(`⚠️ Lỗi xử lý dòng ${i} trong báo giá:`, error);
+                continue;
+            }
+        }
+
+        // Tính tỷ lệ chuyển đổi và thêm vào kết quả
+        employeeMap.forEach(employeeData => {
+            const tyLeChuyenDoi = employeeData.tongBaoGia > 0 
+                ? (employeeData.tongDonHang / employeeData.tongBaoGia) * 100 
+                : 0;
+
+            result.push({
+                ...employeeData,
+                tyLeChuyenDoi: tyLeChuyenDoi.toFixed(2)
+            });
         });
-    });
 
-    return result;
+        return result;
+    } catch (error) {
+        console.error("❌ Lỗi trong processBaoGiaoDonHang:", error);
+        return [];
+    }
 }
 
 // Hàm xử lý doanh số theo nhân viên
@@ -9239,39 +9343,54 @@ async function generateKPIExcelReport(params) {
 
 // Hàm lấy tất cả dữ liệu KPI
 async function getAllKpiData() {
-    const [
-        donHangData,
-        dataKhachHang,
-        chamSocKhachHang,
-        baoCaoBaiDang,
-        dataFileBanVe,
-        giaoViecKD,
-        giaoViecKDChiTiet,
-        kpiChiTieu,
-        chamCongData
-    ] = await Promise.all([
-        getSheetData(SPREADSHEET_ID, "Don_hang!A:BR"),
-        getSheetData(SPREADSHEET_ID, "Data_khach_hang!A:AH"),
-        getSheetData(SPREADSHEET_ID, "Cham_soc_khach_hang!A:L"),
-        getSheetData(SPREADSHEET_ID, "Bao_cao_bai_dang_ban_hang!A:G"),
-        getSheetData(SPREADSHEET_ID, "data_file_ban_ve_dinh_kem!A:M"),
-        getSheetData(SPREADSHEET_ID, "Giao_viec_kinh_doanh!A:O"),
-        getSheetData(SPREADSHEET_ID, "Giao_viec_kd_chi_tiet!A:N"),
-        getSheetData(SPREADSHEET_ID, "KPI_CHI_TIEU!A:R"),
-        getSheetData(SPREADSHEET_HC_ID, "Cham_cong!A:R")
-    ]);
+    try {
+        const [
+            donHangData,
+            dataKhachHang,
+            chamSocKhachHang,
+            baoCaoBaiDang,
+            dataFileBanVe,
+            giaoViecKD,
+            giaoViecKDChiTiet,
+            kpiChiTieu,
+            chamCongData
+        ] = await Promise.all([
+            getSheetData(SPREADSHEET_ID, "Don_hang!A:BR").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "Data_khach_hang!A:AH").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "Cham_soc_khach_hang!A:L").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "Bao_cao_bai_dang_ban_hang!A:G").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "data_file_ban_ve_dinh_kem!A:M").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "Giao_viec_kinh_doanh!A:O").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "Giao_viec_kd_chi_tiet!A:N").catch(() => []),
+            getSheetData(SPREADSHEET_ID, "KPI_CHI_TIEU!A:R").catch(() => []),
+            getSheetData(SPREADSHEET_HC_ID, "Cham_cong!A:R").catch(() => [])
+        ]);
 
-    return {
-        donHangData,
-        dataKhachHang,
-        chamSocKhachHang,
-        baoCaoBaiDang,
-        dataFileBanVe,
-        giaoViecKD,
-        giaoViecKDChiTiet,
-        kpiChiTieu,
-        chamCongData
-    };
+        return {
+            donHangData: donHangData || [],
+            dataKhachHang: dataKhachHang || [],
+            chamSocKhachHang: chamSocKhachHang || [],
+            baoCaoBaiDang: baoCaoBaiDang || [],
+            dataFileBanVe: dataFileBanVe || [],
+            giaoViecKD: giaoViecKD || [],
+            giaoViecKDChiTiet: giaoViecKDChiTiet || [],
+            kpiChiTieu: kpiChiTieu || [],
+            chamCongData: chamCongData || []
+        };
+    } catch (error) {
+        console.error("❌ Lỗi trong getAllKpiData:", error);
+        return {
+            donHangData: [],
+            dataKhachHang: [],
+            chamSocKhachHang: [],
+            baoCaoBaiDang: [],
+            dataFileBanVe: [],
+            giaoViecKD: [],
+            giaoViecKDChiTiet: [],
+            kpiChiTieu: [],
+            chamCongData: []
+        };
+    }
 }
 
 // Hàm tạo sheet tổng quan Excel
