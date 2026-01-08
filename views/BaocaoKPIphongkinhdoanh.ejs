@@ -172,6 +172,16 @@
                             <label for="customDate" class="form-label">Ngày</label>
                             <input type="date" class="form-control" id="customDate" name="customDate" value="<%= customDate || new Date().toISOString().split('T')[0] %>">
                         </div>
+                        <%
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+%>
+
 
                         <div class="col-md-2" id="weekInput" style="<%= filterType === 'tuan' ? '' : 'display:none;' %>">
                             <label for="week" class="form-label">Tuần</label>
