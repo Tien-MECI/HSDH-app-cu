@@ -8386,7 +8386,7 @@ async function processDoanhSoTheoNV(donHangData, kpiChiTieuData, dateRange, empl
             const mucTieu = parseFloat(row[10] || 0); // Cột K
             const ngayBatDau = parseGoogleSheetDate(row[14]); // Cột O
             const ngayKetThuc = parseGoogleSheetDate(row[15]); // Cột P
-            const tinhTrang = row[17]; // Cột R
+            const tinhTrang = row[16]; // Cột Q
 
             if (tenKPI !== "Doanh số bán hàng" || tinhTrang !== "Áp dụng") return;
             if (!ngayBatDau || !ngayKetThuc) return;
@@ -8439,7 +8439,7 @@ async function processDonHangHuy(donHangData, dateRange, employeeCode = null, pa
 
             if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
             if (employeeCode && maNV !== employeeCode) return;
-            if (trangThai !== "Đơn hàng" || tinhTrang !== "Hủy") return;
+            if (trangThai !== "Đơn hàng" || tinhTrang !== "Hủy đơn") return;
 
             filteredData.push({
                 maDonHang: row[6] || '', // Cột G
@@ -8757,13 +8757,13 @@ async function processKhachHangMoiTao(dataKhachHang, dateRange) {
 
     dataKhachHang.slice(1).forEach(row => {
         try {
-            const ngayTao = parseGoogleSheetDate(row[36]); // Cột AG
+            const ngayTao = parseGoogleSheetDate(row[19]); // Cột T
             const khachHangID = row[2]; // Cột C
             const loaiKhach = row[3]; // Cột D
             const tenKhachHang = row[4]; // Cột E
-            const nguonKhach = row[28]; // Cột AC
-            const nhanVienPhuTrach = row[30]; // Cột AE
-            const nguoiTao = row[35]; // Cột AH
+            const nguonKhach = row[15]; // Cột P
+            const nhanVienPhuTrach = row[17]; // Cột R
+            const nguoiTao = row[20]; // Cột U
 
             if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
 
@@ -8790,12 +8790,12 @@ async function processKhachHangDaiLyMoi(dataKhachHang, dateRange) {
 
     dataKhachHang.slice(1).forEach(row => {
         try {
-            const ngayTao = parseGoogleSheetDate(row[36]); // Cột AG
+            const ngayTao = parseGoogleSheetDate(row[19]); // Cột T
             const khachHangID = row[2]; // Cột C
             const loaiKhach = row[3]; // Cột D
             const tenKhachHang = row[4]; // Cột E
-            const nguonKhach = row[28]; // Cột AC
-            const nhanVienPhuTrach = row[30]; // Cột AE
+            const nguonKhach = row[15]; // Cột P
+            const nhanVienPhuTrach = row[17]; // Cột R
 
             if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
             if (loaiKhach !== "Đại lý") return;
@@ -8822,12 +8822,12 @@ async function processKhachHangBanGiao(dataKhachHang, dateRange) {
 
     dataKhachHang.slice(1).forEach(row => {
         try {
-            const ngayBanGiao = parseGoogleSheetDate(row[31]); // Cột AF
+            const ngayBanGiao = parseGoogleSheetDate(row[18]); // Cột S
             const khachHangID = row[2]; // Cột C
             const tenKhachHang = row[4]; // Cột E
-            const nguonKhach = row[28]; // Cột AC
-            const nhanVienPhuTrach = row[30]; // Cột AE
-            const nguoiTao = row[35]; // Cột AH
+            const nguonKhach = row[15]; // Cột P
+            const nhanVienPhuTrach = row[17]; // Cột R
+            const nguoiTao = row[20]; // Cột U
 
             if (!ngayBanGiao || ngayBanGiao < dateRange.start || ngayBanGiao > dateRange.end) return;
 
