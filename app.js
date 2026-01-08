@@ -9988,31 +9988,6 @@ async function createDanhGiaExcelSheet(workbook) {
     return sheet;
 }
 
-// Helper function để parse ngày từ Google Sheets
-function parseGoogleSheetDate(dateStr) {
-    if (!dateStr) return null;
-    
-    try {
-        // Thử nhiều định dạng
-        if (dateStr.includes('/')) {
-            // Định dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
-            const parts = dateStr.split(/[/ :]/);
-            if (parts.length >= 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
-                const year = parseInt(parts[2]);
-                return new Date(year, month, day);
-            }
-        }
-        
-        // Thử parse trực tiếp
-        const date = new Date(dateStr);
-        return isNaN(date.getTime()) ? null : date;
-    } catch (error) {
-        console.error("Lỗi parse date:", dateStr, error);
-        return null;
-    }
-}
 
 // Helper function để format số
 app.locals.formatNumber = function(num) {
