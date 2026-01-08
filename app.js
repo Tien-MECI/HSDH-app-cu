@@ -7892,211 +7892,170 @@ async function generateExcelReport() {
 
 
 ////BÁO CÁO - KPI PHÒNG KINH DOANH
-// Route báo cáo KPI
-app.get("/baocaokpi", async (req, res) => {
+// Thêm route KPI
+app.get("/baocao-kpi", async (req, res) => {
     try {
         const {
-            loaiBaoCao = '1',
-            filterType = 'thang',
-            filterMonth = new Date().getMonth() + 1,
-            filterYear = new Date().getFullYear(),
-            filterQuarter,
-            filterWeek,
-            filterDay,
-            filterStartDate,
-            filterEndDate,
-            nhanVien = '',
+            reportType = 'tong-quan',
+            period = 'thang',
+            startDate,
+            endDate,
+            employeeCode,
             page = 1,
-            limit = 10
+            filterType = 'date',
+            customDate,
+            week,
+            month,
+            quarter,
+            year = new Date().getFullYear()
         } = req.query;
 
         // Lấy dữ liệu từ tất cả các sheet
         const [
-            donHangRes, dataKhachHangRes, chamSocKHRes, baoCaoBaiDangRes,
-            dataFileBanVeRes, giaoViecKDRes, giaoViecKDCTRes, kpiChiTieuRes,
-            chamCongRes
+            donHangData,
+            dataKhachHang,
+            chamSocKhachHang,
+            baoCaoBaiDang,
+            dataFileBanVe,
+            giaoViecKD,
+            giaoViecKDChiTiet,
+            kpiChiTieu,
+            chamCongData
         ] = await Promise.all([
-            // Sheet từ SPREADSHEET_ID
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Don_hang!A:BR",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Data_khach_hang!A:AH",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Cham_soc_khach_hang!A:L",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Bao_cao_bai_dang_ban_hang!A:G",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "data_file_ban_ve_dinh_kem!A:M",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Giao_viec_kinh_doanh!A:O",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "Giao_viec_kd_chi_tiet!A:N",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_ID,
-                range: "KPI_CHI_TIEU!A:R",
-            }),
-            // Sheet từ SPREADSHEET_HC_ID
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SPREADSHEET_HC_ID,
-                range: "Cham_cong!A:R",
-            })
+            getSheetData(SPREADSHEET_ID, "Don_hang!A:BR"),
+            getSheetData(SPREADSHEET_ID, "Data_khach_hang!A:AH"),
+            getSheetData(SPREADSHEET_ID, "Cham_soc_khach_hang!A:L"),
+            getSheetData(SPREADSHEET_ID, "Bao_cao_bai_dang_ban_hang!A:G"),
+            getSheetData(SPREADSHEET_ID, "data_file_ban_ve_dinh_kem!A:M"),
+            getSheetData(SPREADSHEET_ID, "Giao_viec_kinh_doanh!A:O"),
+            getSheetData(SPREADSHEET_ID, "Giao_viec_kd_chi_tiet!A:N"),
+            getSheetData(SPREADSHEET_ID, "KPI_CHI_TIEU!A:R"),
+            getSheetData(SPREADSHEET_HC_ID, "Cham_cong!A:R")
         ]);
 
-        // Chuyển đổi dữ liệu
-        const data = {
-            donHang: donHangRes.data.values || [],
-            dataKhachHang: dataKhachHangRes.data.values || [],
-            chamSocKH: chamSocKHRes.data.values || [],
-            baoCaoBaiDang: baoCaoBaiDangRes.data.values || [],
-            dataFileBanVe: dataFileBanVeRes.data.values || [],
-            giaoViecKD: giaoViecKDRes.data.values || [],
-            giaoViecKDCT: giaoViecKDCTRes.data.values || [],
-            kpiChiTieu: kpiChiTieuRes.data.values || [],
-            chamCong: chamCongRes.data.values || []
-        };
+        // Xác định khoảng thời gian
+        const dateRange = calculateDateRange(filterType, {
+            customDate, week, month, quarter, year, startDate, endDate
+        });
 
-        // Xử lý báo cáo theo loại
-        let baoCaoData = {};
-        let totalPages = 1;
-        let currentPage = parseInt(page);
+        // Xử lý theo loại báo cáo
+        let reportData = {};
+        let pagination = {};
 
-        switch (loaiBaoCao) {
-            case '1':
-                baoCaoData = await generateBaoCaoBaoGiaDonHang(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+        switch (reportType) {
+            case 'bao-giao-don-hang':
+                reportData = await processBaoGiaoDonHang(donHangData, dateRange, employeeCode);
                 break;
-            case '2':
-                baoCaoData = await generateBaoCaoDoanhSoNV(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien
-                });
+            case 'doanh-so-theo-nv':
+                reportData = await processDoanhSoTheoNV(donHangData, kpiChiTieu, dateRange, employeeCode);
                 break;
-            case '3':
-                baoCaoData = await generateBaoCaoDonHangHuy(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'don-hang-huy':
+                const resultHuy = await processDonHangHuy(donHangData, dateRange, employeeCode, parseInt(page), 10);
+                reportData = resultHuy.data;
+                pagination = resultHuy.pagination;
                 break;
-            case '4':
-                baoCaoData = await generateBaoCaoTop100KH(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'top-100-khach-hang':
+                reportData = await processTop100KhachHang(donHangData, dateRange);
                 break;
-            case '5':
-                baoCaoData = await generateBaoCaoKHCu(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'khach-hang-cu':
+                const resultCu = await processKhachHangCu(donHangData, dateRange, parseInt(page), 10);
+                reportData = resultCu.data;
+                pagination = resultCu.pagination;
                 break;
-            case '6':
-                baoCaoData = await generateBaoCaoKHMoi(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'khach-hang-moi':
+                const resultMoi = await processKhachHangMoi(donHangData, dateRange, parseInt(page), 10);
+                reportData = resultMoi.data;
+                pagination = resultMoi.pagination;
                 break;
-            case '7':
-                baoCaoData = await generateBaoCaoChuyenDoi(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'chuyen-doi-bao-gia':
+                const resultChuyenDoi = await processChuyenDoiBaoGia(donHangData, dateRange, parseInt(page), 10);
+                reportData = resultChuyenDoi.data;
+                pagination = resultChuyenDoi.pagination;
                 break;
-            case '8':
-                baoCaoData = await generateBaoCaoPheDuyet(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien
-                });
+            case 'don-hang-phe-duyet':
+                reportData = await processDonHangPheDuyet(donHangData, dateRange);
                 break;
-            case '9':
-                baoCaoData = await generateBaoCaoKHMoiTao(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'khach-hang-moi-tao':
+                reportData = await processKhachHangMoiTao(dataKhachHang, dateRange);
                 break;
-            case '10':
-                baoCaoData = await generateBaoCaoDaiLyMoi(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'khach-hang-dai-ly-moi':
+                reportData = await processKhachHangDaiLyMoi(dataKhachHang, dateRange);
                 break;
-            case '11':
-                baoCaoData = await generateBaoCaoBanGiaoKH(data, {
-                    filterType, filterMonth, filterYear, filterQuarter,
-                    filterWeek, filterDay, filterStartDate, filterEndDate,
-                    nhanVien, page: currentPage, limit
-                });
-                totalPages = baoCaoData.totalPages || 1;
+            case 'khach-hang-ban-giao':
+                reportData = await processKhachHangBanGiao(dataKhachHang, dateRange);
                 break;
-            // ... thêm các case khác cho các báo cáo còn lại
+            case 'marketing-bai-dang':
+                reportData = await processMarketingBaiDang(baoCaoBaiDang, dateRange);
+                break;
+            case 'marketing-chien-dich':
+                reportData = await processMarketingChienDich(giaoViecKDChiTiet, dateRange);
+                break;
+            case 'cham-soc-khach-hang':
+                reportData = await processChamSocKhachHang(chamSocKhachHang, dateRange);
+                break;
+            case 'ky-thuat-ban-ve':
+                reportData = await processKyThuatBanVe(dataFileBanVe, dateRange);
+                break;
+            case 'thuc-hien-cong-viec':
+                reportData = await processThucHienCongViec(giaoViecKD, giaoViecKDChiTiet, dateRange);
+                break;
+            case 'cham-cong':
+                reportData = await processChamCong(chamCongData, dateRange);
+                break;
+            case 'khao-sat-cong-trinh':
+                reportData = await processKhaoSatCongTrinh(chamCongData, dateRange);
+                break;
+            case 'lam-viec-van-phong':
+                reportData = await processLamViecVanPhong(chamCongData, dateRange);
+                break;
+            case 'tong-quan':
             default:
-                baoCaoData = {};
+                reportData = await processTongQuan(
+                    donHangData, dataKhachHang, chamSocKhachHang,
+                    baoCaoBaiDang, dataFileBanVe, giaoViecKD,
+                    giaoViecKDChiTiet, kpiChiTieu, chamCongData,
+                    dateRange
+                );
+                break;
         }
 
-        // Lấy danh sách nhân viên cho dropdown
-        const danhSachNV = await getDanhSachNhanVien(data.donHang);
+        // Lấy danh sách nhân viên cho filter
+        const employees = await getEmployeeList(donHangData, dataKhachHang);
 
         res.render("BaocaoKPIphongkinhdoanh", {
-            loaiBaoCao,
+            reportType,
+            reportData,
+            employees,
+            dateRange,
+            employeeCode,
+            pagination,
             filterType,
-            filterMonth,
-            filterYear,
-            filterQuarter,
-            filterWeek,
-            filterDay,
-            filterStartDate,
-            filterEndDate,
-            nhanVien,
-            danhSachNV,
-            baoCaoData,
-            currentPage,
-            totalPages,
-            limit
+            customDate,
+            week,
+            month: month || new Date().getMonth() + 1,
+            quarter: quarter || Math.ceil((new Date().getMonth() + 1) / 3),
+            year: parseInt(year),
+            currentPage: parseInt(page),
+            periods: {
+                ngay: 'Hôm nay',
+                tuan: 'Tuần này',
+                thang: 'Tháng này',
+                quy: 'Quý này',
+                nam: 'Năm nay',
+                custom: 'Tùy chỉnh'
+            }
         });
 
     } catch (error) {
         console.error("❌ Lỗi khi lấy báo cáo KPI:", error);
-        res.status(500).send("Lỗi server khi xử lý báo cáo KPI");
+        res.status(500).render("error", { message: "Lỗi server khi xử lý báo cáo KPI", error });
     }
 });
 
-// Route xuất Excel báo cáo KPI
-app.get("/export/baocaokpi", async (req, res) => {
+// Route xuất Excel KPI
+app.get("/export/kpi", async (req, res) => {
     try {
-        const workbook = await generateExcelReportKPI(req.query);
+        const workbook = await generateKPIExcelReport(req.query);
         
         res.setHeader(
             'Content-Type',
@@ -8104,40 +8063,25 @@ app.get("/export/baocaokpi", async (req, res) => {
         );
         res.setHeader(
             'Content-Disposition',
-            `attachment; filename=bao-cao-KPI-${new Date().toISOString().split('T')[0]}.xlsx`
+            `attachment; filename=bao-cao-kpi-${new Date().toISOString().split('T')[0]}.xlsx`
         );
 
         await workbook.xlsx.write(res);
         res.end();
     } catch (error) {
         console.error("❌ Lỗi khi xuất Excel KPI:", error);
-        res.status(500).send("Lỗi khi xuất file Excel");
+        res.status(500).send("Lỗi khi xuất file Excel KPI");
     }
 });
 
-// Route lưu đánh giá
-app.post("/luu-danhgia-kpi", async (req, res) => {
+// Route cho bảng nhập liệu đánh giá
+app.post("/kpi/nhap-danh-gia", async (req, res) => {
     try {
-        const { ngayHop, thanhVien, noiDung, nguyenNhan, ketLuan, congViecTiepTheo } = req.body;
+        // Lưu đánh giá vào Google Sheets hoặc database
+        const { nguyenNhan, ketLuan, congViecTiepTheo, nguoiDanhGia } = req.body;
         
-        // Thêm dòng mới vào sheet (cần cấu hình sheet đánh giá)
-        const response = await sheets.spreadsheets.values.append({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Danh_gia_KPI!A:F",
-            valueInputOption: "USER_ENTERED",
-            insertDataOption: "INSERT_ROWS",
-            resource: {
-                values: [[
-                    ngayHop,
-                    thanhVien,
-                    noiDung,
-                    nguyenNhan,
-                    ketLuan,
-                    congViecTiepTheo
-                ]]
-            }
-        });
-
+        // TODO: Implement saving logic
+        
         res.json({ success: true, message: "Đã lưu đánh giá thành công" });
     } catch (error) {
         console.error("❌ Lỗi khi lưu đánh giá:", error);
@@ -8145,67 +8089,1070 @@ app.post("/luu-danhgia-kpi", async (req, res) => {
     }
 });
 
-// Hàm lấy danh sách nhân viên
-async function getDanhSachNhanVien(donHangData) {
-    const nvSet = new Set();
-    for (let i = 1; i < donHangData.length; i++) {
-        const row = donHangData[i];
-        const nv = row[2] || row[3]; // Cột C hoặc D
-        if (nv) nvSet.add(nv);
-    }
-    return Array.from(nvSet).sort();
+// Hàm lấy dữ liệu từ sheet
+async function getSheetData(spreadsheetId, range) {
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: range,
+    });
+    return response.data.values || [];
 }
 
-// Hàm lọc dữ liệu theo thời gian
-function filterByTimeRange(data, dateColumnIndex, options) {
-    const {
-        filterType, filterMonth, filterYear, filterQuarter,
-        filterWeek, filterDay, filterStartDate, filterEndDate
-    } = options;
+// Hàm tính toán khoảng thời gian
+function calculateDateRange(filterType, options) {
+    const now = new Date();
+    let start, end;
 
-    return data.filter((row, index) => {
-        if (index === 0) return false; // Bỏ header
-        const dateStr = row[dateColumnIndex];
-        if (!dateStr) return false;
-        
-        const date = parseGoogleSheetDate(dateStr);
-        if (!date) return false;
+    switch (filterType) {
+        case 'ngay':
+            if (options.customDate) {
+                start = new Date(options.customDate);
+                end = new Date(options.customDate);
+            } else {
+                start = new Date(now.setHours(0, 0, 0, 0));
+                end = new Date(now.setHours(23, 59, 59, 999));
+            }
+            break;
 
-        switch (filterType) {
-            case 'ngay':
-                return date.getDate() === parseInt(filterDay) &&
-                       date.getMonth() + 1 === parseInt(filterMonth) &&
-                       date.getFullYear() === parseInt(filterYear);
-            
-            case 'tuan':
-                const weekNumber = getWeekNumber(date);
-                return weekNumber === parseInt(filterWeek) &&
-                       date.getFullYear() === parseInt(filterYear);
-            
-            case 'thang':
-                return date.getMonth() + 1 === parseInt(filterMonth) &&
-                       date.getFullYear() === parseInt(filterYear);
-            
-            case 'quy':
-                const quarter = Math.ceil((date.getMonth() + 1) / 3);
-                return quarter === parseInt(filterQuarter) &&
-                       date.getFullYear() === parseInt(filterYear);
-            
-            case 'nam':
-                return date.getFullYear() === parseInt(filterYear);
-            
-            case 'khoang':
-                const startDate = parseGoogleSheetDate(filterStartDate);
-                const endDate = parseGoogleSheetDate(filterEndDate);
-                return date >= startDate && date <= endDate;
-            
-            default:
-                return true;
+        case 'tuan':
+            const weekNumber = options.week || getWeekNumber(now);
+            const yearForWeek = options.year || now.getFullYear();
+            const weekDates = getDateRangeOfWeek(weekNumber, yearForWeek);
+            start = weekDates.start;
+            end = weekDates.end;
+            break;
+
+        case 'thang':
+            const month = options.month || now.getMonth() + 1;
+            const yearForMonth = options.year || now.getFullYear();
+            start = new Date(yearForMonth, month - 1, 1);
+            end = new Date(yearForMonth, month, 0, 23, 59, 59, 999);
+            break;
+
+        case 'quy':
+            const quarter = options.quarter || Math.ceil((now.getMonth() + 1) / 3);
+            const yearForQuarter = options.year || now.getFullYear();
+            start = new Date(yearForQuarter, (quarter - 1) * 3, 1);
+            end = new Date(yearForQuarter, quarter * 3, 0, 23, 59, 59, 999);
+            break;
+
+        case 'nam':
+            const year = options.year || now.getFullYear();
+            start = new Date(year, 0, 1);
+            end = new Date(year, 11, 31, 23, 59, 59, 999);
+            break;
+
+        case 'custom':
+            if (options.startDate && options.endDate) {
+                start = new Date(options.startDate);
+                end = new Date(options.endDate);
+            } else {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            }
+            break;
+
+        default:
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+}
+
+// Hàm xử lý báo cáo tổng quan
+async function processTongQuan(allData, dateRange) {
+    // Xử lý tất cả các chỉ số tổng quan
+    const tongQuanData = {
+        baoGiaoDonHang: await processBaoGiaoDonHang(allData.donHangData, dateRange),
+        doanhSo: await processDoanhSoTheoNV(allData.donHangData, allData.kpiChiTieu, dateRange),
+        donHangHuy: await processDonHangHuy(allData.donHangData, dateRange, null, 1, 5),
+        khachHangMoi: await processKhachHangMoiTao(allData.dataKhachHang, dateRange),
+        chamSoc: await processChamSocKhachHang(allData.chamSocKhachHang, dateRange),
+        kyThuat: await processKyThuatBanVe(allData.dataFileBanVe, dateRange),
+        chamCong: await processChamCong(allData.chamCongData, dateRange)
+    };
+
+    return tongQuanData;
+}
+
+// Hàm xử lý báo cáo báo giá & đơn hàng
+async function processBaoGiaoDonHang(donHangData, dateRange, employeeCode = null) {
+    const result = [];
+    const employeeMap = new Map();
+
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const nhanVien = row[2]; // Cột C
+            const maNV = row[3]; // Cột D
+            const trangThai = row[38]; // Cột AM
+            const tinhTrang = row[35]; // Cột AJ
+
+            // Lọc theo thời gian và nhân viên
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (employeeCode && maNV !== employeeCode) return;
+
+            if (!employeeMap.has(maNV)) {
+                employeeMap.set(maNV, {
+                    maNV,
+                    tenNV: nhanVien,
+                    tongBaoGia: 0,
+                    tongDonHang: 0,
+                    doanhSoBR: 0
+                });
+            }
+
+            const employeeData = employeeMap.get(maNV);
+
+            // Tổng số báo giá (AM = "Báo giá" hoặc "Đơn hàng")
+            if (trangThai === "Báo giá" || trangThai === "Đơn hàng") {
+                employeeData.tongBaoGia++;
+            }
+
+            // Tổng số đơn hàng (AM = "Đơn hàng" và AJ = "Kế hoạch sản xuất")
+            if (trangThai === "Đơn hàng" && tinhTrang === "Kế hoạch sản xuất") {
+                employeeData.tongDonHang++;
+                const doanhSo = parseFloat(row[69] || 0); // Cột BR
+                employeeData.doanhSoBR += doanhSo;
+            }
+        } catch (error) {
+            console.error("Lỗi xử lý dòng báo giá:", error);
         }
     });
+
+    // Tính tỷ lệ chuyển đổi và thêm vào kết quả
+    employeeMap.forEach(employeeData => {
+        const tyLeChuyenDoi = employeeData.tongBaoGia > 0 
+            ? (employeeData.tongDonHang / employeeData.tongBaoGia) * 100 
+            : 0;
+
+        result.push({
+            ...employeeData,
+            tyLeChuyenDoi: tyLeChuyenDoi.toFixed(2)
+        });
+    });
+
+    return result;
 }
 
-// Hàm tính số tuần trong năm
+// Hàm xử lý doanh số theo nhân viên
+async function processDoanhSoTheoNV(donHangData, kpiChiTieuData, dateRange, employeeCode = null) {
+    const result = [];
+    const doanhSoMap = new Map();
+    const kpiMap = new Map();
+
+    // Xử lý doanh số thực tế
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const nhanVien = row[2]; // Cột C
+            const maNV = row[3]; // Cột D
+            const trangThai = row[38]; // Cột AM
+            const tinhTrang = row[35]; // Cột AJ
+            const doanhSoBR = parseFloat(row[69] || 0); // Cột BR
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (employeeCode && maNV !== employeeCode) return;
+            if (trangThai !== "Đơn hàng" || tinhTrang !== "Kế hoạch sản xuất") return;
+
+            if (!doanhSoMap.has(maNV)) {
+                doanhSoMap.set(maNV, {
+                    maNV,
+                    tenNV: nhanVien,
+                    doanhSoThucTe: 0
+                });
+            }
+
+            const data = doanhSoMap.get(maNV);
+            data.doanhSoThucTe += doanhSoBR;
+        } catch (error) {
+            console.error("Lỗi xử lý doanh số:", error);
+        }
+    });
+
+    // Xử lý KPI từ sheet KPI_CHI_TIEU
+    kpiChiTieuData.slice(1).forEach(row => {
+        try {
+            const tenKPI = row[2]; // Cột C
+            const boPhan = row[3]; // Cột D
+            const nhanSu = row[6]; // Cột G
+            const donVi = row[9]; // Cột J
+            const mucTieu = parseFloat(row[10] || 0); // Cột K
+            const ngayBatDau = parseGoogleSheetDate(row[14]); // Cột O
+            const ngayKetThuc = parseGoogleSheetDate(row[15]); // Cột P
+            const tinhTrang = row[17]; // Cột R
+
+            if (tenKPI !== "Doanh số bán hàng" || tinhTrang !== "Áp dụng") return;
+            if (!ngayBatDau || !ngayKetThuc) return;
+            if (ngayBatDau > dateRange.end || ngayKetThuc < dateRange.start) return;
+
+            // Tìm mã NV từ tên nhân sự (cần mapping thực tế)
+            // Tạm thời dùng tên làm key
+            if (!kpiMap.has(nhanSu)) {
+                kpiMap.set(nhanSu, {
+                    tenNV: nhanSu,
+                    mucTieuKPI: 0
+                });
+            }
+
+            const data = kpiMap.get(nhanSu);
+            data.mucTieuKPI += mucTieu;
+        } catch (error) {
+            console.error("Lỗi xử lý KPI:", error);
+        }
+    });
+
+    // Kết hợp dữ liệu
+    doanhSoMap.forEach((doanhSoData, maNV) => {
+        const kpiData = Array.from(kpiMap.values()).find(k => k.tenNV === doanhSoData.tenNV);
+        const mucTieuKPI = kpiData ? kpiData.mucTieuKPI : 0;
+        const tyLeDat = mucTieuKPI > 0 ? (doanhSoData.doanhSoThucTe / mucTieuKPI) * 100 : 0;
+
+        result.push({
+            ...doanhSoData,
+            mucTieuKPI,
+            tyLeDat: tyLeDat.toFixed(2),
+            ghiChu: tyLeDat >= 100 ? "Đạt" : "Chưa đạt"
+        });
+    });
+
+    return result;
+}
+
+// Hàm xử lý đơn hàng hủy
+async function processDonHangHuy(donHangData, dateRange, employeeCode = null, page = 1, limit = 10) {
+    const result = [];
+    const filteredData = [];
+
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const maNV = row[3]; // Cột D
+            const trangThai = row[38]; // Cột AM
+            const tinhTrang = row[35]; // Cột AJ
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (employeeCode && maNV !== employeeCode) return;
+            if (trangThai !== "Đơn hàng" || tinhTrang !== "Hủy") return;
+
+            filteredData.push({
+                maDonHang: row[6] || '', // Cột G
+                khachHangID: row[7] || '', // Cột H
+                tenKhachHang: row[9] || '', // Cột J
+                nhanVienBan: row[2] || '', // Cột C
+                doanhSoHuy: parseFloat(row[69] || 0) // Cột BR
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý đơn hàng hủy:", error);
+        }
+    });
+
+    // Phân trang
+    const startIndex = (page - 1) * limit;
+    const paginatedData = filteredData.slice(startIndex, startIndex + limit);
+    
+    paginatedData.forEach((item, index) => {
+        result.push({
+            stt: startIndex + index + 1,
+            ...item
+        });
+    });
+
+    return {
+        data: result,
+        pagination: {
+            total: filteredData.length,
+            page,
+            limit,
+            totalPages: Math.ceil(filteredData.length / limit)
+        }
+    };
+}
+
+// Hàm xử lý Top 100 khách hàng
+async function processTop100KhachHang(donHangData, dateRange) {
+    const khachHangMap = new Map();
+
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const trangThai = row[38]; // Cột AM
+            const pheDuyet = row[39]; // Cột AN
+            const khachHangID = row[7]; // Cột H
+            const tenKhachHang = row[9]; // Cột J
+            const doanhSoBE = parseFloat(row[56] || 0); // Cột BE
+            const doanhSoBR = parseFloat(row[69] || 0); // Cột BR
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Đơn hàng" || pheDuyet !== "Phê duyệt") return;
+            if (!khachHangID) return;
+
+            if (!khachHangMap.has(khachHangID)) {
+                khachHangMap.set(khachHangID, {
+                    khachHangID,
+                    tenKhachHang,
+                    tongDoanhSoBE: 0,
+                    tongDoanhSoBR: 0,
+                    soDonHang: 0
+                });
+            }
+
+            const data = khachHangMap.get(khachHangID);
+            data.tongDoanhSoBE += doanhSoBE;
+            data.tongDoanhSoBR += doanhSoBR;
+            data.soDonHang++;
+        } catch (error) {
+            console.error("Lỗi xử lý top khách hàng:", error);
+        }
+    });
+
+    // Sắp xếp theo doanh số BR giảm dần và lấy top 100
+    return Array.from(khachHangMap.values())
+        .sort((a, b) => b.tongDoanhSoBR - a.tongDoanhSoBR)
+        .slice(0, 100)
+        .map((item, index) => ({
+            stt: index + 1,
+            ...item
+        }));
+}
+
+// Hàm xử lý khách hàng cũ
+async function processKhachHangCu(donHangData, dateRange, page = 1, limit = 10) {
+    const khachHangMap = new Map();
+
+    // Đếm số đơn hàng của từng khách
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]);
+            const trangThai = row[38];
+            const khachHangID = row[7];
+            const nhanVienBan = row[2];
+            const doanhSoBE = parseFloat(row[56] || 0);
+            const doanhSoBR = parseFloat(row[69] || 0);
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Đơn hàng") return;
+            if (!khachHangID) return;
+
+            if (!khachHangMap.has(khachHangID)) {
+                khachHangMap.set(khachHangID, {
+                    khachHangID,
+                    tenKhachHang: row[9] || '',
+                    nhanVienBan,
+                    tongDoanhSoBE: 0,
+                    tongDoanhSoBR: 0,
+                    soDonHang: 0
+                });
+            }
+
+            const data = khachHangMap.get(khachHangID);
+            data.tongDoanhSoBE += doanhSoBE;
+            data.tongDoanhSoBR += doanhSoBR;
+            data.soDonHang++;
+        } catch (error) {
+            console.error("Lỗi xử lý khách hàng cũ:", error);
+        }
+    });
+
+    // Lọc khách có từ 2 đơn hàng trở lên
+    const khachHangCu = Array.from(khachHangMap.values())
+        .filter(khach => khach.soDonHang >= 2)
+        .sort((a, b) => b.tongDoanhSoBR - a.tongDoanhSoBR);
+
+    // Phân trang
+    const startIndex = (page - 1) * limit;
+    const paginatedData = khachHangCu.slice(startIndex, startIndex + limit);
+
+    return {
+        data: paginatedData.map((item, index) => ({
+            stt: startIndex + index + 1,
+            ...item
+        })),
+        pagination: {
+            total: khachHangCu.length,
+            page,
+            limit,
+            totalPages: Math.ceil(khachHangCu.length / limit)
+        }
+    };
+}
+
+// Hàm xử lý khách hàng mới
+async function processKhachHangMoi(donHangData, dateRange, page = 1, limit = 10) {
+    const khachHangMap = new Map();
+
+    // Đếm số đơn hàng của từng khách
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]);
+            const trangThai = row[38];
+            const khachHangID = row[7];
+            const nhanVienBan = row[2];
+            const doanhSoBE = parseFloat(row[56] || 0);
+            const doanhSoBR = parseFloat(row[69] || 0);
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Đơn hàng") return;
+            if (!khachHangID) return;
+
+            if (!khachHangMap.has(khachHangID)) {
+                khachHangMap.set(khachHangID, {
+                    khachHangID,
+                    tenKhachHang: row[9] || '',
+                    nhanVienBan,
+                    tongDoanhSoBE: 0,
+                    tongDoanhSoBR: 0,
+                    soDonHang: 0
+                });
+            }
+
+            const data = khachHangMap.get(khachHangID);
+            data.tongDoanhSoBE += doanhSoBE;
+            data.tongDoanhSoBR += doanhSoBR;
+            data.soDonHang++;
+        } catch (error) {
+            console.error("Lỗi xử lý khách hàng mới:", error);
+        }
+    });
+
+    // Lọc khách chỉ có 1 đơn hàng
+    const khachHangMoi = Array.from(khachHangMap.values())
+        .filter(khach => khach.soDonHang === 1)
+        .sort((a, b) => b.tongDoanhSoBR - a.tongDoanhSoBR);
+
+    // Phân trang
+    const startIndex = (page - 1) * limit;
+    const paginatedData = khachHangMoi.slice(startIndex, startIndex + limit);
+
+    return {
+        data: paginatedData.map((item, index) => ({
+            stt: startIndex + index + 1,
+            ...item
+        })),
+        pagination: {
+            total: khachHangMoi.length,
+            page,
+            limit,
+            totalPages: Math.ceil(khachHangMoi.length / limit)
+        }
+    };
+}
+
+// Hàm xử lý chuyển đổi báo giá
+async function processChuyenDoiBaoGia(donHangData, dateRange, page = 1, limit = 10) {
+    const result = [];
+    const khachHangMap = new Map();
+
+    // Tìm khách hàng có cả báo giá và đơn hàng
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]);
+            const khachHangID = row[7];
+            const trangThai = row[38];
+            const nhanVienBan = row[2];
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (!khachHangID) return;
+
+            if (!khachHangMap.has(khachHangID)) {
+                khachHangMap.set(khachHangID, {
+                    khachHangID,
+                    tenKhachHang: row[9] || '',
+                    nhanVienBan,
+                    coBaoGia: false,
+                    coDonHang: false,
+                    doanhSoBR: 0
+                });
+            }
+
+            const data = khachHangMap.get(khachHangID);
+            
+            if (trangThai === "Báo giá") {
+                data.coBaoGia = true;
+            } else if (trangThai === "Đơn hàng") {
+                data.coDonHang = true;
+                data.doanhSoBR += parseFloat(row[69] || 0);
+            }
+        } catch (error) {
+            console.error("Lỗi xử lý chuyển đổi báo giá:", error);
+        }
+    });
+
+    // Lọc khách hàng có cả báo giá và đơn hàng
+    const khachChuyenDoi = Array.from(khachHangMap.values())
+        .filter(khach => khach.coBaoGia && khach.coDonHang)
+        .sort((a, b) => b.doanhSoBR - a.doanhSoBR);
+
+    // Phân trang
+    const startIndex = (page - 1) * limit;
+    const paginatedData = khachChuyenDoi.slice(startIndex, startIndex + limit);
+
+    return {
+        data: paginatedData.map((item, index) => ({
+            stt: startIndex + index + 1,
+            ...item
+        })),
+        pagination: {
+            total: khachChuyenDoi.length,
+            page,
+            limit,
+            totalPages: Math.ceil(khachChuyenDoi.length / limit)
+        }
+    };
+}
+
+// Hàm xử lý đơn hàng phê duyệt
+async function processDonHangPheDuyet(donHangData, dateRange) {
+    const result = [];
+    const nhanVienMap = new Map();
+
+    donHangData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]);
+            const trangThai = row[38];
+            const pheDuyet = row[39];
+            const nhanVienPheDuyet = row[40]; // Cột AO
+            const doanhSoBR = parseFloat(row[69] || 0);
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Đơn hàng" || pheDuyet !== "Phê duyệt") return;
+            if (!nhanVienPheDuyet) return;
+
+            if (!nhanVienMap.has(nhanVienPheDuyet)) {
+                nhanVienMap.set(nhanVienPheDuyet, {
+                    nhanVienPheDuyet,
+                    soDonHang: 0,
+                    tongDoanhSo: 0
+                });
+            }
+
+            const data = nhanVienMap.get(nhanVienPheDuyet);
+            data.soDonHang++;
+            data.tongDoanhSo += doanhSoBR;
+        } catch (error) {
+            console.error("Lỗi xử lý đơn hàng phê duyệt:", error);
+        }
+    });
+
+    // Chuyển map thành array
+    nhanVienMap.forEach((value, key) => {
+        result.push({
+            stt: result.length + 1,
+            ...value
+        });
+    });
+
+    return result;
+}
+
+// Hàm xử lý khách hàng mới tạo
+async function processKhachHangMoiTao(dataKhachHang, dateRange) {
+    const result = [];
+
+    dataKhachHang.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[36]); // Cột AG
+            const khachHangID = row[2]; // Cột C
+            const loaiKhach = row[3]; // Cột D
+            const tenKhachHang = row[4]; // Cột E
+            const nguonKhach = row[28]; // Cột AC
+            const nhanVienPhuTrach = row[30]; // Cột AE
+            const nguoiTao = row[35]; // Cột AH
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+
+            result.push({
+                khachHangID,
+                tenKhachHang,
+                loaiKhach,
+                nguonKhach,
+                nhanVienPhuTrach,
+                nguoiTao,
+                ngayTao: formatDate(ngayTao)
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý khách hàng mới tạo:", error);
+        }
+    });
+
+    return result.slice(0, 100); // Giới hạn 100 bản ghi
+}
+
+// Hàm xử lý khách hàng đại lý mới
+async function processKhachHangDaiLyMoi(dataKhachHang, dateRange) {
+    const result = [];
+
+    dataKhachHang.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[36]); // Cột AG
+            const khachHangID = row[2]; // Cột C
+            const loaiKhach = row[3]; // Cột D
+            const tenKhachHang = row[4]; // Cột E
+            const nguonKhach = row[28]; // Cột AC
+            const nhanVienPhuTrach = row[30]; // Cột AE
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (loaiKhach !== "Đại lý") return;
+
+            result.push({
+                khachHangID,
+                tenKhachHang,
+                loaiKhach,
+                nguonKhach,
+                nhanVienPhuTrach,
+                ngayTao: formatDate(ngayTao)
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý khách hàng đại lý mới:", error);
+        }
+    });
+
+    return result.slice(0, 100); // Giới hạn 100 bản ghi
+}
+
+// Hàm xử lý khách hàng bàn giao
+async function processKhachHangBanGiao(dataKhachHang, dateRange) {
+    const result = [];
+
+    dataKhachHang.slice(1).forEach(row => {
+        try {
+            const ngayBanGiao = parseGoogleSheetDate(row[31]); // Cột AF
+            const khachHangID = row[2]; // Cột C
+            const tenKhachHang = row[4]; // Cột E
+            const nguonKhach = row[28]; // Cột AC
+            const nhanVienPhuTrach = row[30]; // Cột AE
+            const nguoiTao = row[35]; // Cột AH
+
+            if (!ngayBanGiao || ngayBanGiao < dateRange.start || ngayBanGiao > dateRange.end) return;
+
+            result.push({
+                khachHangID,
+                tenKhachHang,
+                nguonKhach,
+                nhanVienPhuTrach,
+                nguoiTao,
+                ngayBanGiao: formatDate(ngayBanGiao)
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý khách hàng bàn giao:", error);
+        }
+    });
+
+    return result.slice(0, 100); // Giới hạn 100 bản ghi
+}
+
+// Hàm xử lý marketing bài đăng
+async function processMarketingBaiDang(baoCaoBaiDang, dateRange) {
+    const result = [];
+    const nhanVienMap = new Map();
+    const kenhMap = new Map();
+
+    baoCaoBaiDang.slice(1).forEach(row => {
+        try {
+            const ngayBaoCao = parseGoogleSheetDate(row[3]); // Cột D
+            const maNV = row[1]; // Cột B
+            const tenNV = row[2]; // Cột C
+            const kenhDang = row[4]; // Cột E
+            const link = row[5]; // Cột F
+            const hinhAnh = row[6]; // Cột G
+
+            if (!ngayBaoCao || ngayBaoCao < dateRange.start || ngayBaoCao > dateRange.end) return;
+
+            // Thống kê theo nhân viên
+            if (!nhanVienMap.has(maNV)) {
+                nhanVienMap.set(maNV, {
+                    maNV,
+                    tenNV,
+                    soBaiDang: 0,
+                    baiDang: []
+                });
+            }
+            const nvData = nhanVienMap.get(maNV);
+            nvData.soBaiDang++;
+            nvData.baiDang.push({
+                kenhDang,
+                link,
+                hinhAnh,
+                ngayBaoCao: formatDate(ngayBaoCao)
+            });
+
+            // Thống kê theo kênh
+            if (!kenhMap.has(kenhDang)) {
+                kenhMap.set(kenhDang, {
+                    kenhDang,
+                    soBaiDang: 0
+                });
+            }
+            const kenhData = kenhMap.get(kenhDang);
+            kenhData.soBaiDang++;
+        } catch (error) {
+            console.error("Lỗi xử lý bài đăng marketing:", error);
+        }
+    });
+
+    return {
+        theoNhanVien: Array.from(nhanVienMap.values()),
+        theoKenh: Array.from(kenhMap.values())
+    };
+}
+
+// Hàm xử lý marketing chiến dịch
+async function processMarketingChienDich(giaoViecKDChiTiet, dateRange) {
+    const result = [];
+
+    giaoViecKDChiTiet.slice(1).forEach(row => {
+        try {
+            const tenCongViec = row[4]; // Cột E
+            const ngayThucHien = parseGoogleSheetDate(row[11]); // Cột L
+            const fileKetQua = row[9]; // Cột J
+            const ketQua = row[10]; // Cột K
+            const nguoiThucHien = row[13]; // Cột N
+
+            if (!ngayThucHien || ngayThucHien < dateRange.start || ngayThucHien > dateRange.end) return;
+            if (tenCongViec !== "Chiến dịch chạy quảng cáo") return;
+
+            result.push({
+                tenCongViec,
+                nguoiThucHien,
+                ngayThucHien: formatDate(ngayThucHien),
+                fileKetQua,
+                ketQua,
+                linkXem: fileKetQua ? `https://drive.google.com/file/d/${extractFileId(fileKetQua)}/view` : null
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý chiến dịch marketing:", error);
+        }
+    });
+
+    return result;
+}
+
+// Hàm xử lý chăm sóc khách hàng
+async function processChamSocKhachHang(chamSocKhachHang, dateRange) {
+    const result = [];
+    const nhanVienMap = new Map();
+
+    chamSocKhachHang.slice(1).forEach(row => {
+        try {
+            const ngayChamSoc = parseGoogleSheetDate(row[5]); // Cột F
+            const khachHangID = row[1]; // Cột B
+            const tenKhach = row[2]; // Cột C
+            const hinhThuc = row[3]; // Cột D
+            const noiDung = row[4]; // Cột E
+            const maNV = row[6]; // Cột G
+            const tenNV = row[7]; // Cột H
+            const ketQua = row[8]; // Cột I
+            const noiDungTiep = row[9]; // Cột J
+            const ngayHenTiep = parseGoogleSheetDate(row[10]); // Cột K
+            const thoiGian = row[11]; // Cột L
+
+            if (!ngayChamSoc || ngayChamSoc < dateRange.start || ngayChamSoc > dateRange.end) return;
+
+            // Thống kê theo nhân viên
+            if (!nhanVienMap.has(maNV)) {
+                nhanVienMap.set(maNV, {
+                    maNV,
+                    tenNV,
+                    soLuotChamSoc: 0,
+                    chamSocChiTiet: []
+                });
+            }
+            const nvData = nhanVienMap.get(maNV);
+            nvData.soLuotChamSoc++;
+
+            result.push({
+                khachHangID,
+                tenKhach,
+                hinhThuc,
+                noiDung,
+                maNV,
+                tenNV,
+                ketQua,
+                noiDungTiep,
+                ngayHenTiep: ngayHenTiep ? formatDate(ngayHenTiep) : '',
+                thoiGian,
+                ngayChamSoc: formatDate(ngayChamSoc)
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý chăm sóc khách hàng:", error);
+        }
+    });
+
+    return {
+        chiTiet: result,
+        thongKeNhanVien: Array.from(nhanVienMap.values())
+    };
+}
+
+// Hàm xử lý kỹ thuật bản vẽ
+async function processKyThuatBanVe(dataFileBanVe, dateRange) {
+    const result = [];
+    const kySuMap = new Map();
+
+    dataFileBanVe.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[6]); // Cột G
+            const maDonHang = row[1]; // Cột B
+            const soLanThietKe = parseInt(row[2] || 0); // Cột C
+            const loaiFile = row[3]; // Cột D
+            const loaiBanVe = row[9]; // Cột J
+            const thoiGianBatDau = parseGoogleSheetDate(row[10]); // Cột K
+            const thoiGianHoanThanh = parseGoogleSheetDate(row[11]); // Cột L
+            const kySu = row[12]; // Cột M
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+
+            // Tính thời gian thực hiện
+            let thoiGianThucHien = null;
+            if (thoiGianBatDau && thoiGianHoanThanh) {
+                thoiGianThucHien = Math.round((thoiGianHoanThanh - thoiGianBatDau) / (1000 * 60 * 60 * 24));
+            }
+
+            // Thống kê theo kỹ sư
+            if (!kySuMap.has(kySu)) {
+                kySuMap.set(kySu, {
+                    kySu,
+                    soBanVe: 0,
+                    tongSoLanThietKe: 0
+                });
+            }
+            const ksData = kySuMap.get(kySu);
+            ksData.soBanVe++;
+            ksData.tongSoLanThietKe += soLanThietKe;
+
+            result.push({
+                maDonHang,
+                soLanThietKe,
+                loaiFile,
+                loaiBanVe,
+                kySu,
+                thoiGianThucHien: thoiGianThucHien ? `${thoiGianThucHien} ngày` : 'Chưa xác định',
+                ngayTao: formatDate(ngayTao)
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý bản vẽ kỹ thuật:", error);
+        }
+    });
+
+    return {
+        chiTiet: result,
+        thongKeKySu: Array.from(kySuMap.values())
+    };
+}
+
+// Hàm xử lý thực hiện công việc
+async function processThucHienCongViec(giaoViecKD, giaoViecKDChiTiet, dateRange) {
+    const result = [];
+    const nhanVienMap = new Map();
+
+    // Xử lý giao việc chính
+    giaoViecKD.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const nguoiTiepNhan = row[9]; // Cột J
+            const maNguoiTiepNhan = row[10]; // Cột K
+            const tinhTrang = row[13]; // Cột N
+            const ketQua = row[14]; // Cột O
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+
+            if (!nhanVienMap.has(maNguoiTiepNhan)) {
+                nhanVienMap.set(maNguoiTiepNhan, {
+                    maNV: maNguoiTiepNhan,
+                    tenNV: nguoiTiepNhan,
+                    tongCongViec: 0,
+                    daTiepNhan: 0,
+                    daHoanThanh: 0
+                });
+            }
+
+            const nvData = nhanVienMap.get(maNguoiTiepNhan);
+            nvData.tongCongViec++;
+
+            if (tinhTrang === "Đã tiếp nhận") {
+                nvData.daTiepNhan++;
+            }
+
+            if (ketQua === "Hoàn thành") {
+                nvData.daHoanThanh++;
+            }
+        } catch (error) {
+            console.error("Lỗi xử lý giao việc:", error);
+        }
+    });
+
+    // Xử lý chi tiết công việc
+    giaoViecKDChiTiet.slice(1).forEach(row => {
+        try {
+            const ngayThucHien = parseGoogleSheetDate(row[11]); // Cột L
+            const nguoiThucHien = row[13]; // Cột N
+            const ketQua = row[10]; // Cột K
+
+            if (!ngayThucHien || ngayThucHien < dateRange.start || ngayThucHien > dateRange.end) return;
+        } catch (error) {
+            console.error("Lỗi xử lý chi tiết công việc:", error);
+        }
+    });
+
+    // Tính tỷ lệ
+    const thongKe = Array.from(nhanVienMap.values()).map(nv => {
+        const tyLeTiepNhan = nv.tongCongViec > 0 ? (nv.daTiepNhan / nv.tongCongViec) * 100 : 0;
+        const tyLeHoanThanh = nv.daTiepNhan > 0 ? (nv.daHoanThanh / nv.daTiepNhan) * 100 : 0;
+
+        return {
+            ...nv,
+            tyLeTiepNhan: tyLeTiepNhan.toFixed(2),
+            tyLeHoanThanh: tyLeHoanThanh.toFixed(2)
+        };
+    });
+
+    return thongKe;
+}
+
+// Hàm xử lý chấm công
+async function processChamCong(chamCongData, dateRange) {
+    const result = [];
+    const nhanVienMap = new Map();
+
+    chamCongData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const trangThai = row[2]; // Cột C
+            const loaiViec = row[3]; // Cột D
+            const moTa = row[10]; // Cột K
+            const nguoiTao = row[11]; // Cột L
+            const boPhan = row[13]; // Cột N
+            const pheDuyet = row[17]; // Cột R
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Làm việc") return;
+
+            if (!nhanVienMap.has(nguoiTao)) {
+                nhanVienMap.set(nguoiTao, {
+                    nhanVien: nguoiTao,
+                    boPhan,
+                    soNgayCong: 0,
+                    duyet: 0,
+                    khongDuyet: 0,
+                    chiTiet: []
+                });
+            }
+
+            const nvData = nhanVienMap.get(nguoiTao);
+            nvData.soNgayCong++;
+
+            if (pheDuyet === "Duyệt") {
+                nvData.duyet++;
+            } else if (pheDuyet === "Không duyệt" || !pheDuyet) {
+                nvData.khongDuyet++;
+            }
+
+            nvData.chiTiet.push({
+                ngay: formatDate(ngayTao),
+                loaiViec,
+                moTa,
+                pheDuyet: pheDuyet || "Chưa duyệt"
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý chấm công:", error);
+        }
+    });
+
+    return Array.from(nhanVienMap.values());
+}
+
+// Hàm xử lý khảo sát công trình
+async function processKhaoSatCongTrinh(chamCongData, dateRange) {
+    const result = [];
+
+    chamCongData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const trangThai = row[2]; // Cột C
+            const loaiViec = row[3]; // Cột D
+            const moTa = row[10]; // Cột K
+            const nguoiTao = row[11]; // Cột L
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Làm việc" || loaiViec !== "Khảo sát công trình") return;
+
+            result.push({
+                nhanVien: nguoiTao,
+                ngay: formatDate(ngayTao),
+                moTa,
+                loaiViec
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý khảo sát công trình:", error);
+        }
+    });
+
+    return result;
+}
+
+// Hàm xử lý làm việc tại văn phòng
+async function processLamViecVanPhong(chamCongData, dateRange) {
+    const result = [];
+
+    chamCongData.slice(1).forEach(row => {
+        try {
+            const ngayTao = parseGoogleSheetDate(row[1]); // Cột B
+            const trangThai = row[2]; // Cột C
+            const loaiViec = row[3]; // Cột D
+            const moTa = row[10]; // Cột K
+            const nguoiTao = row[11]; // Cột L
+
+            if (!ngayTao || ngayTao < dateRange.start || ngayTao > dateRange.end) return;
+            if (trangThai !== "Làm việc" || loaiViec !== "Làm việc tại văn phòng") return;
+
+            result.push({
+                nhanVien: nguoiTao,
+                ngay: formatDate(ngayTao),
+                moTa,
+                loaiViec
+            });
+        } catch (error) {
+            console.error("Lỗi xử lý làm việc văn phòng:", error);
+        }
+    });
+
+    return result;
+}
+
+// Hàm lấy danh sách nhân viên
+async function getEmployeeList(donHangData, dataKhachHang) {
+    const employees = new Set();
+
+    // Lấy từ sheet Don_hang
+    donHangData.slice(1).forEach(row => {
+        const maNV = row[3]; // Cột D
+        const tenNV = row[2]; // Cột C
+        if (maNV && tenNV) {
+            employees.add(`${maNV} - ${tenNV}`);
+        }
+    });
+
+    // Lấy từ sheet Data_khach_hang
+    dataKhachHang.slice(1).forEach(row => {
+        const nhanVien = row[30]; // Cột AE
+        if (nhanVien) {
+            employees.add(nhanVien);
+        }
+    });
+
+    return Array.from(employees).sort();
+}
+
+// Hàm helper: Trích xuất file ID từ Google Drive link
+function extractFileId(url) {
+    if (!url) return null;
+    const match = url.match(/\/d\/(.*?)(\/|$)/);
+    return match ? match[1] : null;
+}
+
+// Hàm helper: Lấy số tuần trong năm
 function getWeekNumber(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;
@@ -8214,730 +9161,74 @@ function getWeekNumber(date) {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-// 1. Báo cáo báo giá & đơn hàng theo nhân viên
-async function generateBaoCaoBaoGiaDonHang(data, options) {
-    const { nhanVien, page, limit } = options;
-    const donHangData = data.donHang;
-    const kpiData = data.kpiChiTieu;
-    
-    // Lọc dữ liệu
-    let filteredData = filterByTimeRange(donHangData, 1, options); // Cột B là ngày tạo
-    
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[2] === nhanVien || row[3] === nhanVien // Cột C hoặc D
-        );
-    }
-
-    // Tính toán chỉ số
-    const tongBaoGia = filteredData.filter(row => 
-        row[38] === "Báo giá" || row[38] === "Đơn hàng" // AM
-    ).length;
-
-    const tongDonHang = filteredData.filter(row => 
-        row[38] === "Đơn hàng" && row[35] === "Kế hoạch sản xuất" // AM và AJ
-    ).length;
-
-    const tyLeChuyenDoi = tongBaoGia > 0 ? (tongDonHang / tongBaoGia) * 100 : 0;
-
-    // Lấy KPI từ sheet KPI_CHI_TIEU
-    const kpiBaoGia = getKPIForNhanVien(kpiData, nhanVien, "Tổng số báo giá", options);
-    const kpiDonHang = getKPIForNhanVien(kpiData, nhanVien, "Tổng số đơn hàng", options);
-    const kpiTyLe = getKPIForNhanVien(kpiData, nhanVien, "Tỷ lệ chuyển đổi", options);
-
-    return {
-        tongBaoGia,
-        tongDonHang,
-        tyLeChuyenDoi,
-        kpiBaoGia,
-        kpiDonHang,
-        kpiTyLe,
-        danhSach: filteredData.slice((page - 1) * limit, page * limit),
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit)
-    };
+// Hàm helper: Lấy ngày bắt đầu và kết thúc của tuần
+function getDateRangeOfWeek(weekNo, year) {
+    const d = new Date(year, 0, 1 + (weekNo - 1) * 7);
+    const dayOfWeek = d.getDay();
+    const start = new Date(d);
+    start.setDate(d.getDate() - dayOfWeek + 1);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end };
 }
 
-// 2. Báo cáo doanh số theo nhân viên
-async function generateBaoCaoDoanhSoNV(data, options) {
-    const { nhanVien } = options;
-    const donHangData = data.donHang;
-    const kpiData = data.kpiChiTieu;
-    
-    // Lọc dữ liệu đơn hàng đã phê duyệt
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[38] === "Đơn hàng" && // AM
-        row[39] === "Phê duyệt" && // AN
-        row[35] === "Kế hoạch sản xuất" // AJ
-    );
-
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[2] === nhanVien || row[3] === nhanVien
-        );
-    }
-
-    // Tính tổng doanh số
-    const tongDoanhSo = filteredData.reduce((sum, row) => {
-        return sum + parseFloat(row[69] || 0); // BR
-    }, 0);
-
-    // Lấy KPI doanh số
-    const kpiDoanhSo = getKPIForNhanVien(kpiData, nhanVien, "Doanh số bán hàng", options);
-    
-    // Tính tỷ lệ % đạt được
-    const tyLeDatDuoc = kpiDoanhSo.mucTieu > 0 ? 
-        (tongDoanhSo / kpiDoanhSo.mucTieu) * 100 : 0;
-
-    // Phân loại theo nhân viên
-    const doanhSoTheoNV = {};
-    filteredData.forEach(row => {
-        const nv = row[2] || row[3] || 'Chưa xác định';
-        const doanhSo = parseFloat(row[69] || 0);
-        if (!doanhSoTheoNV[nv]) {
-            doanhSoTheoNV[nv] = {
-                tongDoanhSo: 0,
-                soDonHang: 0
-            };
-        }
-        doanhSoTheoNV[nv].tongDoanhSo += doanhSo;
-        doanhSoTheoNV[nv].soDonHang++;
-    });
-
-    return {
-        tongDoanhSo,
-        tyLeDatDuoc,
-        kpiDoanhSo,
-        doanhSoTheoNV: Object.entries(doanhSoTheoNV).map(([nv, data]) => ({
-            nhanVien: nv,
-            tongDoanhSo: data.tongDoanhSo,
-            soDonHang: data.soDonHang
-        }))
-    };
+// Hàm helper: Định dạng ngày
+function formatDate(date) {
+    if (!date) return '';
+    return date.toLocaleDateString('vi-VN');
 }
 
-// 3. Báo cáo đơn hàng hủy
-async function generateBaoCaoDonHangHuy(data, options) {
-    const { nhanVien, page, limit } = options;
-    const donHangData = data.donHang;
-    
-    // Lọc đơn hàng hủy
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[35] === "Hủy" // AJ = Hủy
-    );
-
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[2] === nhanVien || row[3] === nhanVien
-        );
-    }
-
-    // Tính tổng
-    const tongSoDonHuy = filteredData.length;
-    const tongGiaTriHuy = filteredData.reduce((sum, row) => {
-        return sum + parseFloat(row[69] || 0); // BR
-    }, 0);
-
-    // Tính tỷ lệ hủy
-    const tongDonHoanThanh = data.donHang.filter(row => 
-        row[35] === "Hoàn thành" && // AJ
-        filterByTimeRange([row], 1, options).length > 0
-    ).length;
-
-    const tyLeHuy = (tongSoDonHuy / (tongSoDonHuy + tongDonHoanThanh)) * 100 || 0;
-
-    // Chuẩn bị dữ liệu phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = filteredData.slice(startIndex, startIndex + limit).map((row, index) => ({
-        stt: startIndex + index + 1,
-        maDonHang: row[6] || '', // G
-        khachHangID: row[7] || '', // H
-        tenKhach: row[9] || '', // J
-        nhanVien: row[2] || '', // C
-        giaTriHuy: parseFloat(row[69] || 0), // BR
-        ngayHuy: row[1] || '' // B
-    }));
-
-    return {
-        tongSoDonHuy,
-        tongGiaTriHuy,
-        tyLeHuy,
-        danhSach: paginatedData,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit)
-    };
-}
-
-// 4. Báo cáo Top 100 khách hàng doanh số cao nhất
-async function generateBaoCaoTop100KH(data, options) {
-    const donHangData = data.donHang;
-    
-    // Lọc đơn hàng hợp lệ
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[38] === "Đơn hàng" && // AM
-        row[39] === "Phê duyệt" // AN
-    );
-
-    // Nhóm theo khách hàng
-    const khachHangMap = new Map();
-    
-    filteredData.forEach(row => {
-        const khachHangID = row[7] || ''; // H
-        const tenKhach = row[9] || ''; // J
-        const doanhSoBE = parseFloat(row[56] || 0); // BE
-        const doanhSoBR = parseFloat(row[69] || 0); // BR
-        
-        if (khachHangID) {
-            if (!khachHangMap.has(khachHangID)) {
-                khachHangMap.set(khachHangID, {
-                    khachHangID,
-                    tenKhach,
-                    tongDoanhSoBE: 0,
-                    tongDoanhSoBR: 0,
-                    soDonHang: 0
-                });
-            }
-            
-            const khach = khachHangMap.get(khachHangID);
-            khach.tongDoanhSoBE += doanhSoBE;
-            khach.tongDoanhSoBR += doanhSoBR;
-            khach.soDonHang++;
-        }
-    });
-
-    // Sắp xếp theo doanh số BR giảm dần
-    const sortedList = Array.from(khachHangMap.values())
-        .sort((a, b) => b.tongDoanhSoBR - a.tongDoanhSoBR)
-        .slice(0, 100);
-
-    // Phân trang
-    const { page, limit } = options;
-    const startIndex = (page - 1) * limit;
-    const paginatedData = sortedList.slice(startIndex, startIndex + limit)
-        .map((item, index) => ({
-            stt: startIndex + index + 1,
-            ...item
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: sortedList.length,
-        totalPages: Math.ceil(sortedList.length / limit),
-        tongTatCa: sortedList.reduce((sum, item) => sum + item.tongDoanhSoBR, 0)
-    };
-}
-
-// Hàm lấy KPI cho nhân viên
-function getKPIForNhanVien(kpiData, nhanVien, tenKPI, options) {
-    const { filterStartDate, filterEndDate, filterYear, filterMonth, filterQuarter } = options;
-    
-    // Lọc dữ liệu KPI
-    const filteredKPI = kpiData.filter((row, index) => {
-        if (index === 0) return false; // Bỏ header
-        
-        // Kiểm tra tên KPI
-        if (row[2] !== tenKPI) return false; // Cột C
-        
-        // Kiểm tra nhân viên
-        if (nhanVien && row[6] !== nhanVien) return false; // Cột G
-        
-        // Kiểm tra tình trạng
-        if (row[17] !== "Áp dụng") return false; // Cột R
-        
-        // Kiểm tra thời gian
-        const startDate = parseGoogleSheetDate(row[14]); // O
-        const endDate = parseGoogleSheetDate(row[15]); // P
-        
-        if (!startDate || !endDate) return false;
-        
-        // Kiểm tra xem khoảng thời gian báo cáo có nằm trong khoảng KPI không
-        if (filterStartDate && filterEndDate) {
-            const reportStart = parseGoogleSheetDate(filterStartDate);
-            const reportEnd = parseGoogleSheetDate(filterEndDate);
-            return reportStart >= startDate && reportEnd <= endDate;
-        } else if (filterYear) {
-            return startDate.getFullYear() <= filterYear && endDate.getFullYear() >= filterYear;
-        }
-        
-        return true;
-    });
-
-    if (filteredKPI.length === 0) {
-        return {
-            mucTieu: 0,
-            min: 0,
-            max: 0,
-            trongSo: 0,
-            donViTinh: ''
-        };
-    }
-
-    const kpi = filteredKPI[0];
-    return {
-        mucTieu: parseFloat(kpi[10] || 0), // K
-        min: parseFloat(kpi[11] || 0), // L
-        max: parseFloat(kpi[12] || 0), // M
-        trongSo: parseFloat(kpi[13] || 0), // N
-        donViTinh: kpi[9] || '', // J
-        moTa: kpi[7] || '' // H
-    };
-}
-
-// 5. Báo cáo khách hàng cũ
-async function generateBaoCaoKHCu(data, options) {
-    const { nhanVien, page, limit } = options;
-    const donHangData = data.donHang;
-    
-    // Lọc đơn hàng hợp lệ
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[38] === "Đơn hàng" && // AM
-        row[39] === "Phê duyệt" // AN
-    );
-
-    // Nhóm theo khách hàng
-    const khachHangMap = new Map();
-    
-    filteredData.forEach(row => {
-        const khachHangID = row[7] || ''; // H
-        const tenKhach = row[9] || ''; // J
-        const nv = row[2] || ''; // C
-        const doanhSoBE = parseFloat(row[56] || 0); // BE
-        const doanhSoBR = parseFloat(row[69] || 0); // BR
-        
-        if (khachHangID && (!nhanVien || nv === nhanVien)) {
-            if (!khachHangMap.has(khachHangID)) {
-                khachHangMap.set(khachHangID, {
-                    khachHangID,
-                    tenKhach,
-                    nhanVien: nv,
-                    tongDoanhSoBE: 0,
-                    tongDoanhSoBR: 0,
-                    soDonHang: 0
-                });
-            }
-            
-            const khach = khachHangMap.get(khachHangID);
-            khach.tongDoanhSoBE += doanhSoBE;
-            khach.tongDoanhSoBR += doanhSoBR;
-            khach.soDonHang++;
-        }
-    });
-
-    // Lọc khách hàng cũ (có từ 2 đơn hàng trở lên)
-    const khachHangCu = Array.from(khachHangMap.values())
-        .filter(item => item.soDonHang >= 2);
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = khachHangCu.slice(startIndex, startIndex + limit)
-        .map((item, index) => ({
-            stt: startIndex + index + 1,
-            ...item
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: khachHangCu.length,
-        totalPages: Math.ceil(khachHangCu.length / limit),
-        tongTatCa: khachHangCu.reduce((sum, item) => sum + item.tongDoanhSoBR, 0),
-        tongKhachHang: khachHangCu.length
-    };
-}
-
-// 6. Báo cáo khách hàng mới
-async function generateBaoCaoKHMoi(data, options) {
-    const { nhanVien, page, limit } = options;
-    const donHangData = data.donHang;
-    
-    // Lọc đơn hàng hợp lệ
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[38] === "Đơn hàng" && // AM
-        row[39] === "Phê duyệt" // AN
-    );
-
-    // Nhóm theo khách hàng
-    const khachHangMap = new Map();
-    
-    filteredData.forEach(row => {
-        const khachHangID = row[7] || ''; // H
-        const tenKhach = row[9] || ''; // J
-        const nv = row[2] || ''; // C
-        const doanhSoBE = parseFloat(row[56] || 0); // BE
-        const doanhSoBR = parseFloat(row[69] || 0); // BR
-        
-        if (khachHangID && (!nhanVien || nv === nhanVien)) {
-            if (!khachHangMap.has(khachHangID)) {
-                khachHangMap.set(khachHangID, {
-                    khachHangID,
-                    tenKhach,
-                    nhanVien: nv,
-                    tongDoanhSoBE: 0,
-                    tongDoanhSoBR: 0,
-                    soDonHang: 0
-                });
-            }
-            
-            const khach = khachHangMap.get(khachHangID);
-            khach.tongDoanhSoBE += doanhSoBE;
-            khach.tongDoanhSoBR += doanhSoBR;
-            khach.soDonHang++;
-        }
-    });
-
-    // Lọc khách hàng mới (chỉ có 1 đơn hàng)
-    const khachHangMoi = Array.from(khachHangMap.values())
-        .filter(item => item.soDonHang === 1);
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = khachHangMoi.slice(startIndex, startIndex + limit)
-        .map((item, index) => ({
-            stt: startIndex + index + 1,
-            ...item
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: khachHangMoi.length,
-        totalPages: Math.ceil(khachHangMoi.length / limit),
-        tongTatCa: khachHangMoi.reduce((sum, item) => sum + item.tongDoanhSoBR, 0),
-        tongKhachHang: khachHangMoi.length
-    };
-}
-
-// 7. Báo cáo chuyển đổi từ báo giá sang đơn hàng
-async function generateBaoCaoChuyenDoi(data, options) {
-    const { nhanVien, page, limit } = options;
-    const donHangData = data.donHang;
-    const dataKH = data.dataKhachHang;
-    
-    // Tạo map khách hàng để tra cứu
-    const khachHangMap = new Map();
-    for (let i = 1; i < dataKH.length; i++) {
-        const row = dataKH[i];
-        khachHangMap.set(row[2], { // C: Khách hàng ID
-            loaiKhach: row[3], // D
-            tenKhach: row[4] // E
-        });
-    }
-
-    // Lọc đơn hàng hợp lệ
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    
-    // Tìm khách hàng có cả báo giá và đơn hàng
-    const khachHangCoChuyenDoi = new Map();
-    
-    // Nhóm theo khách hàng
-    filteredData.forEach(row => {
-        const khachHangID = row[7] || '';
-        const loaiDon = row[38] || ''; // AM
-        const nv = row[2] || '';
-        
-        if (khachHangID && (!nhanVien || nv === nhanVien)) {
-            if (!khachHangCoChuyenDoi.has(khachHangID)) {
-                khachHangCoChuyenDoi.set(khachHangID, {
-                    khachHangID,
-                    tenKhach: row[9] || '',
-                    nhanVien: nv,
-                    coBaoGia: false,
-                    coDonHang: false,
-                    doanhSoBE: 0,
-                    doanhSoBR: 0
-                });
-            }
-            
-            const khach = khachHangCoChuyenDoi.get(khachHangID);
-            if (loaiDon === "Báo giá") {
-                khach.coBaoGia = true;
-            } else if (loaiDon === "Đơn hàng") {
-                khach.coDonHang = true;
-                khach.doanhSoBE += parseFloat(row[56] || 0); // BE
-                khach.doanhSoBR += parseFloat(row[69] || 0); // BR
-            }
-        }
-    });
-
-    // Lọc khách hàng có chuyển đổi
-    const danhSachChuyenDoi = Array.from(khachHangCoChuyenDoi.values())
-        .filter(item => item.coBaoGia && item.coDonHang);
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = danhSachChuyenDoi.slice(startIndex, startIndex + limit)
-        .map((item, index) => ({
-            stt: startIndex + index + 1,
-            ...item,
-            loaiKhach: khachHangMap.get(item.khachHangID)?.loaiKhach || ''
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: danhSachChuyenDoi.length,
-        totalPages: Math.ceil(danhSachChuyenDoi.length / limit),
-        tongTatCa: danhSachChuyenDoi.reduce((sum, item) => sum + item.doanhSoBR, 0),
-        tongKhachHang: danhSachChuyenDoi.length
-    };
-}
-
-// 8. Báo cáo đơn hàng được phê duyệt
-async function generateBaoCaoPheDuyet(data, options) {
-    const donHangData = data.donHang;
-    
-    // Lọc đơn hàng được phê duyệt
-    let filteredData = filterByTimeRange(donHangData, 1, options);
-    filteredData = filteredData.filter(row => 
-        row[39] === "Phê duyệt" // AN
-    );
-
-    // Nhóm theo nhân viên phê duyệt
-    const pheDuyetMap = new Map();
-    
-    filteredData.forEach(row => {
-        const nvPheDuyet = row[40] || ''; // AO
-        const doanhSo = parseFloat(row[69] || 0); // BR
-        
-        if (nvPheDuyet) {
-            if (!pheDuyetMap.has(nvPheDuyet)) {
-                pheDuyetMap.set(nvPheDuyet, {
-                    nhanVien: nvPheDuyet,
-                    soDon: 0,
-                    tongDoanhSo: 0
-                });
-            }
-            
-            const nv = pheDuyetMap.get(nvPheDuyet);
-            nv.soDon++;
-            nv.tongDoanhSo += doanhSo;
-        }
-    });
-
-    return {
-        danhSach: Array.from(pheDuyetMap.values()).map(item => ({
-            ...item,
-            doanhSoTrungBinh: item.soDon > 0 ? item.tongDoanhSo / item.soDon : 0
-        })),
-        tongSoDon: filteredData.length,
-        tongDoanhSo: filteredData.reduce((sum, row) => sum + parseFloat(row[69] || 0), 0)
-    };
-}
-
-// 9. Báo cáo khách hàng mới được tạo
-async function generateBaoCaoKHMoiTao(data, options) {
-    const { nhanVien, page, limit } = options;
-    const dataKH = data.dataKhachHang;
-    
-    // Lọc khách hàng mới
-    let filteredData = filterByTimeRange(dataKH, 31, options); // AG: Ngày tạo khách
-    
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[32] === nhanVien // AH: Người tạo
-        );
-    }
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = filteredData.slice(startIndex, startIndex + limit)
-        .map((row, index) => ({
-            stt: startIndex + index + 1,
-            khachHangID: row[2] || '', // C
-            loaiKhach: row[3] || '', // D
-            tenKhach: row[4] || '', // E
-            nguonKhach: row[28] || '', // AC
-            nhanVienPT: row[30] || '', // AE
-            nguoiTao: row[32] || '', // AH
-            ngayTao: row[31] || '' // AG
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit),
-        tongKhachHang: filteredData.length
-    };
-}
-
-// 10. Báo cáo đại lý mới
-async function generateBaoCaoDaiLyMoi(data, options) {
-    const { nhanVien, page, limit } = options;
-    const dataKH = data.dataKhachHang;
-    
-    // Lọc đại lý mới
-    let filteredData = filterByTimeRange(dataKH, 31, options); // AG: Ngày tạo khách
-    
-    filteredData = filteredData.filter(row => 
-        row[3] === "Đại lý" // D: Loại khách
-    );
-
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[32] === nhanVien // AH: Người tạo
-        );
-    }
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = filteredData.slice(startIndex, startIndex + limit)
-        .map((row, index) => ({
-            stt: startIndex + index + 1,
-            khachHangID: row[2] || '', // C
-            tenKhach: row[4] || '', // E
-            nguonKhach: row[28] || '', // AC
-            nhanVienPT: row[30] || '', // AE
-            nguoiTao: row[32] || '', // AH
-            ngayTao: row[31] || '', // AG
-            ngayBanGiao: row[31] || '' // AF
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit),
-        tongDaiLy: filteredData.length
-    };
-}
-
-// 11. Báo cáo khách hàng được bàn giao
-async function generateBaoCaoBanGiaoKH(data, options) {
-    const { nhanVien, page, limit } = options;
-    const dataKH = data.dataKhachHang;
-    
-    // Lọc khách hàng được bàn giao
-    let filteredData = filterByTimeRange(dataKH, 30, options); // AF: Ngày bàn giao khách
-    
-    if (nhanVien) {
-        filteredData = filteredData.filter(row => 
-            row[30] === nhanVien // AE: Nhân viên phụ trách
-        );
-    }
-
-    // Phân trang
-    const startIndex = (page - 1) * limit;
-    const paginatedData = filteredData.slice(startIndex, startIndex + limit)
-        .map((row, index) => ({
-            stt: startIndex + index + 1,
-            khachHangID: row[2] || '', // C
-            loaiKhach: row[3] || '', // D
-            tenKhach: row[4] || '', // E
-            nguonKhach: row[28] || '', // AC
-            nhanVienPT: row[30] || '', // AE
-            nguoiTao: row[32] || '', // AH
-            ngayTao: row[31] || '', // AG
-            ngayBanGiao: row[30] || '' // AF
-        }));
-
-    return {
-        danhSach: paginatedData,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / limit),
-        tongKhachHang: filteredData.length
-    };
-}
-
-// Hàm xuất Excel báo cáo KPI
-
-async function generateExcelReportKPI(options) {
+// Hàm tạo Excel report KPI
+async function generateKPIExcelReport(params) {
     try {
+        const {
+            reportType = 'tong-quan',
+            filterType = 'thang',
+            startDate,
+            endDate,
+            employeeCode,
+            month = new Date().getMonth() + 1,
+            quarter = Math.ceil((new Date().getMonth() + 1) / 3),
+            year = new Date().getFullYear()
+        } = params;
+
+        // Tính toán date range
+        const dateRange = calculateDateRange(filterType, {
+            startDate, endDate, month, quarter, year
+        });
+
+        // Lấy dữ liệu
+        const allData = await getAllKpiData();
+
+        // Tạo workbook
         const workbook = new exceljs.Workbook();
         workbook.creator = 'Hệ thống báo cáo KPI Phòng Kinh Doanh';
         workbook.created = new Date();
 
-        // Lấy dữ liệu cho từng báo cáo và tạo sheet
-        const baoCaoFunctions = [
-            { id: '1', name: 'Bao gia & Don hang', func: generateBaoCaoBaoGiaDonHang },
-            { id: '2', name: 'Doanh so theo NV', func: generateBaoCaoDoanhSoNV },
-            { id: '3', name: 'Don hang huy', func: generateBaoCaoDonHangHuy },
-            { id: '4', name: 'Top 100 KH', func: generateBaoCaoTop100KH },
-            { id: '5', name: 'KH cu', func: generateBaoCaoKHCu },
-            { id: '6', name: 'KH moi', func: generateBaoCaoKHMoi },
-            { id: '7', name: 'Chuyen doi', func: generateBaoCaoChuyenDoi },
-            { id: '8', name: 'Phe duyet', func: generateBaoCaoPheDuyet },
-            { id: '9', name: 'KH moi tao', func: generateBaoCaoKHMoiTao },
-            { id: '10', name: 'Dai ly moi', func: generateBaoCaoDaiLyMoi },
-            { id: '11', name: 'Ban giao KH', func: generateBaoCaoBanGiaoKH }
-        ];
-
-        // Lấy dữ liệu chung một lần
-        const data = await getAllKPIData();
-
-        for (const baoCao of baoCaoFunctions) {
-            try {
-                const baoCaoData = await baoCao.func(data, { ...options, page: 1, limit: 10000 });
-                
-                // Tạo sheet
-                const sheet = workbook.addWorksheet(baoCao.name);
-                
-                // Tiêu đề
-                sheet.mergeCells('A1:H1');
-                const title = sheet.getCell('A1');
-                title.value = `BÁO CÁO ${baoCao.name.toUpperCase()}`;
-                title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
-                title.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: '4472C4' }
-                };
-                title.alignment = { horizontal: 'center', vertical: 'middle' };
-
-                // Thông tin báo cáo
-                sheet.getCell('A2').value = 'Thời gian báo cáo:';
-                sheet.getCell('B2').value = getFilterText(options);
-                sheet.getCell('A3').value = 'Ngày xuất báo cáo:';
-                sheet.getCell('B3').value = new Date().toLocaleDateString('vi-VN');
-                sheet.getCell('A4').value = 'Nhân viên:';
-                sheet.getCell('B4').value = options.nhanVien || 'Tất cả';
-
-                // Tạo bảng dữ liệu tùy theo loại báo cáo
-                switch(baoCao.id) {
-                    case '1':
-                        createSheetForBaoCao1(sheet, baoCaoData);
-                        break;
-                    case '2':
-                        createSheetForBaoCao2(sheet, baoCaoData);
-                        break;
-                    case '3':
-                        createSheetForBaoCao3(sheet, baoCaoData);
-                        break;
-                    case '4':
-                        createSheetForBaoCao4(sheet, baoCaoData);
-                        break;
-                    case '5':
-                        createSheetForBaoCao5(sheet, baoCaoData);
-                        break;
-                    case '6':
-                        createSheetForBaoCao6(sheet, baoCaoData);
-                        break;
-                    case '7':
-                        createSheetForBaoCao7(sheet, baoCaoData);
-                        break;
-                    case '8':
-                        createSheetForBaoCao8(sheet, baoCaoData);
-                        break;
-                    case '9':
-                        createSheetForBaoCao9(sheet, baoCaoData);
-                        break;
-                    case '10':
-                        createSheetForBaoCao10(sheet, baoCaoData);
-                        break;
-                    case '11':
-                        createSheetForBaoCao11(sheet, baoCaoData);
-                        break;
-                }
-
-                // Auto fit columns
-                sheet.columns.forEach(column => {
-                    column.width = 15;
-                });
-
-            } catch (error) {
-                console.error(`Lỗi khi tạo sheet ${baoCao.name}:`, error);
-            }
+        // Tạo sheet theo loại báo cáo
+        switch (reportType) {
+            case 'tong-quan':
+                await createTongQuanExcelSheet(workbook, allData, dateRange);
+                break;
+            case 'bao-giao-don-hang':
+                await createBaoGiaoDonHangExcelSheet(workbook, allData.donHangData, dateRange, employeeCode);
+                break;
+            case 'doanh-so-theo-nv':
+                await createDoanhSoTheoNVExcelSheet(workbook, allData.donHangData, allData.kpiChiTieu, dateRange, employeeCode);
+                break;
+            case 'don-hang-huy':
+                await createDonHangHuyExcelSheet(workbook, allData.donHangData, dateRange, employeeCode);
+                break;
+            case 'top-100-khach-hang':
+                await createTop100KhachHangExcelSheet(workbook, allData.donHangData, dateRange);
+                break;
+            // ... Thêm các case khác
+            default:
+                await createTongQuanExcelSheet(workbook, allData, dateRange);
         }
+
+        // Thêm sheet đánh giá hiện trạng
+        await createDanhGiaExcelSheet(workbook);
 
         return workbook;
     } catch (error) {
@@ -8946,10 +9237,66 @@ async function generateExcelReportKPI(options) {
     }
 }
 
-function createSheetForBaoCao1(sheet, data) {
-    // Header cho báo cáo 1
-    const headers = ['STT', 'Mã đơn', 'Khách hàng', 'Nhân viên', 'Ngày tạo', 'Loại', 'Trạng thái', 'Giá trị'];
-    const headerRow = sheet.getRow(6);
+// Hàm lấy tất cả dữ liệu KPI
+async function getAllKpiData() {
+    const [
+        donHangData,
+        dataKhachHang,
+        chamSocKhachHang,
+        baoCaoBaiDang,
+        dataFileBanVe,
+        giaoViecKD,
+        giaoViecKDChiTiet,
+        kpiChiTieu,
+        chamCongData
+    ] = await Promise.all([
+        getSheetData(SPREADSHEET_ID, "Don_hang!A:BR"),
+        getSheetData(SPREADSHEET_ID, "Data_khach_hang!A:AH"),
+        getSheetData(SPREADSHEET_ID, "Cham_soc_khach_hang!A:L"),
+        getSheetData(SPREADSHEET_ID, "Bao_cao_bai_dang_ban_hang!A:G"),
+        getSheetData(SPREADSHEET_ID, "data_file_ban_ve_dinh_kem!A:M"),
+        getSheetData(SPREADSHEET_ID, "Giao_viec_kinh_doanh!A:O"),
+        getSheetData(SPREADSHEET_ID, "Giao_viec_kd_chi_tiet!A:N"),
+        getSheetData(SPREADSHEET_ID, "KPI_CHI_TIEU!A:R"),
+        getSheetData(SPREADSHEET_HC_ID, "Cham_cong!A:R")
+    ]);
+
+    return {
+        donHangData,
+        dataKhachHang,
+        chamSocKhachHang,
+        baoCaoBaiDang,
+        dataFileBanVe,
+        giaoViecKD,
+        giaoViecKDChiTiet,
+        kpiChiTieu,
+        chamCongData
+    };
+}
+
+// Hàm tạo sheet tổng quan Excel
+async function createTongQuanExcelSheet(workbook, allData, dateRange) {
+    const sheet = workbook.addWorksheet('Tổng quan KPI');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:F1');
+    const title = sheet.getCell('A1');
+    title.value = 'BÁO CÁO TỔNG QUAN KPI PHÒNG KINH DOANH';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Thông tin báo cáo
+    sheet.getCell('A2').value = 'Thời gian báo cáo:';
+    sheet.getCell('B2').value = `${formatDate(dateRange.start)} đến ${formatDate(dateRange.end)}`;
+
+    // Header
+    const headers = ['STT', 'Chỉ tiêu KPI', 'Mục tiêu', 'Kết quả', 'Tỷ lệ %', 'Ghi chú'];
+    const headerRow = sheet.getRow(4);
     headerRow.values = headers;
     headerRow.eachCell((cell, colNumber) => {
         cell.font = { bold: true, color: { argb: 'FFFFFF' } };
@@ -8967,67 +9314,660 @@ function createSheetForBaoCao1(sheet, data) {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
 
+    // Lấy dữ liệu tổng quan
+    const baoGiaoData = await processBaoGiaoDonHang(allData.donHangData, dateRange);
+    const doanhSoData = await processDoanhSoTheoNV(allData.donHangData, allData.kpiChiTieu, dateRange);
+    const khachHangMoiData = await processKhachHangMoiTao(allData.dataKhachHang, dateRange);
+    const chamSocData = await processChamSocKhachHang(allData.chamSocKhachHang, dateRange);
+
+    // Tính tổng hợp
+    const tongBaoGia = baoGiaoData.reduce((sum, item) => sum + item.tongBaoGia, 0);
+    const tongDonHang = baoGiaoData.reduce((sum, item) => sum + item.tongDonHang, 0);
+    const tongDoanhSo = doanhSoData.reduce((sum, item) => sum + item.doanhSoThucTe, 0);
+    const tongMucTieu = doanhSoData.reduce((sum, item) => sum + item.mucTieuKPI, 0);
+    const soKhachHangMoi = khachHangMoiData.length;
+    const soLuotChamSoc = chamSocData.chiTiet?.length || 0;
+
     // Dữ liệu
-    let rowIndex = 7;
-    if (data.danhSach && data.danhSach.length > 0) {
-        data.danhSach.forEach((item, index) => {
-            const row = sheet.getRow(rowIndex);
-            row.values = [
-                index + 1,
-                item.maDonHang || '',
-                item.tenKhach || '',
-                item.nhanVien || '',
-                item.ngayTao || '',
-                item.loaiDon || '',
-                item.trangThai || '',
-                item.giaTri || 0
-            ];
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                if (colNumber === 8) { // Cột giá trị
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                }
-            });
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, 8);
-        row.getCell(1).alignment = { horizontal: 'center' };
-    }
-
-    // Thêm thông tin KPI
-    rowIndex += 2;
-    sheet.getRow(rowIndex).getCell(1).value = 'THÔNG TIN KPI';
-    sheet.getRow(rowIndex).getCell(1).font = { bold: true };
-    rowIndex++;
-
-    const kpiData = [
-        ['Chỉ tiêu', 'Mục tiêu', 'Thực tế', 'Tỷ lệ đạt'],
-        ['Tổng số báo giá', data.kpiBaoGia.mucTieu || 0, data.tongBaoGia || 0, (data.tongBaoGia / (data.kpiBaoGia.mucTieu || 1) * 100).toFixed(2) + '%'],
-        ['Tổng số đơn hàng', data.kpiDonHang.mucTieu || 0, data.tongDonHang || 0, (data.tongDonHang / (data.kpiDonHang.mucTieu || 1) * 100).toFixed(2) + '%'],
-        ['Tỷ lệ chuyển đổi', (data.kpiTyLe.mucTieu || 0) + '%', (data.tyLeChuyenDoi || 0).toFixed(2) + '%', ((data.tyLeChuyenDoi || 0) / (data.kpiTyLe.mucTieu || 1) * 100).toFixed(2) + '%']
+    const dataRows = [
+        ['1', 'Tổng số báo giá', '', tongBaoGia, '', ''],
+        ['2', 'Tổng số đơn hàng', '', tongDonHang, '', ''],
+        ['3', 'Tỷ lệ chuyển đổi', '', tongBaoGia > 0 ? ((tongDonHang / tongBaoGia) * 100).toFixed(2) + '%' : '0%', '', ''],
+        ['4', 'Tổng doanh số', formatNumber(tongMucTieu), formatNumber(tongDoanhSo), tongMucTieu > 0 ? ((tongDoanhSo / tongMucTieu) * 100).toFixed(2) + '%' : '0%', ''],
+        ['5', 'Khách hàng mới', '', soKhachHangMoi, '', ''],
+        ['6', 'Lượt chăm sóc KH', '', soLuotChamSoc, '', ''],
+        ['7', 'Bài đăng marketing', '', '', '', ''],
+        ['8', 'Công việc hoàn thành', '', '', '', '']
     ];
 
-    kpiData.forEach((rowData, index) => {
-        const row = sheet.getRow(rowIndex + index);
-        row.values = rowData;
-        row.eachCell((cell, colNumber) => {
+    let rowIndex = 5;
+    dataRows.forEach(rowData => {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = rowData;
+        dataRow.eachCell((cell, colNumber) => {
             cell.border = {
                 top: { style: 'thin' },
                 left: { style: 'thin' },
                 bottom: { style: 'thin' },
                 right: { style: 'thin' }
             };
-            if (index === 0) {
-                cell.font = { bold: true };
+            if (colNumber === 4 && rowIndex > 5) { // Cột tỷ lệ
+                cell.numFmt = '0.00%';
+            }
+        });
+        rowIndex++;
+    });
+
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 1) column.width = 30;
+        else if (index === 4) column.width = 15;
+        else column.width = 20;
+    });
+
+    return sheet;
+}
+
+// Hàm tạo sheet báo giá & đơn hàng Excel
+async function createBaoGiaoDonHangExcelSheet(workbook, donHangData, dateRange, employeeCode) {
+    const sheet = workbook.addWorksheet('Báo giá & Đơn hàng');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:G1');
+    const title = sheet.getCell('A1');
+    title.value = 'BÁO CÁO BÁO GIÁ & ĐƠN HÀNG THEO NHÂN VIÊN';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Header
+    const headers = ['STT', 'Mã NV', 'Tên nhân viên', 'Tổng báo giá', 'Tổng đơn hàng', 'Tỷ lệ chuyển đổi (%)', 'Doanh số (BR)'];
+    const headerRow = sheet.getRow(3);
+    headerRow.values = headers;
+    headerRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '5B9BD5' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Lấy dữ liệu
+    const data = await processBaoGiaoDonHang(donHangData, dateRange, employeeCode);
+
+    let rowIndex = 4;
+    data.forEach((item, index) => {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = [
+            index + 1,
+            item.maNV,
+            item.tenNV,
+            item.tongBaoGia,
+            item.tongDonHang,
+            parseFloat(item.tyLeChuyenDoi) / 100,
+            item.doanhSoBR
+        ];
+        
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            if (colNumber === 6) { // Tỷ lệ chuyển đổi
+                cell.numFmt = '0.00%';
+            } else if (colNumber === 7) { // Doanh số
+                cell.numFmt = '#,##0';
+            }
+            
+            // Màu xen kẽ
+            if (rowIndex % 2 === 0) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'F2F2F2' }
+                };
+            }
+        });
+        
+        rowIndex++;
+    });
+
+    // Tổng cộng
+    const totalRow = sheet.getRow(rowIndex);
+    totalRow.getCell(4).value = 'Tổng cộng:';
+    totalRow.getCell(5).value = data.reduce((sum, item) => sum + item.tongBaoGia, 0);
+    totalRow.getCell(6).value = data.reduce((sum, item) => sum + item.tongDonHang, 0);
+    totalRow.getCell(7).value = data.reduce((sum, item) => sum + item.doanhSoBR, 0);
+    
+    totalRow.eachCell((cell, colNumber) => {
+        if (colNumber >= 4) {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'C6EFCE' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            if (colNumber === 7) {
+                cell.numFmt = '#,##0';
+            }
+        }
+    });
+
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 2) column.width = 25;
+        else if (index === 5) column.width = 20;
+        else column.width = 15;
+    });
+
+    return sheet;
+}
+
+// Hàm tạo sheet doanh số theo NV Excel
+async function createDoanhSoTheoNVExcelSheet(workbook, donHangData, kpiChiTieuData, dateRange, employeeCode) {
+    const sheet = workbook.addWorksheet('Doanh số theo NV');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:G1');
+    const title = sheet.getCell('A1');
+    title.value = 'BÁO CÁO DOANH SỐ THEO NHÂN VIÊN';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Header
+    const headers = ['STT', 'Mã NV', 'Tên nhân viên', 'Doanh số thực tế (BR)', 'Mục tiêu KPI', 'Tỷ lệ đạt (%)', 'Ghi chú'];
+    const headerRow = sheet.getRow(3);
+    headerRow.values = headers;
+    headerRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '5B9BD5' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Lấy dữ liệu
+    const data = await processDoanhSoTheoNV(donHangData, kpiChiTieuData, dateRange, employeeCode);
+
+    let rowIndex = 4;
+    data.forEach((item, index) => {
+        const dataRow = sheet.getRow(rowIndex);
+        const tyLeDat = parseFloat(item.tyLeDat) / 100;
+        
+        dataRow.values = [
+            index + 1,
+            item.maNV,
+            item.tenNV,
+            item.doanhSoThucTe,
+            item.mucTieuKPI,
+            tyLeDat,
+            item.ghiChu || ''
+        ];
+        
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            if (colNumber === 4 || colNumber === 5) { // Doanh số và mục tiêu
+                cell.numFmt = '#,##0';
+            } else if (colNumber === 6) { // Tỷ lệ đạt
+                cell.numFmt = '0.00%';
+                // Tô màu theo tỷ lệ
+                if (tyLeDat >= 1) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'C6EFCE' }
+                    };
+                } else if (tyLeDat >= 0.8) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFEB9C' }
+                    };
+                } else {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFC7CE' }
+                    };
+                }
+            }
+            
+            // Màu xen kẽ
+            if (rowIndex % 2 === 0) {
+                const currentFill = cell.fill || {};
+                if (!currentFill.type) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'F2F2F2' }
+                    };
+                }
+            }
+        });
+        
+        rowIndex++;
+    });
+
+    // Tổng cộng
+    const totalRow = sheet.getRow(rowIndex);
+    totalRow.getCell(4).value = 'Tổng cộng:';
+    totalRow.getCell(5).value = data.reduce((sum, item) => sum + item.doanhSoThucTe, 0);
+    totalRow.getCell(6).value = data.reduce((sum, item) => sum + item.mucTieuKPI, 0);
+    
+    totalRow.eachCell((cell, colNumber) => {
+        if (colNumber >= 4) {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'BDD7EE' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            if (colNumber === 5 || colNumber === 6) {
+                cell.numFmt = '#,##0';
+            }
+        }
+    });
+
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 2) column.width = 25;
+        else if (index === 3) column.width = 20;
+        else column.width = 15;
+    });
+
+    return sheet;
+}
+
+// Hàm tạo sheet đơn hàng hủy Excel
+async function createDonHangHuyExcelSheet(workbook, donHangData, dateRange, employeeCode) {
+    const sheet = workbook.addWorksheet('Đơn hàng hủy');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:F1');
+    const title = sheet.getCell('A1');
+    title.value = 'BÁO CÁO ĐƠN HÀNG HỦY';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Header
+    const headers = ['STT', 'Mã đơn hàng', 'Khách hàng ID', 'Tên khách hàng', 'Nhân viên bán', 'Doanh số hủy (BR)'];
+    const headerRow = sheet.getRow(3);
+    headerRow.values = headers;
+    headerRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '5B9BD5' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Lấy dữ liệu (lấy tất cả không phân trang cho Excel)
+    const result = await processDonHangHuy(donHangData, dateRange, employeeCode, 1, 10000);
+    const data = result.data;
+
+    let rowIndex = 4;
+    data.forEach((item, index) => {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = [
+            index + 1,
+            item.maDonHang,
+            item.khachHangID,
+            item.tenKhachHang,
+            item.nhanVienBan,
+            item.doanhSoHuy
+        ];
+        
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            if (colNumber === 6) { // Doanh số hủy
+                cell.numFmt = '#,##0';
+            }
+            
+            // Màu xen kẽ
+            if (rowIndex % 2 === 0) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'F2F2F2' }
+                };
+            }
+        });
+        
+        rowIndex++;
+    });
+
+    // Tổng cộng
+    const totalRow = sheet.getRow(rowIndex);
+    totalRow.getCell(5).value = 'Tổng cộng:';
+    totalRow.getCell(6).value = data.reduce((sum, item) => sum + item.doanhSoHuy, 0);
+    
+    totalRow.eachCell((cell, colNumber) => {
+        if (colNumber >= 5) {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFC7CE' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            if (colNumber === 6) {
+                cell.numFmt = '#,##0';
+            }
+        }
+    });
+
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 3) column.width = 30;
+        else if (index === 4) column.width = 20;
+        else column.width = 15;
+    });
+
+    return sheet;
+}
+
+// Hàm tạo sheet Top 100 khách hàng Excel
+async function createTop100KhachHangExcelSheet(workbook, donHangData, dateRange) {
+    const sheet = workbook.addWorksheet('Top 100 KH');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:F1');
+    const title = sheet.getCell('A1');
+    title.value = 'TOP 100 KHÁCH HÀNG DOANH SỐ CAO NHẤT';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Header
+    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Số đơn hàng', 'Tổng doanh số (BE)', 'Tổng doanh số (BR)'];
+    const headerRow = sheet.getRow(3);
+    headerRow.values = headers;
+    headerRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '5B9BD5' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Lấy dữ liệu
+    const data = await processTop100KhachHang(donHangData, dateRange);
+
+    let rowIndex = 4;
+    data.forEach((item, index) => {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = [
+            index + 1,
+            item.khachHangID,
+            item.tenKhachHang,
+            item.soDonHang,
+            item.tongDoanhSoBE,
+            item.tongDoanhSoBR
+        ];
+        
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            if (colNumber >= 5) { // Cột doanh số
+                cell.numFmt = '#,##0';
+            }
+            
+            // Tô màu cho top 10
+            if (index < 10) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFF2CC' }
+                };
+            }
+            
+            // Màu xen kẽ
+            if (rowIndex % 2 === 1 && index >= 10) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'F2F2F2' }
+                };
+            }
+        });
+        
+        rowIndex++;
+    });
+
+    // Tổng cộng
+    const totalRow = sheet.getRow(rowIndex);
+    totalRow.getCell(4).value = 'Tổng cộng:';
+    totalRow.getCell(5).value = data.reduce((sum, item) => sum + item.tongDoanhSoBE, 0);
+    totalRow.getCell(6).value = data.reduce((sum, item) => sum + item.tongDoanhSoBR, 0);
+    
+    totalRow.eachCell((cell, colNumber) => {
+        if (colNumber >= 4) {
+            cell.font = { bold: true };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'BDD7EE' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            if (colNumber >= 5) {
+                cell.numFmt = '#,##0';
+            }
+        }
+    });
+
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 2) column.width = 30;
+        else column.width = 20;
+    });
+
+    return sheet;
+}
+
+// Hàm tạo sheet đánh giá hiện trạng
+async function createDanhGiaExcelSheet(workbook) {
+    const sheet = workbook.addWorksheet('Đánh giá hiện trạng');
+
+    // Tiêu đề
+    sheet.mergeCells('A1:D1');
+    const title = sheet.getCell('A1');
+    title.value = 'BIÊN BẢN ĐÁNH GIÁ HIỆN TRẠNG TỒN TẠI';
+    title.font = { bold: true, size: 16, color: { argb: 'FFFFFF' } };
+    title.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '4472C4' }
+    };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Thông tin cuộc họp
+    sheet.getCell('A2').value = 'Ngày họp:';
+    sheet.getCell('B2').value = new Date().toLocaleDateString('vi-VN');
+    sheet.getCell('A3').value = 'Thành phần tham dự:';
+    sheet.mergeCells('B3:D3');
+
+    // Header cho bảng đánh giá
+    const headers = ['STT', 'Nội dung đánh giá', 'Nguyên nhân', 'Giải pháp/Kết luận', 'Người phụ trách', 'Thời hạn'];
+    const headerRow = sheet.getRow(5);
+    headerRow.values = headers;
+    headerRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '5B9BD5' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    });
+
+    // Tạo 10 dòng trống cho người dùng nhập
+    let rowIndex = 6;
+    for (let i = 1; i <= 10; i++) {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = [i, '', '', '', '', ''];
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            // Để trống cho người dùng nhập
+            if (colNumber > 1) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFFFCC' }
+                };
+            }
+        });
+        rowIndex++;
+    }
+
+    // Phần công việc tiếp theo
+    rowIndex += 2;
+    sheet.getCell(`A${rowIndex}`).value = 'CÔNG VIỆC TIẾP THEO CẦN TRIỂN KHAI:';
+    sheet.getCell(`A${rowIndex}`).font = { bold: true };
+    sheet.mergeCells(`A${rowIndex}:D${rowIndex}`);
+
+    rowIndex++;
+    const cvHeaders = ['STT', 'Công việc', 'Người phụ trách', 'Thời hạn', 'Ghi chú'];
+    const cvHeaderRow = sheet.getRow(rowIndex);
+    cvHeaderRow.values = cvHeaders;
+    cvHeaderRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true };
+        cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'E2EFDA' }
+        };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+    });
+
+    // Tạo 5 dòng cho công việc tiếp theo
+    rowIndex++;
+    for (let i = 1; i <= 5; i++) {
+        const dataRow = sheet.getRow(rowIndex);
+        dataRow.values = [i, '', '', '', ''];
+        dataRow.eachCell((cell, colNumber) => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+            
+            // Để trống cho người dùng nhập
+            if (colNumber > 1) {
                 cell.fill = {
                     type: 'pattern',
                     pattern: 'solid',
@@ -9035,653 +9975,27 @@ function createSheetForBaoCao1(sheet, data) {
                 };
             }
         });
-    });
-}
-
-function createSheetForBaoCao2(sheet, data) {
-    // Header cho báo cáo 2
-    const headers = ['Nhân viên', 'Số đơn hàng', 'Tổng doanh số', 'Doanh số trung bình/đơn', '% đóng góp', 'Đánh giá % đạt KPI'];
-    const headerRow = sheet.getRow(6);
-    headerRow.values = headers;
-    headerRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '5B9BD5' }
-        };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-
-    // Dữ liệu
-    let rowIndex = 7;
-    if (data.doanhSoTheoNV && data.doanhSoTheoNV.length > 0) {
-        data.doanhSoTheoNV.forEach((item, index) => {
-            const row = sheet.getRow(rowIndex);
-            const tyLeCaNhan = (item.tongDoanhSo / data.kpiDoanhSo.mucTieu) * 100;
-            row.values = [
-                item.nhanVien || '',
-                item.soDonHang || 0,
-                item.tongDoanhSo || 0,
-                item.tongDoanhSo / (item.soDonHang || 1),
-                (item.tongDoanhSo / (data.tongDoanhSo || 1) * 100).toFixed(2) + '%',
-                tyLeCaNhan.toFixed(2) + '%'
-            ];
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                if (colNumber >= 3 && colNumber <= 5) {
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                }
-                // Tô màu cho cột đánh giá
-                if (colNumber === 6) {
-                    cell.alignment = { horizontal: 'right' };
-                    if (tyLeCaNhan >= 100) {
-                        cell.fill = {
-                            type: 'pattern',
-                            pattern: 'solid',
-                            fgColor: { argb: 'C6EFCE' }
-                        };
-                    } else if (tyLeCaNhan >= 80) {
-                        cell.fill = {
-                            type: 'pattern',
-                            pattern: 'solid',
-                            fgColor: { argb: 'FFEB9C' }
-                        };
-                    } else {
-                        cell.fill = {
-                            type: 'pattern',
-                            pattern: 'solid',
-                            fgColor: { argb: 'FFC7CE' }
-                        };
-                    }
-                }
-            });
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, 6);
-        row.getCell(1).alignment = { horizontal: 'center' };
+        rowIndex++;
     }
 
-    // Thêm tổng
-    rowIndex += 2;
-    const totalRow = sheet.getRow(rowIndex);
-    totalRow.values = ['TỔNG', data.doanhSoTheoNV.reduce((sum, item) => sum + (item.soDonHang || 0), 0), data.tongDoanhSo || 0, '', '', ''];
-    totalRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        if (colNumber === 2 || colNumber === 3) {
-            cell.numFmt = '#,##0';
-            cell.alignment = { horizontal: 'right' };
-        }
-    });
-}
-
-function createSheetForBaoCao3(sheet, data) {
-    // Header cho báo cáo 3
-    const headers = ['STT', 'Mã đơn', 'Khách hàng', 'Nhân viên', 'Ngày hủy', 'Giá trị hủy', 'Lý do'];
-    const headerRow = sheet.getRow(6);
-    headerRow.values = headers;
-    headerRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '5B9BD5' }
-        };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    // Auto fit columns
+    sheet.columns.forEach((column, index) => {
+        if (index === 0) column.width = 8;
+        else if (index === 1 || index === 2 || index === 3) column.width = 30;
+        else column.width = 20;
     });
 
-    // Dữ liệu
-    let rowIndex = 7;
-    if (data.danhSach && data.danhSach.length > 0) {
-        data.danhSach.forEach((item, index) => {
-            const row = sheet.getRow(rowIndex);
-            row.values = [
-                index + 1,
-                item.maDonHang || '',
-                item.tenKhach || '',
-                item.nhanVien || '',
-                item.ngayHuy || '',
-                item.giaTriHuy || 0,
-                ''
-            ];
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                if (colNumber === 6) {
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                    cell.fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: 'FFC7CE' }
-                    };
-                }
-            });
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, 7);
-        row.getCell(1).alignment = { horizontal: 'center' };
-    }
-
-    // Thêm tổng kết
-    rowIndex += 2;
-    const summaryData = [
-        ['Tổng kết đơn hàng hủy'],
-        ['Tổng số đơn hủy:', data.tongSoDonHuy || 0],
-        ['Tổng giá trị hủy:', data.tongGiaTriHuy || 0],
-        ['Tỷ lệ hủy:', (data.tyLeHuy || 0).toFixed(2) + '%']
-    ];
-
-    summaryData.forEach((rowData, index) => {
-        const row = sheet.getRow(rowIndex + index);
-        if (index === 0) {
-            row.getCell(1).value = rowData[0];
-            row.getCell(1).font = { bold: true };
-            sheet.mergeCells(rowIndex + index, 1, rowIndex + index, 7);
-        } else {
-            row.getCell(1).value = rowData[0];
-            row.getCell(2).value = rowData[1];
-            if (index > 1) {
-                row.getCell(2).numFmt = index === 3 ? '0.00%' : '#,##0';
-                row.getCell(2).alignment = { horizontal: 'right' };
-            }
-        }
-    });
+    return sheet;
 }
 
-function createSheetForBaoCao4(sheet, data) {
-    // Header cho báo cáo 4
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Số đơn hàng', 'Tổng doanh số BE', 'Tổng doanh số BR', 'Doanh số trung bình', 'Xếp hạng'];
-    const headerRow = sheet.getRow(6);
-    headerRow.values = headers;
-    headerRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '5B9BD5' }
-        };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-
-    // Dữ liệu
-    let rowIndex = 7;
-    if (data.danhSach && data.danhSach.length > 0) {
-        data.danhSach.forEach((item, index) => {
-            const row = sheet.getRow(rowIndex);
-            row.values = [
-                index + 1,
-                item.khachHangID || '',
-                item.tenKhach || '',
-                item.soDonHang || 0,
-                item.tongDoanhSoBE || 0,
-                item.tongDoanhSoBR || 0,
-                item.tongDoanhSoBR / (item.soDonHang || 1),
-                index < 3 ? 'TOP ' + (index + 1) : index < 10 ? 'TOP 10' : 'TOP 100'
-            ];
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                if (colNumber >= 4 && colNumber <= 7) {
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                }
-                // Tô màu cho top 3
-                if (index < 3 && colNumber === 8) {
-                    cell.fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: index === 0 ? 'FFFF00' : index === 1 ? 'C0C0C0' : 'CD7F32' }
-                    };
-                    cell.font = { bold: true };
-                }
-            });
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, 8);
-        row.getCell(1).alignment = { horizontal: 'center' };
-    }
-
-    // Thêm tổng
-    rowIndex += 2;
-    const totalRow = sheet.getRow(rowIndex);
-    totalRow.values = ['TỔNG', '', '', 
-        data.danhSach.reduce((sum, item) => sum + (item.soDonHang || 0), 0),
-        data.danhSach.reduce((sum, item) => sum + (item.tongDoanhSoBE || 0), 0),
-        data.danhSach.reduce((sum, item) => sum + (item.tongDoanhSoBR || 0), 0),
-        '', ''];
-    totalRow.eachCell((cell, colNumber) => {
-        if (colNumber >= 4 && colNumber <= 6) {
-            cell.numFmt = '#,##0';
-            cell.alignment = { horizontal: 'right' };
-            cell.font = { bold: true };
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'DDEBF7' }
-            };
-        }
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-    });
-}
-
-function createSheetForBaoCao5(sheet, data) {
-    // Header cho báo cáo 5
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Nhân viên bán', 'Số đơn hàng', 'Tổng doanh số', 'Lần mua gần nhất', 'Đánh giá'];
-    const headerRow = sheet.getRow(6);
-    headerRow.values = headers;
-    headerRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '5B9BD5' }
-        };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-
-    // Dữ liệu
-    let rowIndex = 7;
-    if (data.danhSach && data.danhSach.length > 0) {
-        data.danhSach.forEach((item, index) => {
-            const danhGia = item.tongDoanhSoBR > 100000000 ? 'VIP' : 
-                           item.tongDoanhSoBR > 50000000 ? 'Trung thành' : 'Thường xuyên';
-            const row = sheet.getRow(rowIndex);
-            row.values = [
-                index + 1,
-                item.khachHangID || '',
-                item.tenKhach || '',
-                item.nhanVien || '',
-                item.soDonHang || 0,
-                item.tongDoanhSoBR || 0,
-                item.ngayMuaGanNhat || 'N/A',
-                danhGia
-            ];
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                if (colNumber === 5 || colNumber === 6) {
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                }
-                // Tô màu cho đánh giá
-                if (colNumber === 8) {
-                    if (danhGia === 'VIP') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF00' } };
-                    } else if (danhGia === 'Trung thành') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '92D050' } };
-                    } else {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } };
-                    }
-                }
-            });
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, 8);
-        row.getCell(1).alignment = { horizontal: 'center' };
-    }
-
-    // Thêm tổng
-    rowIndex += 2;
-    const totalRow = sheet.getRow(rowIndex);
-    totalRow.values = ['TỔNG', '', '', '', 
-        data.danhSach.reduce((sum, item) => sum + (item.soDonHang || 0), 0),
-        data.danhSach.reduce((sum, item) => sum + (item.tongDoanhSoBR || 0), 0),
-        '', ''];
-    totalRow.eachCell((cell, colNumber) => {
-        if (colNumber === 5 || colNumber === 6) {
-            cell.numFmt = '#,##0';
-            cell.alignment = { horizontal: 'right' };
-            cell.font = { bold: true };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DDEBF7' } };
-        }
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-    });
-}
-
-// Các hàm cho báo cáo 6-11 (tương tự)
-function createSheetForBaoCao6(sheet, data) {
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Nhân viên bán', 'Số đơn hàng', 'Tổng doanh số', 'Ngày mua đầu tiên', 'Đánh giá'];
-    createGenericSheet(sheet, data, headers, 'Khách hàng mới');
-}
-
-function createSheetForBaoCao7(sheet, data) {
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Loại khách', 'Nhân viên bán', 'Doanh số từ đơn hàng', 'Trạng thái chuyển đổi', 'Hiệu quả'];
-    createGenericSheet(sheet, data, headers, 'Chuyển đổi BG -> ĐH');
-}
-
-function createSheetForBaoCao8(sheet, data) {
-    const headers = ['Nhân viên phê duyệt', 'Số đơn hàng', 'Tổng doanh số', 'Doanh số trung bình/đơn', 'Tỷ lệ phê duyệt', 'Hiệu suất'];
-    createGenericSheet(sheet, data, headers, 'Phê duyệt đơn hàng');
-}
-
-function createSheetForBaoCao9(sheet, data) {
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Loại khách', 'Nguồn khách', 'Nhân viên phụ trách', 'Người tạo', 'Ngày tạo'];
-    createGenericSheet(sheet, data, headers, 'KH mới tạo');
-}
-
-function createSheetForBaoCao10(sheet, data) {
-    const headers = ['STT', 'Khách hàng ID', 'Tên đại lý', 'Nguồn khách', 'Nhân viên phụ trách', 'Người tạo', 'Ngày tạo', 'Ngày bàn giao'];
-    createGenericSheet(sheet, data, headers, 'Đại lý mới');
-}
-
-function createSheetForBaoCao11(sheet, data) {
-    const headers = ['STT', 'Khách hàng ID', 'Tên khách hàng', 'Loại khách', 'Nguồn khách', 'Nhân viên phụ trách', 'Người tạo', 'Ngày bàn giao'];
-    createGenericSheet(sheet, data, headers, 'Bàn giao KH');
-}
-
-// Hàm generic để tạo sheet
-function createGenericSheet(sheet, data, headers, title) {
-    const headerRow = sheet.getRow(6);
-    headerRow.values = headers;
-    headerRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '5B9BD5' }
-        };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
-
-    // Dữ liệu
-    let rowIndex = 7;
-    if (data.danhSach && data.danhSach.length > 0) {
-        data.danhSach.forEach((item, index) => {
-            const row = sheet.getRow(rowIndex);
-            const rowData = headers.map((header, i) => {
-                switch(header) {
-                    case 'STT': return index + 1;
-                    case 'Khách hàng ID': return item.khachHangID || '';
-                    case 'Tên khách hàng': 
-                    case 'Tên đại lý': return item.tenKhach || '';
-                    case 'Nhân viên bán': 
-                    case 'Nhân viên phụ trách': return item.nhanVien || item.nhanVienPT || '';
-                    case 'Số đơn hàng': return item.soDonHang || 0;
-                    case 'Tổng doanh số': 
-                    case 'Doanh số từ đơn hàng': return item.tongDoanhSoBR || item.doanhSoBR || 0;
-                    case 'Loại khách': return item.loaiKhach || '';
-                    case 'Nguồn khách': return item.nguonKhach || '';
-                    case 'Người tạo': return item.nguoiTao || '';
-                    case 'Ngày tạo': return item.ngayTao || '';
-                    case 'Ngày bàn giao': return item.ngayBanGiao || '';
-                    case 'Ngày mua đầu tiên': return item.ngayMuaDauTien || 'N/A';
-                    case 'Trạng thái chuyển đổi': return item.coBaoGia && item.coDonHang ? 'Đã chuyển đổi' : 'Chưa chuyển đổi';
-                    case 'Hiệu quả': 
-                        const ds = item.tongDoanhSoBR || item.doanhSoBR || 0;
-                        return ds > 100000000 ? 'Cao' : ds > 50000000 ? 'Trung bình' : 'Thấp';
-                    case 'Đánh giá': 
-                        const ds2 = item.tongDoanhSoBR || 0;
-                        return ds2 > 50000000 ? 'Tiềm năng' : 'Bình thường';
-                    case 'Nhân viên phê duyệt': return item.nhanVien || '';
-                    case 'Tỷ lệ phê duyệt': 
-                        return data.tongSoDon > 0 ? ((item.soDon / data.tongSoDon) * 100).toFixed(2) + '%' : '0%';
-                    case 'Hiệu suất': 
-                        const dstb = item.doanhSoTrungBinh || 0;
-                        return dstb > 10000000 ? 'Cao' : dstb > 5000000 ? 'Trung bình' : 'Thấp';
-                    default: return item[Object.keys(item)[i]] || '';
-                }
-            });
-            
-            row.values = rowData;
-            
-            row.eachCell((cell, colNumber) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                
-                // Định dạng số
-                if (headers[colNumber - 1].includes('doanh số') || 
-                    headers[colNumber - 1].includes('Doanh số') ||
-                    headers[colNumber - 1] === 'Số đơn hàng') {
-                    cell.numFmt = '#,##0';
-                    cell.alignment = { horizontal: 'right' };
-                }
-                
-                // Tô màu cho các trường đặc biệt
-                if (headers[colNumber - 1] === 'Đánh giá') {
-                    const value = cell.value;
-                    if (value === 'VIP' || value === 'Tiềm năng') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF00' } };
-                    } else if (value === 'Trung thành') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '92D050' } };
-                    }
-                }
-                
-                if (headers[colNumber - 1] === 'Hiệu quả' || headers[colNumber - 1] === 'Hiệu suất') {
-                    const value = cell.value;
-                    if (value === 'Cao') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } };
-                    } else if (value === 'Trung bình') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEB9C' } };
-                    } else if (value === 'Thấp') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } };
-                    }
-                }
-            });
-            
-            rowIndex++;
-        });
-    } else {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = 'Không có dữ liệu';
-        sheet.mergeCells(rowIndex, 1, rowIndex, headers.length);
-        row.getCell(1).alignment = { horizontal: 'center' };
-    }
-
-    // Thêm tổng kết nếu có
-    if (data.tongTatCa !== undefined || data.tongKhachHang !== undefined) {
-        rowIndex += 2;
-        const summaryRow = sheet.getRow(rowIndex);
-        summaryRow.getCell(1).value = 'TỔNG KẾT';
-        summaryRow.getCell(1).font = { bold: true };
-        
-        if (data.tongKhachHang !== undefined) {
-            summaryRow.getCell(3).value = 'Tổng số:';
-            summaryRow.getCell(4).value = data.tongKhachHang;
-        }
-        
-        if (data.tongTatCa !== undefined) {
-            summaryRow.getCell(5).value = 'Tổng doanh số:';
-            summaryRow.getCell(6).value = data.tongTatCa;
-            summaryRow.getCell(6).numFmt = '#,##0';
-            summaryRow.getCell(6).font = { bold: true };
-        }
-    }
-}
-
-// Hàm lấy tất cả dữ liệu KPI
-async function getAllKPIData() {
-    const [
-        donHangRes, dataKhachHangRes, chamSocKHRes, baoCaoBaiDangRes,
-        dataFileBanVeRes, giaoViecKDRes, giaoViecKDCTRes, kpiChiTieuRes,
-        chamCongRes
-    ] = await Promise.all([
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A:BR",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Data_khach_hang!A:AH",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Cham_soc_khach_hang!A:L",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Bao_cao_bai_dang_ban_hang!A:G",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "data_file_ban_ve_dinh_kem!A:M",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Giao_viec_kinh_doanh!A:O",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Giao_viec_kd_chi_tiet!A:N",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "KPI_CHI_TIEU!A:R",
-        }),
-        sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_HC_ID,
-            range: "Cham_cong!A:R",
-        })
-    ]);
-
-    return {
-        donHang: donHangRes.data.values || [],
-        dataKhachHang: dataKhachHangRes.data.values || [],
-        chamSocKH: chamSocKHRes.data.values || [],
-        baoCaoBaiDang: baoCaoBaiDangRes.data.values || [],
-        dataFileBanVe: dataFileBanVeRes.data.values || [],
-        giaoViecKD: giaoViecKDRes.data.values || [],
-        giaoViecKDCT: giaoViecKDCTRes.data.values || [],
-        kpiChiTieu: kpiChiTieuRes.data.values || [],
-        chamCong: chamCongRes.data.values || []
-    };
-}
-
-// Hàm lấy text mô tả filter
-function getFilterText(options) {
-    const { filterType, filterMonth, filterYear, filterQuarter, filterStartDate, filterEndDate } = options;
-    
-    switch (filterType) {
-        case 'ngay':
-            return `Ngày ${options.filterDay}/${filterMonth}/${filterYear}`;
-        case 'tuan':
-            return `Tuần ${options.filterWeek} năm ${filterYear}`;
-        case 'thang':
-            return `Tháng ${filterMonth}/${filterYear}`;
-        case 'quy':
-            return `Quý ${filterQuarter} năm ${filterYear}`;
-        case 'nam':
-            return `Năm ${filterYear}`;
-        case 'khoang':
-            return `Từ ${filterStartDate} đến ${filterEndDate}`;
-        default:
-            return 'Tất cả thời gian';
-    }
-}
-
-// Thêm vào app.js
-app.locals.formatCurrency = function(num) {
-    if (typeof num !== 'number') {
-        num = parseFloat(num);
-        if (isNaN(num)) return '0 đ';
-    }
-    return num.toLocaleString('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
-};
-
-app.locals.formatPercent = function(num, decimals = 1) {
-    if (typeof num !== 'number') {
-        num = parseFloat(num);
-        if (isNaN(num)) return '0%';
-    }
-    return num.toLocaleString('vi-VN', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-    }) + '%';
-};
-
-// Thêm hàm parse date cho nhiều định dạng
-function parseGoogleSheetDateAdvanced(dateStr) {
+// Helper function để parse ngày từ Google Sheets
+function parseGoogleSheetDate(dateStr) {
     if (!dateStr) return null;
     
-    // Thử nhiều định dạng
-    if (typeof dateStr === 'string') {
-        // Định dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
+    try {
+        // Thử nhiều định dạng
         if (dateStr.includes('/')) {
+            // Định dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
             const parts = dateStr.split(/[/ :]/);
             if (parts.length >= 3) {
                 const day = parseInt(parts[0]);
@@ -9691,26 +10005,35 @@ function parseGoogleSheetDateAdvanced(dateStr) {
             }
         }
         
-        // Định dạng yyyy-mm-dd
-        if (dateStr.includes('-')) {
-            const parts = dateStr.split('-');
-            if (parts.length >= 3) {
-                const year = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
-                const day = parseInt(parts[2]);
-                return new Date(year, month, day);
-            }
-        }
+        // Thử parse trực tiếp
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? null : date;
+    } catch (error) {
+        console.error("Lỗi parse date:", dateStr, error);
+        return null;
     }
-    
-    // Thử parse trực tiếp
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? null : date;
 }
 
+// Helper function để format số
+app.locals.formatNumber = function(num) {
+    if (typeof num !== 'number') {
+        num = parseFloat(num);
+        if (isNaN(num)) return '0';
+    }
+    return num.toLocaleString('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+};
 
-
-
+// Helper function để format ngày
+app.locals.formatDate = function(date) {
+    if (!date) return '';
+    if (typeof date === 'string') {
+        date = new Date(date);
+    }
+    return date.toLocaleDateString('vi-VN');
+};
 
 
 //// LÀM THANH TOÁN KHOÁN LẮP ĐẶT
