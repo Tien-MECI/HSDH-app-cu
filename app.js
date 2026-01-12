@@ -8216,91 +8216,112 @@ async function getNhanVienList() {
 /**
  * 4.1.1 Báo cáo báo giá & đơn hàng theo nhân viên
  */
-async function getBaoCaoBaoGiaDonHang(filterType = 'month', startDate = null, endDate = null, nhanVien = 'all') {
-    try {
-        console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
-        
-        const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR'); // Vẫn giữ range rộng
-        if (!data || data.length < 2) {
-            console.log('❌ Không có dữ liệu từ sheet Don_hang');
-            return {};
-        }
-        
-        console.log(`✅ Tổng số dòng dữ liệu: ${data.length}`);
-        
-        const headers = data[0];
-        const rows = data.slice(1);
-        
-        // === SỬA QUAN TRỌNG: MAP CHỈ SỐ CỘT BẰNG SỐ (Bắt đầu từ 0) ===
-        // Dựa trên mô tả của bạn: Cột B = index 1, Cột C = index 2, v.v.
-        const colIndex = {
-            ngayTao: 1,           // Cột B (index 1) - Ngày tạo
-            tenNV: 2,            // Cột C (index 2) - Tên nhân viên
-            maNV: 3,             // Cột D (index 3) - Mã nhân viên
-            maDon: 6,            // Cột G (index 6) - Mã đơn
-            tinhTrang: 35,       // Cột AJ (index 35) - Tình trạng
-            trangThaiTao: 38,    // Cột AM (index 38) - Trạng thái tạo (Báo giá/Đơn hàng)
-            pheDuyet: 39,        // Cột AN (index 39) - Phê duyệt
-            nhanVienPheDuyet: 40, // Cột AO (index 40)
-            ngayPheDuyet: 41,    // Cột AP (index 41)
-            thoiGianChot: 48,    // Cột AW (index 48) - Thời gian chốt
-            thanhTien: 56,       // Cột BE (index 56) - Thành tiền
-            doanhSoKPI: 69,      // Cột BR (index 69) - Doanh số tính KPI
-            hoaHongKD: 70,       // Cột BS (index 70) - Hoa hồng KD
-            hoaHongQC: 65        // Cột BN (index 65) - Hoa hồng QC
-        };
-    
-    // Lọc dữ liệu
-     let filteredData = filterByDate(rows, colIndex.ngayTao, filterType, startDate, endDate);
-    
-        if (nhanVien !== 'all') {
-            filteredData = filteredData.filter(row => {
-                const tenNV = row[colIndex.tenNV] || '';
-                const maNV = row[colIndex.maNV] || '';
-                return tenNV === nhanVien || maNV === nhanVien;
-            });
-            console.log(`Sau khi lọc theo nhân viên "${nhanVien}": ${filteredData.length} dòng`);
-        }
-    
+async function getBaoCaoBaoGiaDonHang(
+  filterType = 'month',
+  startDate = null,
+  endDate = null,
+  nhanVien = 'all'
+) {
+  try {
+    console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
+
+    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
+    if (!data || data.length < 2) {
+      console.log('❌ Không có dữ liệu từ sheet Don_hang');
+      return {};
+    }
+
+    console.log(`✅ Tổng số dòng dữ liệu: ${data.length}`);
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Map index cột (bắt đầu từ 0)
+    const colIndex = {
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      maNV: 3,               // D
+      maDon: 6,              // G
+      tinhTrang: 35,         // AJ
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      nhanVienPheDuyet: 40,  // AO
+      ngayPheDuyet: 41,      // AP
+      thoiGianChot: 48,      // AW
+      thanhTien: 56,         // BE
+      hoaHongQC: 65,         // BN
+      doanhSoKPI: 69,        // BR
+      hoaHongKD: 70          // BS
+    };
+
+    // Lọc theo ngày
+    let filteredData = filterByDate(
+      rows,
+      colIndex.ngayTao,
+      filterType,
+      startDate,
+      endDate
+    );
+
+    // Lọc theo nhân viên
+    if (nhanVien !== 'all') {
+      filteredData = filteredData.filter(row => {
+        const tenNV = row[colIndex.tenNV] || '';
+        const maNV = row[colIndex.maNV] || '';
+        return tenNV === nhanVien || maNV === nhanVien;
+      });
+
+      console.log(
+        `Sau khi lọc theo nhân viên "${nhanVien}": ${filteredData.length} dòng`
+      );
+    }
+
     // Nhóm theo nhân viên
     const result = {};
+
     filteredData.forEach(row => {
-            const nv = row[colIndex.tenNV] || 'Chưa xác định';
-            if (!result[nv]) {
-                result[nv] = {
-                    tongBaoGia: 0,
-                    tongDonHang: 0,
-                    tongDoanhSo: 0,
-                    tyLeChuyenDoi: 0
-                };
-            }
-            
-            const trangThai = row[colIndex.trangThaiTao];
-            const tinhTrang = row[colIndex.tinhTrang];
-            
-            if (trangThai === 'Báo giá') {
-                result[nv].tongBaoGia++;
-            } else if (trangThai === 'Đơn hàng') {
-                result[nv].tongDonHang++;
-                
-                // Tính doanh số nếu là đơn hàng hoàn thành
-                if (tinhTrang === 'Kế hoạch sản xuất') {
-                    const doanhSo = parseFloat(row[colIndex.doanhSoKPI] || 0);
-                    result[nv].tongDoanhSo += doanhSo;
-                }
-            }
+      const nv = row[colIndex.tenNV] || 'Chưa xác định';
+
+      if (!result[nv]) {
+        result[nv] = {
+          tongBaoGia: 0,
+          tongDonHang: 0,
+          tongDoanhSo: 0,
+          tyLeChuyenDoi: 0
+        };
+      }
+
+      const trangThai = row[colIndex.trangThaiTao];
+      const tinhTrang = row[colIndex.tinhTrang];
+
+      if (trangThai === 'Báo giá') {
+        result[nv].tongBaoGia++;
+      } else if (trangThai === 'Đơn hàng') {
+        result[nv].tongDonHang++;
+
+        if (tinhTrang === 'Kế hoạch sản xuất') {
+          const doanhSo = Number(row[colIndex.doanhSoKPI]) || 0;
+          result[nv].tongDoanhSo += doanhSo;
+        }
+      }
     });
-    
+
     // Tính tỷ lệ chuyển đổi
     Object.keys(result).forEach(nv => {
-        if (result[nv].tongBaoGia > 0) {
-            result[nv].tyLeChuyenDoi = (result[nv].tongDonHang / result[nv].tongBaoGia) * 100;
-        }
+      if (result[nv].tongBaoGia > 0) {
+        result[nv].tyLeChuyenDoi =
+          (result[nv].tongDonHang / result[nv].tongBaoGia) * 100;
+      }
     });
-    
+
     return result;
-    }
+
+  } catch (error) {
+    console.error('❌ Lỗi getBaoCaoBaoGiaDonHang:', error);
+    throw error; // để API layer xử lý tiếp
+  }
 }
+
 
 /**
  * 4.1.2 Doanh số theo nhân viên
