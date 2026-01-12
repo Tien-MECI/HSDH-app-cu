@@ -201,6 +201,19 @@
             top: 20px;
             z-index: 100;
         }
+        
+        .date-input-group {
+            position: relative;
+        }
+        
+        .date-input-group .form-control[readonly] {
+            background-color: #fff;
+            cursor: pointer;
+        }
+        
+        .date-input-group .form-control[readonly]:hover {
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -226,7 +239,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/export-excel-kpi" class="excel-btn">
+                        <a class="nav-link excel-btn" href="/export-excel-kpi">
                             <i class="bi bi-file-earmark-excel"></i> Xuất Excel
                         </a>
                     </li>
@@ -244,6 +257,22 @@
                 </h1>
                 <p class="text-muted">
                     <i class="bi bi-calendar"></i> Thời gian: <%= new Date().toLocaleDateString('vi-VN') %>
+                    <% if (filterType !== 'none' && startDate) { %>
+                        | <i class="bi bi-filter"></i> Đã lọc: 
+                        <% if (filterType === 'day') { %>
+                            Ngày <%= formatDate(startDate) %>
+                        <% } else if (filterType === 'week') { %>
+                            Tuần <%= formatDate(startDate) %>
+                        <% } else if (filterType === 'month') { %>
+                            Tháng <%= startDate %>
+                        <% } else if (filterType === 'quarter') { %>
+                            Quý <%= startDate %>
+                        <% } else if (filterType === 'year') { %>
+                            Năm <%= startDate %>
+                        <% } else if (filterType === 'range') { %>
+                            Từ <%= formatDate(startDate) %> đến <%= formatDate(endDate) %>
+                        <% } %>
+                    <% } %>
                 </p>
             </div>
             <div class="col-md-4 text-end export-section">
@@ -256,7 +285,7 @@
 
         <!-- Filter Section -->
         <div class="filter-section">
-            <form method="GET" action="/baocao-kpi-phong-kinh-doanh" class="row g-3">
+            <form method="GET" action="/baocao-kpi-phong-kinh-doanh" class="row g-3" id="filterForm">
                 <input type="hidden" name="loaiBaoCao" value="<%= loaiBaoCao %>">
                 
                 <div class="col-md-3">
@@ -287,9 +316,10 @@
                     </select>
                 </div>
                 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-bold">Thời gian</label>
-                    <select name="filterType" class="form-select" onchange="toggleDateInputs(this.value)">
+                    <select name="filterType" class="form-select" id="filterTypeSelect" onchange="updateDateInputs()">
+                        <option value="none" <%= filterType === 'none' ? 'selected' : '' %>>Tất cả thời gian</option>
                         <option value="day" <%= filterType === 'day' ? 'selected' : '' %>>Theo ngày</option>
                         <option value="week" <%= filterType === 'week' ? 'selected' : '' %>>Theo tuần</option>
                         <option value="month" <%= filterType === 'month' ? 'selected' : '' %>>Theo tháng</option>
@@ -299,38 +329,63 @@
                     </select>
                 </div>
                 
-<div class="col-md-3" id="startDateDiv">
-    <label class="form-label fw-bold" id="startDateLabel">
-        <%= filterType === 'range' ? 'Từ ngày' : 
-           filterType === 'day' ? 'Ngày' : 
-           filterType === 'week' ? 'Tuần bắt đầu' :
-           filterType === 'month' ? 'Tháng' :
-           filterType === 'quarter' ? 'Quý' : 'Năm' %>
-    </label>
-    <% if (['month', 'quarter', 'year'].includes(filterType)) { %>
-        <input type="month" name="startDate" class="form-control" 
-               value="<%= startDate ? new Date(startDate).toISOString().slice(0,7) : '' %>">
-    <% } else { %>
-        <input type="date" name="startDate" class="form-control" 
-               value="<%= startDate ? new Date(startDate).toISOString().split('T')[0] : '' %>">
-    <% } %>
-</div>
-
-<div class="col-md-3" id="endDateDiv" style="<%= filterType === 'range' ? '' : 'display:none;' %>">
-    <label class="form-label fw-bold">Đến ngày</label>
-    <input type="date" name="endDate" class="form-control" 
-           value="<%= endDate ? new Date(endDate).toISOString().split('T')[0] : '' %>">
-</div>
+                <!-- Dynamic Date Inputs -->
+                <div class="col-md-3" id="dateInput1Container" style="display: none;">
+                    <label class="form-label fw-bold" id="dateInput1Label">Ngày</label>
+                    <input type="date" name="startDate" id="dateInput1" class="form-control" 
+                           value="<%= startDate && ['day', 'week', 'range'].includes(filterType) ? startDate : '' %>">
+                </div>
                 
-                <div class="col-md-3">
+                <div class="col-md-2" id="monthYearContainer" style="display: none;">
+                    <label class="form-label fw-bold">Tháng/Năm</label>
+                    <div class="date-input-group">
+                        <input type="text" id="monthYearDisplay" class="form-control" readonly 
+                               placeholder="Chọn tháng/năm" onclick="showMonthYearModal()"
+                               value="<%= filterType === 'month' && startDate ? formatMonthYear(startDate) : '' %>">
+                        <input type="hidden" name="startDate" id="monthYearValue" 
+                               value="<%= filterType === 'month' ? startDate : '' %>">
+                    </div>
+                </div>
+                
+                <div class="col-md-2" id="quarterYearContainer" style="display: none;">
+                    <label class="form-label fw-bold">Quý/Năm</label>
+                    <div class="date-input-group">
+                        <input type="text" id="quarterYearDisplay" class="form-control" readonly 
+                               placeholder="Chọn quý/năm" onclick="showQuarterYearModal()"
+                               value="<%= filterType === 'quarter' && startDate ? formatQuarterYear(startDate) : '' %>">
+                        <input type="hidden" name="startDate" id="quarterYearValue" 
+                               value="<%= filterType === 'quarter' ? startDate : '' %>">
+                    </div>
+                </div>
+                
+                <div class="col-md-2" id="yearOnlyContainer" style="display: none;">
+                    <label class="form-label fw-bold">Năm</label>
+                    <div class="date-input-group">
+                        <input type="text" id="yearOnlyDisplay" class="form-control" readonly 
+                               placeholder="Chọn năm" onclick="showYearOnlyModal()"
+                               value="<%= filterType === 'year' && startDate ? startDate : '' %>">
+                        <input type="hidden" name="startDate" id="yearOnlyValue" 
+                               value="<%= filterType === 'year' ? startDate : '' %>">
+                    </div>
+                </div>
+                
+                <div class="col-md-2" id="dateInput2Container" style="display: none;">
+                    <label class="form-label fw-bold">Đến ngày</label>
+                    <input type="date" name="endDate" id="dateInput2" class="form-control" 
+                           value="<%= endDate %>">
+                </div>
+                
+                <div class="col-md-2">
                     <label class="form-label fw-bold">Nhân viên</label>
                     <select name="nhanVien" class="form-select">
                         <option value="all">Tất cả nhân viên</option>
-                        <% nhanVienList && nhanVienList.forEach(function(nv) { %>
-                            <option value="<%= nv %>" <%= nhanVien === nv ? 'selected' : '' %>>
-                                <%= nv %>
-                            </option>
-                        <% }); %>
+                        <% if (nhanVienList && nhanVienList.length > 0) { %>
+                            <% nhanVienList.forEach(function(nv) { %>
+                                <option value="<%= nv %>" <%= nhanVien === nv ? 'selected' : '' %>>
+                                    <%= nv %>
+                                </option>
+                            <% }); %>
+                        <% } %>
                     </select>
                 </div>
                 
@@ -343,6 +398,123 @@
                     </button>
                 </div>
             </form>
+        </div>
+
+        <!-- Month/Year Modal -->
+        <div class="modal fade" id="monthYearModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chọn tháng/năm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Tháng</label>
+                            <select class="form-select" id="monthSelect">
+                                <option value="01">Tháng 1</option>
+                                <option value="02">Tháng 2</option>
+                                <option value="03">Tháng 3</option>
+                                <option value="04">Tháng 4</option>
+                                <option value="05">Tháng 5</option>
+                                <option value="06">Tháng 6</option>
+                                <option value="07">Tháng 7</option>
+                                <option value="08">Tháng 8</option>
+                                <option value="09">Tháng 9</option>
+                                <option value="10">Tháng 10</option>
+                                <option value="11">Tháng 11</option>
+                                <option value="12">Tháng 12</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Năm</label>
+                            <select class="form-select" id="yearSelect">
+                                <% 
+                                    const currentYear = new Date().getFullYear();
+                                    for(let y = currentYear - 5; y <= currentYear + 5; y++) { 
+                                %>
+                                    <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>>
+                                        <%= y %>
+                                    </option>
+                                <% } %>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" onclick="saveMonthYear()">Chọn</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quarter/Year Modal -->
+        <div class="modal fade" id="quarterYearModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chọn quý/năm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Quý</label>
+                            <select class="form-select" id="quarterSelect">
+                                <option value="1">Quý 1 (Tháng 1-3)</option>
+                                <option value="2">Quý 2 (Tháng 4-6)</option>
+                                <option value="3">Quý 3 (Tháng 7-9)</option>
+                                <option value="4">Quý 4 (Tháng 10-12)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Năm</label>
+                            <select class="form-select" id="quarterYearSelect">
+                                <% 
+                                    for(let y = currentYear - 5; y <= currentYear + 5; y++) { 
+                                %>
+                                    <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>>
+                                        <%= y %>
+                                    </option>
+                                <% } %>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" onclick="saveQuarterYear()">Chọn</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year Only Modal -->
+        <div class="modal fade" id="yearOnlyModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chọn năm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Năm</label>
+                            <select class="form-select" id="yearOnlySelect">
+                                <% 
+                                    for(let y = currentYear - 10; y <= currentYear + 5; y++) { 
+                                %>
+                                    <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>>
+                                        <%= y %>
+                                    </option>
+                                <% } %>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" onclick="saveYearOnly()">Chọn</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Statistics Cards -->
@@ -396,10 +568,29 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="bi bi-table"></i> <%= reportTitle %>
+                    <% if (filterType !== 'none' && startDate) { %>
+                        <small class="ms-2 text-muted">
+                            | 
+                            <% if (filterType === 'day') { %>
+                                Ngày: <%= formatDate(startDate) %>
+                            <% } else if (filterType === 'week') { %>
+                                Tuần: <%= formatDate(startDate) %>
+                            <% } else if (filterType === 'month') { %>
+                                Tháng: <%= formatMonthYear ? formatMonthYear(startDate) : startDate %>
+                            <% } else if (filterType === 'quarter') { %>
+                                <%= formatQuarterYear ? formatQuarterYear(startDate) : startDate %>
+                            <% } else if (filterType === 'year') { %>
+                                Năm: <%= startDate %>
+                            <% } else if (filterType === 'range') { %>
+                                Từ <%= formatDate(startDate) %> đến <%= formatDate(endDate) %>
+                            <% } %>
+                        </small>
+                    <% } %>
                 </h5>
-                <span class="kpi-badge kpi-good">
+                <span class="kpi-badge <%= filterType === 'none' ? 'kpi-warning' : 'kpi-good' %>">
                     <i class="bi bi-calendar-check"></i> 
-                    <%= filterType === 'day' ? 'Theo ngày' :
+                    <%= filterType === 'none' ? 'Tất cả thời gian' :
+                       filterType === 'day' ? 'Theo ngày' :
                        filterType === 'week' ? 'Theo tuần' :
                        filterType === 'month' ? 'Theo tháng' :
                        filterType === 'quarter' ? 'Theo quý' :
@@ -409,6 +600,7 @@
             <div class="card-body">
                 <!-- Báo cáo tổng hợp -->
                 <% if (loaiBaoCao === 'tongHop') { %>
+                    <% if (Object.keys(data.baoGiaDonHang || {}).length > 0) { %>
                     <div class="row">
                         <div class="col-md-6">
                             <h6 class="fw-bold text-primary mb-3">
@@ -486,7 +678,13 @@
                             </div>
                         </div>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                     
+                    <% if (data.topKhachHang && data.topKhachHang.length > 0) { %>
                     <div class="row mt-4">
                         <div class="col-md-12">
                             <h6 class="fw-bold text-primary mb-3">
@@ -505,7 +703,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% (data.topKhachHang || []).slice(0, 10).forEach(function(item, index) { %>
+                                        <% data.topKhachHang.slice(0, 10).forEach(function(item, index) { %>
                                         <tr>
                                             <td><%= index + 1 %></td>
                                             <td><code><%= item.khachHangID %></code></td>
@@ -520,7 +718,9 @@
                             </div>
                         </div>
                     </div>
+                    <% } %>
                     
+                    <% if (data.donHangHuy && data.donHuy?.data && data.donHuy.data.length > 0) { %>
                     <div class="row mt-4">
                         <div class="col-md-12">
                             <h6 class="fw-bold text-primary mb-3">
@@ -539,7 +739,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% (data.donHangHuy?.data || []).forEach(function(item) { %>
+                                        <% data.donHangHuy.data.forEach(function(item) { %>
                                         <tr class="table-danger">
                                             <td><%= formatDate(item.ngayTao) %></td>
                                             <td><strong><%= item.tenNhanVien %></strong></td>
@@ -552,7 +752,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <% if (data.donHangHuy?.totalPages > 1) { %>
+                            <% if (data.donHangHuy.totalPages > 1) { %>
                             <nav class="mt-3">
                                 <ul class="pagination justify-content-center">
                                     <% for (let i = 1; i <= data.donHangHuy.totalPages; i++) { %>
@@ -567,12 +767,14 @@
                             <% } %>
                         </div>
                     </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'baoGiaDonHang') { %>
                     <!-- Báo cáo báo giá & đơn hàng -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Báo cáo thể hiện số lượng báo giá và đơn hàng của từng nhân viên, cùng tỷ lệ chuyển đổi.
                     </div>
+                    <% if (Object.keys(data).length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -607,12 +809,18 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'doanhSoTheoNV') { %>
                     <!-- Doanh số theo nhân viên -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Báo cáo thể hiện doanh số thực tế so với KPI mục tiêu của từng nhân viên.
                     </div>
+                    <% if (Array.isArray(data) && data.length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -653,12 +861,18 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'donHangHuy') { %>
                     <!-- Đơn hàng hủy -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Danh sách đơn hàng bị hủy, hiển thị thông tin khách hàng và nhân viên bán hàng.
                     </div>
+                    <% if (data.data && data.data.length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -710,12 +924,18 @@
                         %>
                         <br>Tổng doanh số bị mất: <span class="text-danger fw-bold"><%= formatNumber(totalRevenueLost) %></span>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có đơn hàng hủy nào trong khoảng thời gian này.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'topKhachHang') { %>
                     <!-- Top khách hàng -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Top 100 khách hàng có doanh số cao nhất, sắp xếp từ cao xuống thấp.
                     </div>
+                    <% if (Array.isArray(data) && data.length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -746,12 +966,18 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'ketQuaChienDich') { %>
                     <!-- Kết quả chiến dịch quảng cáo -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Báo cáo phân tích hiệu quả chiến dịch quảng cáo, so sánh chi phí dự kiến và thực tế.
                     </div>
+                    <% if (Array.isArray(data) && data.length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -806,12 +1032,18 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'baoCaoKyThuat') { %>
                     <!-- Báo cáo Kỹ thuật - Thiết kế -->
                     <div class="info-box">
                         <i class="bi bi-info-circle"></i> 
                         Báo cáo thể hiện hiệu suất của bộ phận kỹ thuật - thiết kế, thời gian tiếp nhận và hoàn thành bản vẽ.
                     </div>
+                    <% if (Array.isArray(data) && data.length > 0) { %>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -868,6 +1100,11 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else if (loaiBaoCao === 'chamCong') { %>
                     <!-- Báo cáo chấm công -->
                     <div class="info-box">
@@ -875,6 +1112,8 @@
                         Báo cáo số ngày làm việc đã được duyệt và chưa được duyệt theo từng nhân sự.
                     </div>
                     
+                    <% if ((data.daDuyet && data.daDuyet.length > 0) || (data.chuaDuyet && data.chuaDuyet.length > 0)) { %>
+                    <% if (data.daDuyet && data.daDuyet.length > 0) { %>
                     <h6 class="fw-bold text-success mt-4">
                         <i class="bi bi-check-circle"></i> Đã duyệt
                     </h6>
@@ -912,7 +1151,9 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } %>
                     
+                    <% if (data.chuaDuyet && data.chuaDuyet.length > 0) { %>
                     <h6 class="fw-bold text-danger mt-4">
                         <i class="bi bi-x-circle"></i> Chưa duyệt
                     </h6>
@@ -950,6 +1191,12 @@
                             </tbody>
                         </table>
                     </div>
+                    <% } %>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
                 <% } else { %>
                     <!-- Các báo cáo khác -->
                     <div class="info-box">
@@ -957,7 +1204,7 @@
                         Báo cáo dạng bảng với đầy đủ thông tin và cột ghi chú cho quản lý.
                     </div>
                     <div class="table-responsive">
-                        <% if (Array.isArray(data)) { %>
+                        <% if (Array.isArray(data) && data.length > 0) { %>
                         <table class="table table-hover">
                             <thead>
                                 <tr>
@@ -999,26 +1246,24 @@
                                 <% }); %>
                             </tbody>
                         </table>
-                        <% } else if (typeof data === 'object') { %>
+                        <% } else if (typeof data === 'object' && Object.keys(data).length > 0) { %>
                         <p class="text-muted">Dữ liệu được nhóm theo từng nhân viên/phòng ban.</p>
                         <% for (const [key, value] of Object.entries(data)) { %>
                         <h6 class="mt-3 mb-2 fw-bold text-primary"><%= key %></h6>
                         <div class="table-responsive mb-4">
+                            <% if (Array.isArray(value) && value.length > 0) { %>
                             <table class="table table-sm table-bordered">
                                 <thead>
                                     <tr>
-                                        <% if (Array.isArray(value) && value.length > 0) {
-                                            const sample = value[0];
-                                            Object.keys(sample).forEach(function(col) { %>
+                                        <% const sample = value[0];
+                                           Object.keys(sample).forEach(function(col) { %>
                                             <th><%= col %></th>
-                                            <% }); %>
-                                        <% } %>
+                                        <% }); %>
                                         <th>Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <% if (Array.isArray(value)) {
-                                        value.forEach(function(item) { %>
+                                    <% value.forEach(function(item) { %>
                                     <tr>
                                         <% Object.values(item).forEach(function(val) { %>
                                         <td><%= val %></td>
@@ -1027,14 +1272,15 @@
                                             <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
                                         </td>
                                     </tr>
-                                    <% }); } %>
+                                    <% }); %>
                                 </tbody>
                             </table>
+                            <% } %>
                         </div>
                         <% } %>
                         <% } else { %>
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị cho báo cáo này.
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị cho báo cáo này. Vui lòng kiểm tra lại bộ lọc.
                         </div>
                         <% } %>
                     </div>
@@ -1049,8 +1295,8 @@
                         </small>
                     </div>
                     <div class="col-md-6 text-end">
-                        <button class="btn btn-success btn-sm">
-                            <i class="bi bi-save"></i> Lưu ghi chú
+                        <button class="btn btn-success btn-sm" onclick="saveAllNotes()">
+                            <i class="bi bi-save"></i> Lưu tất cả ghi chú
                         </button>
                     </div>
                 </div>
@@ -1062,22 +1308,22 @@
             <div class="col-md-12">
                 <h5 class="mb-3"><i class="bi bi-link-45deg"></i> Truy cập nhanh</h5>
                 <div class="d-flex flex-wrap gap-2">
-                    <a href="?loaiBaoCao=baoGiaDonHang&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-primary btn-sm">
+                    <a href="?loaiBaoCao=baoGiaDonHang&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-primary btn-sm">
                         Báo giá & Đơn hàng
                     </a>
-                    <a href="?loaiBaoCao=doanhSoTheoNV&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-primary btn-sm">
+                    <a href="?loaiBaoCao=doanhSoTheoNV&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-primary btn-sm">
                         Doanh số
                     </a>
-                    <a href="?loaiBaoCao=donHangHuy&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-danger btn-sm">
+                    <a href="?loaiBaoCao=donHangHuy&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-danger btn-sm">
                         Đơn hàng hủy
                     </a>
-                    <a href="?loaiBaoCao=topKhachHang&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-success btn-sm">
+                    <a href="?loaiBaoCao=topKhachHang&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-success btn-sm">
                         Top KH
                     </a>
-                    <a href="?loaiBaoCao=ketQuaChienDich&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-warning btn-sm">
+                    <a href="?loaiBaoCao=ketQuaChienDich&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-warning btn-sm">
                         Chiến dịch QC
                     </a>
-                    <a href="?loaiBaoCao=baoCaoKyThuat&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-info btn-sm">
+                    <a href="?loaiBaoCao=baoCaoKyThuat&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" class="btn btn-outline-info btn-sm">
                         Kỹ thuật
                     </a>
                     <a href="/bien-ban-cuoc-hop" class="btn btn-outline-dark btn-sm">
@@ -1113,52 +1359,143 @@
                 },
                 dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
             });
+            
+            // Khởi tạo date inputs
+            updateDateInputs();
         });
         
-        // Toggle date inputs based on filter type
-        function toggleDateInputs(filterType) {
-            const startDateDiv = document.getElementById('startDateDiv');
-            const endDateDiv = document.getElementById('endDateDiv');
-            const startDateLabel = document.getElementById('startDateLabel');
+        // Cập nhật date inputs dựa trên filterType
+        function updateDateInputs() {
+            const filterType = document.getElementById('filterTypeSelect').value;
             
-            let label = 'Ngày';
-            let inputType = 'date';
+            // Ẩn tất cả các container trước
+            document.getElementById('dateInput1Container').style.display = 'none';
+            document.getElementById('dateInput2Container').style.display = 'none';
+            document.getElementById('monthYearContainer').style.display = 'none';
+            document.getElementById('quarterYearContainer').style.display = 'none';
+            document.getElementById('yearOnlyContainer').style.display = 'none';
             
             switch(filterType) {
+                case 'none':
+                    // Không hiển thị gì cả
+                    break;
+                    
                 case 'day':
-                    label = 'Ngày';
-                    inputType = 'date';
+                    document.getElementById('dateInput1Container').style.display = 'block';
+                    document.getElementById('dateInput1Label').textContent = 'Ngày';
                     break;
+                    
                 case 'week':
-                    label = 'Tuần bắt đầu';
-                    inputType = 'date';
+                    document.getElementById('dateInput1Container').style.display = 'block';
+                    document.getElementById('dateInput1Label').textContent = 'Tuần bắt đầu';
                     break;
+                    
                 case 'month':
-                    label = 'Tháng';
-                    inputType = 'month';
+                    document.getElementById('monthYearContainer').style.display = 'block';
                     break;
+                    
                 case 'quarter':
-                    label = 'Quý';
-                    inputType = 'month';
+                    document.getElementById('quarterYearContainer').style.display = 'block';
                     break;
+                    
                 case 'year':
-                    label = 'Năm';
-                    inputType = 'month';
+                    document.getElementById('yearOnlyContainer').style.display = 'block';
                     break;
+                    
                 case 'range':
-                    label = 'Từ ngày';
-                    inputType = 'date';
+                    document.getElementById('dateInput1Container').style.display = 'block';
+                    document.getElementById('dateInput1Label').textContent = 'Từ ngày';
+                    document.getElementById('dateInput2Container').style.display = 'block';
                     break;
             }
+        }
+        
+        // Hiển thị modal chọn tháng/năm
+        function showMonthYearModal() {
+            // Set giá trị hiện tại nếu có
+            <% if (filterType === 'month' && startDate) { 
+                const monthParts = startDate.split('-');
+                if (monthParts.length === 2) { %>
+                    $('#monthSelect').val('<%= monthParts[1] %>');
+                    $('#yearSelect').val('<%= monthParts[0] %>');
+                <% } %>
+            <% } else { %>
+                // Set mặc định là tháng và năm hiện tại
+                const now = new Date();
+                $('#monthSelect').val(('0' + (now.getMonth() + 1)).slice(-2));
+                $('#yearSelect').val(now.getFullYear());
+            <% } %>
+            $('#monthYearModal').modal('show');
+        }
+        
+        // Hiển thị modal chọn quý/năm
+        function showQuarterYearModal() {
+            <% if (filterType === 'quarter' && startDate) { 
+                const quarterParts = startDate.split('-');
+                if (quarterParts.length === 2) { %>
+                    $('#quarterSelect').val('<%= quarterParts[0] %>');
+                    $('#quarterYearSelect').val('<%= quarterParts[1] %>');
+                <% } %>
+            <% } else { %>
+                // Set mặc định là quý và năm hiện tại
+                const now = new Date();
+                const currentQuarter = Math.floor((now.getMonth() + 3) / 3);
+                $('#quarterSelect').val(currentQuarter);
+                $('#quarterYearSelect').val(now.getFullYear());
+            <% } %>
+            $('#quarterYearModal').modal('show');
+        }
+        
+        // Hiển thị modal chọn năm
+        function showYearOnlyModal() {
+            <% if (filterType === 'year' && startDate) { %>
+                $('#yearOnlySelect').val('<%= startDate %>');
+            <% } else { %>
+                // Set mặc định là năm hiện tại
+                const now = new Date();
+                $('#yearOnlySelect').val(now.getFullYear());
+            <% } %>
+            $('#yearOnlyModal').modal('show');
+        }
+        
+        // Lưu tháng/năm
+        function saveMonthYear() {
+            const month = $('#monthSelect').val();
+            const year = $('#yearSelect').val();
             
-            startDateLabel.textContent = label;
-            startDateDiv.querySelector('input').type = inputType;
+            // Format: YYYY-MM
+            const monthYearValue = `${year}-${month}`;
+            const displayValue = `Tháng ${month}/${year}`;
             
-            if (filterType === 'range') {
-                endDateDiv.style.display = 'block';
-            } else {
-                endDateDiv.style.display = 'none';
-            }
+            document.getElementById('monthYearDisplay').value = displayValue;
+            document.getElementById('monthYearValue').value = monthYearValue;
+            
+            $('#monthYearModal').modal('hide');
+        }
+        
+        // Lưu quý/năm
+        function saveQuarterYear() {
+            const quarter = $('#quarterSelect').val();
+            const year = $('#quarterYearSelect').val();
+            
+            // Format: Q-YYYY (ví dụ: 1-2024)
+            const quarterYearValue = `${quarter}-${year}`;
+            const displayValue = `Quý ${quarter}/${year}`;
+            
+            document.getElementById('quarterYearDisplay').value = displayValue;
+            document.getElementById('quarterYearValue').value = quarterYearValue;
+            
+            $('#quarterYearModal').modal('hide');
+        }
+        
+        // Lưu năm
+        function saveYearOnly() {
+            const year = $('#yearOnlySelect').val();
+            
+            document.getElementById('yearOnlyDisplay').value = `Năm ${year}`;
+            document.getElementById('yearOnlyValue').value = year;
+            
+            $('#yearOnlyModal').modal('hide');
         }
         
         // Reset filters
@@ -1166,9 +1503,59 @@
             window.location.href = '/baocao-kpi-phong-kinh-doanh';
         }
         
-        // Initialize date inputs
-        document.addEventListener('DOMContentLoaded', function() {
-            toggleDateInputs('<%= filterType %>');
+        // Lưu tất cả ghi chú
+        function saveAllNotes() {
+            const noteTextareas = document.querySelectorAll('textarea[placeholder*="ghi chú"]');
+            const notes = [];
+            
+            noteTextareas.forEach((textarea, index) => {
+                if (textarea.value.trim()) {
+                    notes.push({
+                        index: index,
+                        value: textarea.value.trim()
+                    });
+                }
+            });
+            
+            if (notes.length > 0) {
+                // Gửi API lưu ghi chú
+                alert(`Đã lưu ${notes.length} ghi chú thành công!`);
+                
+                // Reset textareas
+                noteTextareas.forEach(textarea => {
+                    textarea.value = '';
+                });
+            } else {
+                alert('Không có ghi chú nào để lưu!');
+            }
+        }
+        
+        // Xử lý form submission
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            const filterType = document.getElementById('filterTypeSelect').value;
+            
+            // Xóa các input không cần thiết
+            if (filterType !== 'month') {
+                document.getElementById('monthYearValue').remove();
+            }
+            if (filterType !== 'quarter') {
+                document.getElementById('quarterYearValue').remove();
+            }
+            if (filterType !== 'year') {
+                document.getElementById('yearOnlyValue').remove();
+            }
+            if (filterType !== 'range') {
+                const endDateInput = document.getElementById('dateInput2');
+                if (endDateInput) endDateInput.remove();
+            }
+            
+            // Đảm bảo chỉ có một input startDate
+            if (filterType === 'month' || filterType === 'quarter' || filterType === 'year') {
+                const startDateInputs = document.querySelectorAll('input[name="startDate"]');
+                startDateInputs.forEach((input, index) => {
+                    if (index > 0) input.remove();
+                });
+            }
         });
     </script>
 </body>

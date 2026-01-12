@@ -7935,22 +7935,65 @@ async function readSheet(spreadsheetId, range) {
 }
 
 /**
- * Parse date từ nhiều định dạng - FIXED cho dd/mm/yyyy
+ * Parse date từ nhiều định dạng - FIXED cho các định dạng mới
  */
 function parseDate(dateStr) {
-    if (!dateStr) return null;
+    if (!dateStr || dateStr === '' || dateStr === undefined || dateStr === null) {
+        return null;
+    }
     
     // Nếu là số serial Excel
     if (typeof dateStr === 'number') {
-        const date = new Date((dateStr - 25569) * 86400 * 1000);
-        return date;
+        try {
+            const date = new Date((dateStr - 25569) * 86400 * 1000);
+            return isNaN(date.getTime()) ? null : date;
+        } catch (error) {
+            return null;
+        }
     }
     
     // Nếu là chuỗi
     if (typeof dateStr === 'string') {
         dateStr = dateStr.trim();
+        if (dateStr === '') return null;
         
-        // Định dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
+        // 1. Định dạng YYYY-MM (tháng/năm)
+        const monthYearMatch = /^(\d{4})-(\d{1,2})$/.exec(dateStr);
+        if (monthYearMatch) {
+            try {
+                const year = parseInt(monthYearMatch[1], 10);
+                const month = parseInt(monthYearMatch[2], 10) - 1;
+                return new Date(year, month, 1); // Ngày đầu tháng
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        // 2. Định dạng Q-YYYY (quý/năm)
+        const quarterYearMatch = /^(\d{1})-(\d{4})$/.exec(dateStr);
+        if (quarterYearMatch) {
+            try {
+                const quarter = parseInt(quarterYearMatch[1], 10);
+                const year = parseInt(quarterYearMatch[2], 10);
+                const month = (quarter - 1) * 3; // Quý 1: tháng 0-2, Quý 2: tháng 3-5, v.v.
+                return new Date(year, month, 1); // Ngày đầu quý
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        // 3. Định dạng YYYY (chỉ năm)
+        const yearOnlyMatch = /^(\d{4})$/.exec(dateStr);
+        if (yearOnlyMatch) {
+            try {
+                const year = parseInt(yearOnlyMatch[1], 10);
+                return new Date(year, 0, 1); // Ngày đầu năm
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        // 4. Định dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm:ss
         // Pattern 1: dd/mm/yyyy
         const pattern1 = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
         // Pattern 2: dd/mm/yyyy hh:mm:ss hoặc dd/mm/yyyy hh:mm
@@ -7961,39 +8004,55 @@ function parseDate(dateStr) {
         // Thử pattern 2 (có thời gian)
         match = dateStr.match(pattern2);
         if (match) {
-            const day = parseInt(match[1], 10);
-            const month = parseInt(match[2], 10) - 1; // Month is 0-indexed in JS
-            const year = parseInt(match[3], 10);
-            const hour = parseInt(match[4], 10) || 0;
-            const minute = parseInt(match[5], 10) || 0;
-            const second = parseInt(match[6], 10) || 0;
-            
-            return new Date(year, month, day, hour, minute, second);
+            try {
+                const day = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10) - 1;
+                const year = parseInt(match[3], 10);
+                const hour = parseInt(match[4], 10) || 0;
+                const minute = parseInt(match[5], 10) || 0;
+                const second = parseInt(match[6], 10) || 0;
+                
+                return new Date(year, month, day, hour, minute, second);
+            } catch (error) {
+                return null;
+            }
         }
         
         // Thử pattern 1 (chỉ ngày)
         match = dateStr.match(pattern1);
         if (match) {
-            const day = parseInt(match[1], 10);
-            const month = parseInt(match[2], 10) - 1;
-            const year = parseInt(match[3], 10);
-            
-            return new Date(year, month, day);
+            try {
+                const day = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10) - 1;
+                const year = parseInt(match[3], 10);
+                
+                return new Date(year, month, day);
+            } catch (error) {
+                return null;
+            }
         }
         
-        // Thử parse định dạng ISO (yyyy-mm-dd)
+        // 5. Định dạng ISO (yyyy-mm-dd)
         const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
         if (isoMatch) {
-            const year = parseInt(isoMatch[1], 10);
-            const month = parseInt(isoMatch[2], 10) - 1;
-            const day = parseInt(isoMatch[3], 10);
-            return new Date(year, month, day);
+            try {
+                const year = parseInt(isoMatch[1], 10);
+                const month = parseInt(isoMatch[2], 10) - 1;
+                const day = parseInt(isoMatch[3], 10);
+                return new Date(year, month, day);
+            } catch (error) {
+                return null;
+            }
         }
         
-        // Thử parse với Date constructor (fallback)
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-            return date;
+        // 6. Thử parse với Date constructor (fallback)
+        try {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+        } catch (error) {
+            return null;
         }
     }
     
@@ -8006,13 +8065,30 @@ function parseDate(dateStr) {
  * Lọc dữ liệu theo thời gian
  */
 function filterByDate(data, dateField, filterType, startDate, endDate) {
-    if (!data || data.length === 0) return data;
+    if (!data || data.length === 0 || dateField === -1) {
+        console.log(`⚠️ Không có dữ liệu hoặc cột ngày không tồn tại: dateField=${dateField}`);
+        return data || [];
+    }
+    
+    // Nếu không có điều kiện lọc, trả về toàn bộ dữ liệu
+    if (!filterType || filterType === 'none') {
+        return data;
+    }
+    
+    // Nếu không có startDate, trả về toàn bộ dữ liệu
+    if (!startDate) {
+        return data;
+    }
     
     return data.filter(row => {
+        // Kiểm tra nếu row tồn tại và có giá trị tại cột dateField
+        if (!row || row[dateField] === undefined || row[dateField] === null || row[dateField] === '') {
+            return false; // Bỏ qua dòng không có ngày
+        }
+        
         const rowDate = parseDate(row[dateField]);
         if (!rowDate) {
-            console.log(`Không thể parse date: ${row[dateField]}`);
-            return false;
+            return false; // Bỏ qua dòng không parse được ngày
         }
         
         // Reset time part for day comparison
@@ -8020,47 +8096,42 @@ function filterByDate(data, dateField, filterType, startDate, endDate) {
         
         switch(filterType) {
             case 'day':
-                if (!startDate) return true;
                 const filterDay = parseDate(startDate);
-                if (!filterDay) return true;
+                if (!filterDay) return false;
                 const filterDayOnly = new Date(filterDay.getFullYear(), filterDay.getMonth(), filterDay.getDate());
                 return rowDateOnly.getTime() === filterDayOnly.getTime();
                 
             case 'week':
-                if (!startDate) return true;
                 const filterWeek = parseDate(startDate);
-                if (!filterWeek) return true;
+                if (!filterWeek) return false;
                 const rowWeek = getWeekNumber(rowDate);
                 const filterWeekNum = getWeekNumber(filterWeek);
                 return rowWeek === filterWeekNum && rowDate.getFullYear() === filterWeek.getFullYear();
                 
             case 'month':
-                if (!startDate) return true;
                 const filterMonth = parseDate(startDate);
-                if (!filterMonth) return true;
+                if (!filterMonth) return false;
                 return rowDate.getMonth() === filterMonth.getMonth() && 
                        rowDate.getFullYear() === filterMonth.getFullYear();
                 
             case 'quarter':
-                if (!startDate) return true;
                 const filterQuarterDate = parseDate(startDate);
-                if (!filterQuarterDate) return true;
+                if (!filterQuarterDate) return false;
                 const rowQuarter = getQuarter(rowDate);
                 const filterQuarter = getQuarter(filterQuarterDate);
                 return rowQuarter === filterQuarter && 
                        rowDate.getFullYear() === filterQuarterDate.getFullYear();
                 
             case 'year':
-                if (!startDate) return true;
                 const filterYear = parseDate(startDate);
-                if (!filterYear) return true;
+                if (!filterYear) return false;
                 return rowDate.getFullYear() === filterYear.getFullYear();
                 
             case 'range':
-                if (!startDate || !endDate) return true;
+                if (!endDate) return true;
                 const start = parseDate(startDate);
                 const end = parseDate(endDate);
-                if (!start || !end) return true;
+                if (!start || !end) return false;
                 const startOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
                 const endOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate());
                 return rowDateOnly >= startOnly && rowDateOnly <= endOnly;
@@ -8085,6 +8156,27 @@ function getWeekNumber(date) {
 function getQuarter(date) {
     return Math.ceil((date.getMonth() + 1) / 3);
 }
+
+// ============================================
+// THÊM HÀM ĐỂ CHUYỂN ĐỔI ĐỊNH DẠNG HIỂN THỊ
+// ============================================
+
+app.locals.formatMonthYear = function(dateStr) {
+    if (!dateStr) return '';
+    const date = parseDate(dateStr);
+    if (!date) return dateStr;
+    return date.toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' });
+};
+
+app.locals.formatQuarterYear = function(dateStr) {
+    if (!dateStr) return '';
+    // Định dạng: Q-YYYY
+    const match = /^(\d{1})-(\d{4})$/.exec(dateStr);
+    if (match) {
+        return `Quý ${match[1]}/${match[2]}`;
+    }
+    return dateStr;
+};
 
 // Thêm helper functions vào app.locals
 app.locals.getWeekNumber = getWeekNumber;
@@ -9383,7 +9475,7 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
     try {
         const {
             loaiBaoCao = 'tongHop',
-            filterType = 'month',
+            filterType = 'none', // Mặc định là 'none' thay vì 'month'
             startDate,
             endDate,
             nhanVien = 'all',
@@ -9393,7 +9485,7 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         let data = {};
         let reportTitle = 'Báo cáo tổng hợp KPI';
         
-        // Sửa: Lấy danh sách nhân viên trước khi xử lý - ĐỔI TÊN BIẾN
+        // Lấy danh sách nhân viên
         const dsNhanVien = await getNhanVienList();
         
         // Xử lý các loại báo cáo...
@@ -9529,17 +9621,19 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         res.render('BaocaoKPIphongkinhdoanh', {
             data,
             loaiBaoCao,
-            filterType,
+            filterType: filterType || 'none', // Đảm bảo có giá trị
             startDate,
             endDate,
             nhanVien,
             page: parseInt(page),
             reportTitle,
-            nhanVienList: dsNhanVien, // Truyền với tên cũ cho EJS
+            nhanVienList: dsNhanVien,
             formatNumber: app.locals.formatNumber,
             formatCurrency: app.locals.formatCurrency,
             formatDate: app.locals.formatDate,
-            formatDateTime: app.locals.formatDateTime
+            formatDateTime: app.locals.formatDateTime,
+            formatMonthYear: app.locals.formatMonthYear,
+            formatQuarterYear: app.locals.formatQuarterYear
         });
         
     } catch (error) {
