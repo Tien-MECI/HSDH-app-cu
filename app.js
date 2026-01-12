@@ -8221,7 +8221,7 @@ async function getBaoCaoBaoGiaDonHang(
   startDate = null,
   endDate = null,
   nhanVien = 'all'
-) {
+    ) {
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
 
@@ -8411,22 +8411,22 @@ async function getDonHangHuy(page = 1, pageSize = 10, filterType = 'month', star
     
     const headers = data[0];
     const rows = data.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        tenNV: headers.indexOf('C'),
-        maDon: headers.indexOf('G'),
-        khachHangID: headers.indexOf('H'),
-        tenKhach: headers.indexOf('J'),
-        tinhTrang: headers.indexOf('AJ'),
-        trangThaiTao: headers.indexOf('AM'),
-        thanhTien: headers.indexOf('BE'),
-        doanhSoKPI: headers.indexOf('BR')
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      maDon: 6,              // G
+      khachHangID: 7,        // H
+      tenKhach: 9,           // J
+      tinhTrang: 35,         // AJ
+      trangThaiTao: 38,      // AM
+      thanhTien: 56,         // BE
+      doanhSoKPI: 69,        // BR
     };
     
     // Lọc đơn hàng hủy
     let filteredData = rows.filter(row => 
-        row[colIndex.tinhTrang] === 'Hủy' &&
+        row[colIndex.tinhTrang] === 'Hủy đơn' &&
         row[colIndex.trangThaiTao] === 'Đơn hàng'
     );
     
@@ -8464,15 +8464,16 @@ async function getTopKhachHang(filterType = 'month', startDate = null, endDate =
     const headers = data[0];
     const rows = data.slice(1);
     
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        khachHangID: headers.indexOf('H'),
-        tenKhach: headers.indexOf('J'),
-        tinhTrang: headers.indexOf('AJ'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN'),
-        thanhTien: headers.indexOf('BE'),
-        doanhSoKPI: headers.indexOf('BR')
+      ngayTao: 1,            // B
+      khachHangID: 7,        // H
+      tenKhach: 9,           // J
+      tinhTrang: 35,         // AJ
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      thanhTien: 56,         // BE
+      doanhSoKPI: 69,        // BR
     };
     
     // Lọc đơn hàng đã phê duyệt
@@ -8535,6 +8536,18 @@ async function getDoanhSoKhachHangCu(page = 1, pageSize = 10, filterType = 'mont
         pheDuyet: headers.indexOf('AN'),
         thanhTien: headers.indexOf('BE'),
         doanhSoKPI: headers.indexOf('BR')
+    };
+
+    const colIndex = {
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      khachHangID: 7,        // H
+      tenKhach: 9,           // J
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      thanhTien: 56,         // BE
+      hoaHongQC: 65,         // BN
+      doanhSoKPI: 69,        // BR
     };
     
     // Lọc đơn hàng đã phê duyệt
@@ -8599,16 +8612,16 @@ async function getDoanhSoKhachHangMoi(page = 1, pageSize = 10, filterType = 'mon
     
     const headers = donHangData[0];
     const rows = donHangData.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        tenNV: headers.indexOf('C'),
-        khachHangID: headers.indexOf('H'),
-        tenKhach: headers.indexOf('J'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN'),
-        thanhTien: headers.indexOf('BE'),
-        doanhSoKPI: headers.indexOf('BR')
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      khachHangID: 7,       // H
+      tenKhach: 9,          //  j
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      thanhTien: 56,         // BE
+      doanhSoKPI: 69       // BR
     };
     
     let filteredData = rows.filter(row => 
@@ -8670,16 +8683,17 @@ async function getKhachChuyenDoi(page = 1, pageSize = 10, filterType = 'month', 
     
     const headers = donHangData[0];
     const rows = donHangData.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        tenNV: headers.indexOf('C'),
-        khachHangID: headers.indexOf('H'),
-        tenKhach: headers.indexOf('J'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN'),
-        thanhTien: headers.indexOf('BE'),
-        doanhSoKPI: headers.indexOf('BR')
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      maDon: 6,              // G
+      khachHangID: 7,        // H
+      tenKhach: 9,          // J
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      thanhTien: 56,         // BE
+      doanhSoKPI: 69,        // BR
     };
     
     // Tìm khách có cả báo giá và đơn hàng
@@ -8736,12 +8750,12 @@ async function getDonHangPheDuyet(filterType = 'month', startDate = null, endDat
     
     const headers = data[0];
     const rows = data.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        nhanVienPheDuyet: headers.indexOf('AO'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN')
+      ngayTao: 1,            // B
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      nhanVienPheDuyet: 40,  // AO
     };
     
     let filteredData = rows.filter(row => 
@@ -8777,12 +8791,12 @@ async function getKhachHangMoi(filterType = 'month', startDate = null, endDate =
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayTao: headers.indexOf('AG'),
-        nguoiTao: headers.indexOf('AH'),
-        khachHangID: headers.indexOf('C'),
-        loaiKhach: headers.indexOf('D'),
-        tenKhach: headers.indexOf('E'),
-        nguonKhach: headers.indexOf('AC')
+        ngayTao: 19,    // headers.indexOf('AG'),
+        nguoiTao: 20,   // headers.indexOf('AH'),
+        khachHangID: 2, // headers.indexOf('C'),
+        loaiKhach: 3,   // headers.indexOf('D'),
+        tenKhach: 4,     // headers.indexOf('E'),
+        nguonKhach: 15   // headers.indexOf('AC')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayTao, filterType, startDate, endDate);
@@ -8816,13 +8830,13 @@ async function getKhachHangDaiLyMoi(filterType = 'month', startDate = null, endD
     
     const headers = data[0];
     const rows = data.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('AG'),
-        nguoiTao: headers.indexOf('AH'),
-        khachHangID: headers.indexOf('C'),
-        loaiKhach: headers.indexOf('D'),
-        tenKhach: headers.indexOf('E')
+        ngayTao: 19,    // headers.indexOf('T'),
+        nguoiTao: 20,   // headers.indexOf('U'),
+        khachHangID: 2, // headers.indexOf('C'),
+        loaiKhach: 3,   // headers.indexOf('D'),
+        tenKhach: 4,     // headers.indexOf('E'),
     };
     
     let filteredData = rows.filter(row => row[colIndex.loaiKhach] === 'Đại lý');
@@ -8856,11 +8870,11 @@ async function getKhachHangBanGiao(filterType = 'month', startDate = null, endDa
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayBanGiao: headers.indexOf('AF'),
-        nhanVienPhuTrach: headers.indexOf('AE'),
-        khachHangID: headers.indexOf('C'),
-        tenKhach: headers.indexOf('E'),
-        loaiKhach: headers.indexOf('D')
+        ngayBanGiao:18, // headers.indexOf('AF'),
+        nhanVienPhuTrach: 17,   // headers.indexOf('AE'),
+        khachHangID: 2,     // headers.indexOf('C'),
+        tenKhach: 4,        //headers.indexOf('E'),
+        loaiKhach: 3        // headers.indexOf('D')
     };
     
     let filteredData = rows.filter(row => row[colIndex.ngayBanGiao]);
@@ -8893,13 +8907,13 @@ async function getHoaHongKinhDoanh(filterType = 'month', startDate = null, endDa
     
     const headers = data[0];
     const rows = data.slice(1);
-    
+
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        tenNV: headers.indexOf('C'),
-        hoaHongKD: headers.indexOf('BS'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN')
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      hoaHongKD: 70          // BS
     };
     
     let filteredData = rows.filter(row => 
@@ -8940,17 +8954,19 @@ async function getHoaHongQuangCao(filterType = 'month', startDate = null, endDat
     const khachHangHeaders = khachHangData[0];
     
     const donHangColIndex = {
-        ngayTao: donHangHeaders.indexOf('B'),
-        khachHangID: donHangHeaders.indexOf('H'),
-        hoaHongQC: donHangHeaders.indexOf('BN'),
-        trangThaiTao: donHangHeaders.indexOf('AM'),
-        pheDuyet: donHangHeaders.indexOf('AN')
+      ngayTao: 1,            // B
+      khachHangID: 7,        // H
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      hoaHongQC: 65,         // BN
     };
-    
+
     const khachHangColIndex = {
-        khachHangID: khachHangHeaders.indexOf('C'),
-        nguoiTao: khachHangHeaders.indexOf('AH')
+        khachHangID: 2,  // khachHangHeaders.indexOf('C'),
+        nguoiTao: 20    // khachHangHeaders.indexOf('AH')
     };
+
+    
     
     // Tạo map khách hàng - người tạo
     const khachHangMap = {};
@@ -8999,10 +9015,10 @@ async function getBaiDangBanHang(filterType = 'month', startDate = null, endDate
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayBaoCao: headers.indexOf('D'),
-        tenNV: headers.indexOf('C'),
-        kenhDang: headers.indexOf('E'),
-        link: headers.indexOf('F')
+        ngayBaoCao: 3,      //headers.indexOf('D'),
+        tenNV: 2,           //headers.indexOf('C'),
+        kenhDang: 4,        //headers.indexOf('E'),
+        link: 5B9BD5        //headers.indexOf('F')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayBaoCao, filterType, startDate, endDate);
@@ -9052,15 +9068,15 @@ async function getKetQuaChienDich(filterType = 'month', startDate = null, endDat
     const rows = chienDichData.slice(1);
     
     const colIndex = {
-        thangNam: headers.indexOf('D'),
-        maChienDich: headers.indexOf('B'),
-        tenChienDich: headers.indexOf('E'),
-        kenhChay: headers.indexOf('F'),
-        chiPhiDuKien: headers.indexOf('G'),
-        chiPhiThucTe: headers.indexOf('H'),
-        soLead: headers.indexOf('I'),
-        nhanSuPhuTrach: headers.indexOf('K'),
-        ngayTao: headers.indexOf('M')
+        thangNam: 3,        //headers.indexOf('D'),
+        maChienDich: 1,     // headers.indexOf('B'),
+        tenChienDich: 4,    //headers.indexOf('E'),
+        kenhChay: 5,        // headers.indexOf('F'),
+        chiPhiDuKien: 6,    // headers.indexOf('G'),
+        chiPhiThucTe: 7,    //headers.indexOf('H'),
+        soLead: 8,          //headers.indexOf('I'),
+        nhanSuPhuTrach: 10, //headers.indexOf('K'),
+        ngayTao: 12         //headers.indexOf('M')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayTao, filterType, startDate, endDate);
@@ -9106,16 +9122,16 @@ async function getChamSocKhachHang(filterType = 'month', startDate = null, endDa
     const rows = chamSocData.slice(1);
     
     const colIndex = {
-        ngayChamSoc: headers.indexOf('F'),
-        tenNV: headers.indexOf('H'),
-        maNV: headers.indexOf('G'),
-        khachHangID: headers.indexOf('B'),
-        tenKhach: headers.indexOf('C'),
-        hinhThuc: headers.indexOf('D'),
-        noiDung: headers.indexOf('E'),
-        ketQua: headers.indexOf('I'),
-        noiDungTiep: headers.indexOf('J'),
-        ngayHenTiep: headers.indexOf('K')
+        ngayChamSoc: 5,         //headers.indexOf('F'),
+        tenNV: 7,               //headers.indexOf('H'),
+        maNV: 6,                //headers.indexOf('G'),
+        khachHangID: 1,         //headers.indexOf('B'),
+        tenKhach: 2,            //headers.indexOf('C'),
+        hinhThuc: 3,            //headers.indexOf('D'),
+        noiDung: 4,             //headers.indexOf('E'),
+        ketQua: 8,              //headers.indexOf('I'),
+        noiDungTiep: 9,         //headers.indexOf('J'),
+        ngayHenTiep: 10         //headers.indexOf('K')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayChamSoc, filterType, startDate, endDate);
@@ -9168,13 +9184,13 @@ async function getBaoCaoKyThuat(filterType = 'month', startDate = null, endDate 
     const rows = data.slice(1);
     
     const colIndex = {
-        maDonHang: headers.indexOf('B'),
-        soLanThietKe: headers.indexOf('C'),
-        loaiBanVe: headers.indexOf('J'),
-        thoiGianBatDau: headers.indexOf('K'),
-        thoiGianTiepNhan: headers.indexOf('L'),
-        thoiGianHoanThanh: headers.indexOf('M'),
-        nhanSuKyThuat: headers.indexOf('N')
+        maDonHang: 1,       //headers.indexOf('B'),
+        soLanThietKe: 2,        //headers.indexOf('C'),
+        loaiBanVe: 9,       //headers.indexOf('J'),
+        thoiGianBatDau: 10,     // headers.indexOf('K'),
+        thoiGianTiepNhan: 11,   // headers.indexOf('L'),
+        thoiGianHoanThanh: 12,      //headers.indexOf('M'),
+        nhanSuKyThuat: 13           //headers.indexOf('N')
     };
     
     let filteredData = filterByDate(rows, colIndex.thoiGianTiepNhan, filterType, startDate, endDate);
@@ -9226,10 +9242,10 @@ async function getBaoCaoThucHienCV(filterType = 'month', startDate = null, endDa
     const rows = giaoViecData.slice(1);
     
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        nguoiTiepNhan: headers.indexOf('J'),
-        maNguoiTiepNhan: headers.indexOf('K'),
-        tenCongViec: headers.indexOf('H')
+        ngayTao: 1,     //headers.indexOf('B'),
+        nguoiTiepNhan: 9,   //headers.indexOf('J'),
+        maNguoiTiepNhan: 10,    // headers.indexOf('K'),
+        tenCongViec: 7      //headers.indexOf('H')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayTao, filterType, startDate, endDate);
@@ -9284,12 +9300,12 @@ async function getBaoCaoChamCong(filterType = 'month', startDate = null, endDate
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        trangThai: headers.indexOf('C'),
-        loaiViec: headers.indexOf('D'),
-        nguoiTao: headers.indexOf('L'),
-        boPhan: headers.indexOf('N'),
-        pheDuyet: headers.indexOf('R')
+        ngayTao: 1,     //headers.indexOf('B'),
+        trangThai: 2,       //headers.indexOf('C'),
+        loaiViec: 3,        //headers.indexOf('D'),
+        nguoiTao: 11,       //headers.indexOf('L'),
+        boPhan: 13,         //headers.indexOf('N'),
+        pheDuyet: 17        //headers.indexOf('R')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayTao, filterType, startDate, endDate);
@@ -9349,12 +9365,12 @@ async function getBaoCaoKhaoSat(filterType = 'month', startDate = null, endDate 
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        loaiViec: headers.indexOf('D'),
-        moTa: headers.indexOf('K'),
-        nguoiTao: headers.indexOf('L'),
-        boPhan: headers.indexOf('N'),
-        pheDuyet: headers.indexOf('R')
+        ngayTao: 1,     //headers.indexOf('B'),
+        trangThai: 2,       //headers.indexOf('C'),
+        loaiViec: 3,        //headers.indexOf('D'),
+        nguoiTao: 11,       //headers.indexOf('L'),
+        boPhan: 13,         //headers.indexOf('N'),
+        pheDuyet: 17        //headers.indexOf('R')
     };
     
     let filteredData = rows.filter(row => row[colIndex.loaiViec] === 'Khảo sát công trình');
@@ -9404,12 +9420,12 @@ async function getBaoCaoVanPhong(filterType = 'month', startDate = null, endDate
     const rows = data.slice(1);
     
     const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        loaiViec: headers.indexOf('D'),
-        moTa: headers.indexOf('K'),
-        nguoiTao: headers.indexOf('L'),
-        boPhan: headers.indexOf('N'),
-        pheDuyet: headers.indexOf('R')
+        ngayTao: 1,     //headers.indexOf('B'),
+        trangThai: 2,       //headers.indexOf('C'),
+        loaiViec: 3,        //headers.indexOf('D'),
+        nguoiTao: 11,       //headers.indexOf('L'),
+        boPhan: 13,         //headers.indexOf('N'),
+        pheDuyet: 17        //headers.indexOf('R')
     };
     
     let filteredData = rows.filter(row => row[colIndex.loaiViec] === 'Làm việc tại văn phòng');
