@@ -8299,6 +8299,7 @@ async function getBaoCaoBaoGiaDonHang(filterType = 'month', startDate = null, en
     });
     
     return result;
+    }
 }
 
 /**
