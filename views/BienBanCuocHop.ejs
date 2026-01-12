@@ -448,13 +448,13 @@
                                                placeholder="Tên công việc" required>
                                     </div>
                                     <div class="col-md-3 mb-2">
-                                        <select class="form-select" name="taskAssignees[]" required>
-                                            <option value="">Người phụ trách</option>
-                                            <% if (nhanVienList) { 
-                                                nhanVienList.forEach(function(nv) { %>
-                                                    <option value="<%= nv %>"><%= nv %></option>
-                                            <% }); } %>
-                                        </select>
+    <select class="form-select" name="taskAssignees[]" required>
+    <option value="">Người phụ trách</option>
+    <% if (typeof nhanVienList !== 'undefined' && nhanVienList) { 
+        nhanVienList.forEach(function(nv) { %>
+            <option value="<%= nv %>"><%= nv %></option>
+    <% }); } %>
+    </select>
                                     </div>
                                     <div class="col-md-3 mb-2">
                                         <input type="date" class="form-control" name="taskDeadlines[]" required>
@@ -643,53 +643,56 @@
         
         // Add task
         let taskCount = 1;
-        function addTask() {
-            taskCount++;
-            const tasksList = document.getElementById('tasksList');
-            const newTask = document.createElement('div');
-            newTask.className = 'task-item';
-            newTask.innerHTML = `
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <input type="text" class="form-control" name="tasks[]" 
-                               placeholder="Tên công việc" required>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <select class="form-select" name="taskAssignees[]" required>
-                            <option value="">Người phụ trách</option>
-                            <%= nhanVienList ? nhanVienList.map(nv => `<option value="${nv}">${nv}</option>`).join('') : '' %>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <input type="date" class="form-control" name="taskDeadlines[]" required>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <select class="form-select" name="taskPriorities[]" required>
-                            <option value="High">Cao</option>
-                            <option value="Medium" selected>Trung bình</option>
-                            <option value="Low">Thấp</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-11">
-                        <textarea class="form-control mt-2" name="taskDescriptions[]" 
-                                  rows="2" placeholder="Mô tả chi tiết công việc..."></textarea>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-center">
-                        <button type="button" class="btn remove-btn" onclick="this.parentElement.parentElement.parentElement.remove()">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            tasksList.appendChild(newTask);
-            
-            // Set deadline to next week by default
-            const nextWeek = new Date();
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            newTask.querySelector('input[type="date"]').value = nextWeek.toISOString().split('T')[0];
-        }
+function addTask() {
+    taskCount++;
+    const tasksList = document.getElementById('tasksList');
+    const newTask = document.createElement('div');
+    newTask.className = 'task-item';
+    newTask.innerHTML = `
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <input type="text" class="form-control" name="tasks[]" 
+                       placeholder="Tên công việc" required>
+            </div>
+            <div class="col-md-3 mb-2">
+                <select class="form-select" name="taskAssignees[]" required>
+                    <option value="">Người phụ trách</option>
+                    <% if (typeof nhanVienList !== 'undefined' && nhanVienList) { 
+                        nhanVienList.forEach(function(nv) { %>
+                            <option value="<%= nv %>"><%= nv %></option>
+                    <% }); } %>
+                </select>
+            </div>
+            <div class="col-md-3 mb-2">
+                <input type="date" class="form-control" name="taskDeadlines[]" required>
+            </div>
+            <div class="col-md-2 mb-2">
+                <select class="form-select" name="taskPriorities[]" required>
+                    <option value="High">Cao</option>
+                    <option value="Medium" selected>Trung bình</option>
+                    <option value="Low">Thấp</option>
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-11">
+                <textarea class="form-control mt-2" name="taskDescriptions[]" 
+                          rows="2" placeholder="Mô tả chi tiết công việc..."></textarea>
+            </div>
+            <div class="col-md-1 d-flex align-items-center">
+                <button type="button" class="btn remove-btn" onclick="this.parentElement.parentElement.parentElement.remove()">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    tasksList.appendChild(newTask);
+    
+    // Set deadline to next week by default
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    newTask.querySelector('input[type="date"]').value = nextWeek.toISOString().split('T')[0];
+}
         
         // Add issue
         let issueCount = 3;

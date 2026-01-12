@@ -299,24 +299,28 @@
                     </select>
                 </div>
                 
-                <div class="col-md-3" id="startDateDiv">
-                    <label class="form-label fw-bold" id="startDateLabel">
-                        <%= filterType === 'range' ? 'Từ ngày' : 
-                           filterType === 'day' ? 'Ngày' : 
-                           filterType === 'week' ? 'Tuần bắt đầu' :
-                           filterType === 'month' ? 'Tháng' :
-                           filterType === 'quarter' ? 'Quý' : 'Năm' %>
-                    </label>
-                    <input type="<%= ['month', 'quarter', 'year'].includes(filterType) ? 'month' : 'date' %>" 
-                           name="startDate" 
-                           class="form-control" 
-                           value="<%= startDate %>">
-                </div>
-                
-                <div class="col-md-3" id="endDateDiv" style="<%= filterType === 'range' ? '' : 'display:none;' %>">
-                    <label class="form-label fw-bold">Đến ngày</label>
-                    <input type="date" name="endDate" class="form-control" value="<%= endDate %>">
-                </div>
+<div class="col-md-3" id="startDateDiv">
+    <label class="form-label fw-bold" id="startDateLabel">
+        <%= filterType === 'range' ? 'Từ ngày' : 
+           filterType === 'day' ? 'Ngày' : 
+           filterType === 'week' ? 'Tuần bắt đầu' :
+           filterType === 'month' ? 'Tháng' :
+           filterType === 'quarter' ? 'Quý' : 'Năm' %>
+    </label>
+    <% if (['month', 'quarter', 'year'].includes(filterType)) { %>
+        <input type="month" name="startDate" class="form-control" 
+               value="<%= startDate ? new Date(startDate).toISOString().slice(0,7) : '' %>">
+    <% } else { %>
+        <input type="date" name="startDate" class="form-control" 
+               value="<%= startDate ? new Date(startDate).toISOString().split('T')[0] : '' %>">
+    <% } %>
+</div>
+
+<div class="col-md-3" id="endDateDiv" style="<%= filterType === 'range' ? '' : 'display:none;' %>">
+    <label class="form-label fw-bold">Đến ngày</label>
+    <input type="date" name="endDate" class="form-control" 
+           value="<%= endDate ? new Date(endDate).toISOString().split('T')[0] : '' %>">
+</div>
                 
                 <div class="col-md-3">
                     <label class="form-label fw-bold">Nhân viên</label>
