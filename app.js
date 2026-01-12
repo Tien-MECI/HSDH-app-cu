@@ -7997,6 +7997,7 @@ function parseDate(dateStr) {
         }
     }
     
+    console.log(`Không thể parse date: ${dateStr}`);
     return null;
 }
 
@@ -9325,6 +9326,58 @@ async function getBaoCaoVanPhong(filterType = 'month', startDate = null, endDate
 // ROUTES
 // ============================================
 
+app.get('/debug-data', async (req, res) => {
+    try {
+        const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
+        const headers = data[0];
+        const rows = data.slice(1);
+        
+        // Kiểm tra cột ngày tạo
+        const colIndex = headers.indexOf('B');
+        
+        const sampleData = rows.slice(0, 10).map((row, index) => {
+            return {
+                row: index + 2,
+                dateString: row[colIndex],
+                parsedDate: parseDate(row[colIndex]),
+                isValid: parseDate(row[colIndex]) !== null
+            };
+        });
+        
+        // Kiểm tra một số cột quan trọng
+        const importantCols = {
+            'B': 'Ngày tạo',
+            'C': 'Tên nhân viên',
+            'AM': 'Trạng thái tạo',
+            'AN': 'Phê duyệt',
+            'BR': 'Doanh số KPI'
+        };
+        
+        const columnData = {};
+        for (const [col, name] of Object.entries(importantCols)) {
+            const idx = headers.indexOf(col);
+            if (idx !== -1) {
+                const sampleValues = rows.slice(0, 5).map(row => row[idx]);
+                columnData[name] = {
+                    index: idx,
+                    sampleValues: sampleValues
+                };
+            }
+        }
+        
+        res.json({
+            totalRows: rows.length,
+            headers: headers,
+            dateColumnIndex: colIndex,
+            dateColumnName: headers[colIndex],
+            sampleData: sampleData,
+            columns: columnData
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Route chính cho báo cáo KPI
 app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
     try {
@@ -9340,9 +9393,10 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         let data = {};
         let reportTitle = 'Báo cáo tổng hợp KPI';
         
-        // Sửa: Lấy danh sách nhân viên trước khi xử lý
-        const nhanVienList = await getNhanVienList();
+        // Sửa: Lấy danh sách nhân viên trước khi xử lý - ĐỔI TÊN BIẾN
+        const dsNhanVien = await getNhanVienList();
         
+        // Xử lý các loại báo cáo...
         switch(loaiBaoCao) {
             case 'baoGiaDonHang':
                 data = await getBaoCaoBaoGiaDonHang(filterType, startDate, endDate, nhanVien);
@@ -9472,11 +9526,6 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
                 break;
         }
         
-        // Lấy danh sách nhân viên để hiển thị trong filter
-        const donHangData = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
-        const headers = donHangData[0];
-        const nhanVienList = [...new Set(donHangData.slice(1).map(row => row[headers.indexOf('C')]).filter(Boolean))];
-        
         res.render('BaocaoKPIphongkinhdoanh', {
             data,
             loaiBaoCao,
@@ -9486,7 +9535,7 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
             nhanVien,
             page: parseInt(page),
             reportTitle,
-            nhanVienList,
+            nhanVienList: dsNhanVien, // Truyền với tên cũ cho EJS
             formatNumber: app.locals.formatNumber,
             formatCurrency: app.locals.formatCurrency,
             formatDate: app.locals.formatDate,
@@ -9634,21 +9683,21 @@ app.get('/export-excel-kpi', async (req, res) => {
 });
 
 // Route cho biên bản cuộc họp (Mục 5)
-
 app.get('/bien-ban-cuoc-hop', async (req, res) => {
     try {
-        // Lấy danh sách nhân viên
-        const nhanVienList = await getNhanVienList();
+        // Lấy danh sách nhân viên - ĐỔI TÊN BIẾN
+        const dsNhanVien = await getNhanVienList(); // Đổi tên biến
         
         res.render('BienBanCuocHop', {
             title: 'Biên bản đánh giá hiện trạng tồn tại',
-            nhanVienList: nhanVienList || [] // Thêm biến này
+            nhanVienList: dsNhanVien || [] // Vẫn truyền với tên cũ cho EJS
         });
     } catch (error) {
         console.error('Lỗi khi tải trang biên bản cuộc họp:', error);
         res.status(500).send('Lỗi server khi tải trang biên bản cuộc họp');
     }
 });
+
 
 app.post('/luu-bien-ban', (req, res) => {
     try {

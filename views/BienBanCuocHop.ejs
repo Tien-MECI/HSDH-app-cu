@@ -448,13 +448,13 @@
                                                placeholder="Tên công việc" required>
                                     </div>
                                     <div class="col-md-3 mb-2">
-    <select class="form-select" name="taskAssignees[]" required>
+<select class="form-select" name="taskAssignees[]" required>
     <option value="">Người phụ trách</option>
     <% if (typeof nhanVienList !== 'undefined' && nhanVienList) { 
         nhanVienList.forEach(function(nv) { %>
             <option value="<%= nv %>"><%= nv %></option>
     <% }); } %>
-    </select>
+</select>
                                     </div>
                                     <div class="col-md-3 mb-2">
                                         <input type="date" class="form-control" name="taskDeadlines[]" required>
