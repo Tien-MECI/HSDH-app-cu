@@ -8526,17 +8526,6 @@ async function getDoanhSoKhachHangCu(page = 1, pageSize = 10, filterType = 'mont
     
     const headers = donHangData[0];
     const rows = donHangData.slice(1);
-    
-    const colIndex = {
-        ngayTao: headers.indexOf('B'),
-        tenNV: headers.indexOf('C'),
-        khachHangID: headers.indexOf('H'),
-        tenKhach: headers.indexOf('J'),
-        trangThaiTao: headers.indexOf('AM'),
-        pheDuyet: headers.indexOf('AN'),
-        thanhTien: headers.indexOf('BE'),
-        doanhSoKPI: headers.indexOf('BR')
-    };
 
     const colIndex = {
       ngayTao: 1,            // B
@@ -8547,7 +8536,7 @@ async function getDoanhSoKhachHangCu(page = 1, pageSize = 10, filterType = 'mont
       pheDuyet: 39,          // AN
       thanhTien: 56,         // BE
       hoaHongQC: 65,         // BN
-      doanhSoKPI: 69,        // BR
+      doanhSoKPI: 69        // BR
     };
     
     // Lọc đơn hàng đã phê duyệt
