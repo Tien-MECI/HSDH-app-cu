@@ -9007,7 +9007,7 @@ async function getBaiDangBanHang(filterType = 'month', startDate = null, endDate
         ngayBaoCao: 3,      //headers.indexOf('D'),
         tenNV: 2,           //headers.indexOf('C'),
         kenhDang: 4,        //headers.indexOf('E'),
-        link: 5B9BD5        //headers.indexOf('F')
+        link: 5       //headers.indexOf('F')
     };
     
     let filteredData = filterByDate(rows, colIndex.ngayBaoCao, filterType, startDate, endDate);
