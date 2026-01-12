@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biên bản cuộc họp - Hệ thống KPI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        .meeting-header {
+            background: linear-gradient(45deg, #0056b3, #007bff);
+            color: white;
+            padding: 30px 0;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .meeting-title {
+            font-weight: 700;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .form-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            color: #0056b3;
+            font-weight: 600;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .required::after {
+            content: " *";
+            color: #dc3545;
+        }
+        
+        .btn-submit {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-submit:hover {
+            background: linear-gradient(45deg, #20c997, #28a745);
+            transform: scale(1.05);
+        }
+        
+        .btn-reset {
+            background: linear-gradient(45deg, #6c757d, #5a6268);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-reset:hover {
+            background: linear-gradient(45deg, #5a6268, #6c757d);
+            transform: scale(1.05);
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            padding: 10px 15px;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+        
+        .participant-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .task-item {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .remove-btn {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+        
+        .add-btn {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 15px;
+            font-weight: 600;
+        }
+        
+        .meeting-info {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: #007bff;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 5px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #007bff;
+            border: 3px solid white;
+        }
+        
+        .meeting-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .status-planned {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            color: #856404;
+        }
+        
+        .status-in-progress {
+            background: linear-gradient(45deg, #17a2b8, #138496);
+            color: white;
+        }
+        
+        .status-completed {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+            color: white;
+        }
+        
+        .footer {
+            background: #343a40;
+            color: white;
+            padding: 20px 0;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="meeting-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="meeting-title">
+                        <i class="bi bi-journal-text"></i> BIÊN BẢN CUỘC HỌP ĐÁNH GIÁ KPI
+                    </h1>
+                    <p class="mb-0">
+                        <i class="bi bi-info-circle"></i> Công cụ ghi nhận và đánh giá hiện trạng tồn tại, nguyên nhân và giải pháp
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="/baocao-kpi-phong-kinh-doanh" class="btn btn-light">
+                        <i class="bi bi-arrow-left"></i> Quay lại Báo cáo KPI
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Meeting Information -->
+        <div class="meeting-info">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong><i class="bi bi-calendar-check"></i> Ngày họp:</strong>
+                    <br><span id="currentDate"><%= new Date().toLocaleDateString('vi-VN') %></span>
+                </div>
+                <div class="col-md-3">
+                    <strong><i class="bi bi-clock"></i> Thời gian:</strong>
+                    <br><span id="currentTime"><%= new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) %></span>
+                </div>
+                <div class="col-md-3">
+                    <strong><i class="bi bi-geo-alt"></i> Địa điểm:</strong>
+                    <br>Phòng họp Phòng Kinh Doanh
+                </div>
+                <div class="col-md-3">
+                    <strong><i class="bi bi-tag"></i> Trạng thái:</strong>
+                    <br><span class="meeting-status status-in-progress">Đang diễn ra</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <form id="meetingForm" action="/luu-bien-ban" method="POST">
+            <div class="form-container">
+                <!-- Section 1: Thông tin cuộc họp -->
+                <h3 class="section-title">
+                    <i class="bi bi-info-square"></i> THÔNG TIN CUỘC HỌP
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Chủ đề cuộc họp</label>
+                        <input type="text" class="form-control" name="meetingTopic" required 
+                               placeholder="VD: Đánh giá KPI tháng 12/2024">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Người chủ trì</label>
+                        <input type="text" class="form-control" name="chairPerson" required 
+                               placeholder="VD: Trưởng phòng Kinh Doanh">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Thời gian bắt đầu</label>
+                        <input type="datetime-local" class="form-control" name="startTime" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Thời gian kết thúc</label>
+                        <input type="datetime-local" class="form-control" name="endTime" required>
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Mục tiêu cuộc họp</label>
+                        <textarea class="form-control" name="meetingObjective" rows="3" 
+                                  placeholder="Mô tả mục tiêu và kỳ vọng của cuộc họp..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 2: Thành phần tham dự -->
+                <h3 class="section-title">
+                    <i class="bi bi-people"></i> THÀNH PHẦN THAM DỰ
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-12 mb-3">
+                        <div id="participantsList">
+                            <!-- Participants will be added here dynamically -->
+                            <div class="participant-item">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" name="participants[]" 
+                                               placeholder="Họ và tên" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" name="participantRoles[]" required>
+                                            <option value="">Chọn vai trò</option>
+                                            <option value="Chair">Chủ trì</option>
+                                            <option value="Secretary">Thư ký</option>
+                                            <option value="Member">Thành viên</option>
+                                            <option value="Guest">Khách mời</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="text" class="form-control" name="participantDepartments[]" 
+                                               placeholder="Bộ phận">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" name="participantStatus[]" required>
+                                            <option value="Present">Có mặt</option>
+                                            <option value="Absent">Vắng mặt</option>
+                                            <option value="Late">Đến muộn</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn add-btn mt-2" onclick="addParticipant()">
+                            <i class="bi bi-plus-circle"></i> Thêm người tham dự
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 3: Nội dung cuộc họp -->
+                <h3 class="section-title">
+                    <i class="bi bi-list-check"></i> NỘI DUNG CUỘC HỌP
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label required">Tóm tắt nội dung</label>
+                        <textarea class="form-control" name="meetingSummary" rows="4" required
+                                  placeholder="Tóm tắt các nội dung chính đã thảo luận trong cuộc họp..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 4: Đánh giá hiện trạng -->
+                <h3 class="section-title">
+                    <i class="bi bi-clipboard-check"></i> ĐÁNH GIÁ HIỆN TRẠNG TỒN TẠI
+                </h3>
+                
+                <div class="timeline">
+                    <!-- Item 1 -->
+                    <div class="timeline-item">
+                        <h5><i class="bi bi-1-circle"></i> Vấn đề 1: KPI Doanh số chưa đạt</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân khách quan</label>
+                                <textarea class="form-control" name="issue1_obstacles" rows="3"
+                                          placeholder="Các yếu tố khách quan ảnh hưởng..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân chủ quan</label>
+                                <textarea class="form-control" name="issue1_subjective" rows="3"
+                                          placeholder="Các yếu tố chủ quan từ nhân sự..."></textarea>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Đề xuất giải pháp</label>
+                                <textarea class="form-control" name="issue1_solutions" rows="3"
+                                          placeholder="Các giải pháp đề xuất..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Item 2 -->
+                    <div class="timeline-item">
+                        <h5><i class="bi bi-2-circle"></i> Vấn đề 2: Tỷ lệ chuyển đổi thấp</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân khách quan</label>
+                                <textarea class="form-control" name="issue2_obstacles" rows="3"
+                                          placeholder="Các yếu tố khách quan ảnh hưởng..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân chủ quan</label>
+                                <textarea class="form-control" name="issue2_subjective" rows="3"
+                                          placeholder="Các yếu tố chủ quan từ nhân sự..."></textarea>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Đề xuất giải pháp</label>
+                                <textarea class="form-control" name="issue2_solutions" rows="3"
+                                          placeholder="Các giải pháp đề xuất..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Item 3 -->
+                    <div class="timeline-item">
+                        <h5><i class="bi bi-3-circle"></i> Vấn đề 3: Thời gian xử lý thiết kế chậm</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân khách quan</label>
+                                <textarea class="form-control" name="issue3_obstacles" rows="3"
+                                          placeholder="Các yếu tố khách quan ảnh hưởng..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nguyên nhân chủ quan</label>
+                                <textarea class="form-control" name="issue3_subjective" rows="3"
+                                          placeholder="Các yếu tố chủ quan từ nhân sự..."></textarea>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Đề xuất giải pháp</label>
+                                <textarea class="form-control" name="issue3_solutions" rows="3"
+                                          placeholder="Các giải pháp đề xuất..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="button" class="btn add-btn" onclick="addIssue()">
+                        <i class="bi bi-plus-circle"></i> Thêm vấn đề khác
+                    </button>
+                </div>
+
+                <!-- Section 5: Kết luận -->
+                <h3 class="section-title">
+                    <i class="bi bi-check-circle"></i> KẾT LUẬN
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label required">Kết luận chung</label>
+                        <textarea class="form-control" name="conclusion" rows="4" required
+                                  placeholder="Các kết luận và quyết định được đưa ra trong cuộc họp..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 6: Công việc tiếp theo -->
+                <h3 class="section-title">
+                    <i class="bi bi-kanban"></i> CÔNG VIỆC TIẾP THEO
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div id="tasksList">
+                            <!-- Tasks will be added here dynamically -->
+                            <div class="task-item">
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <input type="text" class="form-control" name="tasks[]" 
+                                               placeholder="Tên công việc" required>
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <select class="form-select" name="taskAssignees[]" required>
+                                            <option value="">Người phụ trách</option>
+                                            <% if (nhanVienList) { 
+                                                nhanVienList.forEach(function(nv) { %>
+                                                    <option value="<%= nv %>"><%= nv %></option>
+                                            <% }); } %>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <input type="date" class="form-control" name="taskDeadlines[]" required>
+                                    </div>
+                                    <div class="col-md-2 mb-2">
+                                        <select class="form-select" name="taskPriorities[]" required>
+                                            <option value="High">Cao</option>
+                                            <option value="Medium" selected>Trung bình</option>
+                                            <option value="Low">Thấp</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <textarea class="form-control mt-2" name="taskDescriptions[]" 
+                                                  rows="2" placeholder="Mô tả chi tiết công việc..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn add-btn mt-2" onclick="addTask()">
+                            <i class="bi bi-plus-circle"></i> Thêm công việc
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 7: Chữ ký -->
+                <h3 class="section-title">
+                    <i class="bi bi-pen"></i> XÁC NHẬN
+                </h3>
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Người ghi biên bản</label>
+                        <input type="text" class="form-control" name="recorder" required 
+                               placeholder="Họ tên người ghi biên bản">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Người phê duyệt</label>
+                        <input type="text" class="form-control" name="approver" required 
+                               placeholder="Họ tên người phê duyệt">
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                Tôi xác nhận thông tin trên là chính xác và hoàn toàn chịu trách nhiệm về nội dung biên bản
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="row mt-4">
+                    <div class="col-md-12 text-center">
+                        <button type="submit" class="btn btn-submit me-3">
+                            <i class="bi bi-save"></i> Lưu biên bản
+                        </button>
+                        <button type="reset" class="btn btn-reset me-3">
+                            <i class="bi bi-arrow-clockwise"></i> Làm mới
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="window.print()">
+                            <i class="bi bi-printer"></i> In biên bản
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Previous Meetings -->
+        <div class="form-container">
+            <h3 class="section-title">
+                <i class="bi bi-archive"></i> LỊCH SỬ BIÊN BẢN
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Ngày họp</th>
+                            <th>Chủ đề</th>
+                            <th>Người chủ trì</th>
+                            <th>Số vấn đề</th>
+                            <th>Số công việc</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Example data - In real app, this would come from database -->
+                        <tr>
+                            <td>15/12/2024</td>
+                            <td>Đánh giá KPI tháng 11/2024</td>
+                            <td>Trưởng phòng KD</td>
+                            <td><span class="badge bg-info">5</span></td>
+                            <td><span class="badge bg-success">8</span></td>
+                            <td><span class="meeting-status status-completed">Hoàn thành</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Xem
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>01/12/2024</td>
+                            <td>Đánh giá KPI tháng 10/2024</td>
+                            <td>Trưởng phòng KD</td>
+                            <td><span class="badge bg-info">6</span></td>
+                            <td><span class="badge bg-success">10</span></td>
+                            <td><span class="meeting-status status-completed">Hoàn thành</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Xem
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p class="mb-0">
+                <i class="bi bi-shield-check"></i> Biên bản được bảo mật theo chính sách nội bộ công ty
+                <br>
+                <small>Mọi thông tin trong biên bản đều được mã hóa và lưu trữ an toàn</small>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Update current time
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('vi-VN');
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+        }
+        setInterval(updateDateTime, 60000);
+        updateDateTime();
+        
+        // Add participant
+        let participantCount = 1;
+        function addParticipant() {
+            participantCount++;
+            const participantsList = document.getElementById('participantsList');
+            const newParticipant = document.createElement('div');
+            newParticipant.className = 'participant-item';
+            newParticipant.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="participants[]" 
+                               placeholder="Họ và tên" required>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="participantRoles[]" required>
+                            <option value="">Chọn vai trò</option>
+                            <option value="Chair">Chủ trì</option>
+                            <option value="Secretary">Thư ký</option>
+                            <option value="Member">Thành viên</option>
+                            <option value="Guest">Khách mời</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="participantDepartments[]" 
+                               placeholder="Bộ phận">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="participantStatus[]" required>
+                            <option value="Present">Có mặt</option>
+                            <option value="Absent">Vắng mặt</option>
+                            <option value="Late">Đến muộn</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn remove-btn" onclick="this.parentElement.parentElement.parentElement.remove()">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            participantsList.appendChild(newParticipant);
+        }
+        
+        // Add task
+        let taskCount = 1;
+        function addTask() {
+            taskCount++;
+            const tasksList = document.getElementById('tasksList');
+            const newTask = document.createElement('div');
+            newTask.className = 'task-item';
+            newTask.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <input type="text" class="form-control" name="tasks[]" 
+                               placeholder="Tên công việc" required>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <select class="form-select" name="taskAssignees[]" required>
+                            <option value="">Người phụ trách</option>
+                            <%= nhanVienList ? nhanVienList.map(nv => `<option value="${nv}">${nv}</option>`).join('') : '' %>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <input type="date" class="form-control" name="taskDeadlines[]" required>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <select class="form-select" name="taskPriorities[]" required>
+                            <option value="High">Cao</option>
+                            <option value="Medium" selected>Trung bình</option>
+                            <option value="Low">Thấp</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-11">
+                        <textarea class="form-control mt-2" name="taskDescriptions[]" 
+                                  rows="2" placeholder="Mô tả chi tiết công việc..."></textarea>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-center">
+                        <button type="button" class="btn remove-btn" onclick="this.parentElement.parentElement.parentElement.remove()">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            tasksList.appendChild(newTask);
+            
+            // Set deadline to next week by default
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            newTask.querySelector('input[type="date"]').value = nextWeek.toISOString().split('T')[0];
+        }
+        
+        // Add issue
+        let issueCount = 3;
+        function addIssue() {
+            issueCount++;
+            const timeline = document.querySelector('.timeline');
+            const newIssue = document.createElement('div');
+            newIssue.className = 'timeline-item';
+            newIssue.innerHTML = `
+                <h5><i class="bi bi-${issueCount}-circle"></i> Vấn đề ${issueCount}:</h5>
+                <input type="text" class="form-control mt-2" name="issue${issueCount}_title" 
+                       placeholder="Nhập tiêu đề vấn đề...">
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Nguyên nhân khách quan</label>
+                        <textarea class="form-control" name="issue${issueCount}_obstacles" rows="3"
+                                  placeholder="Các yếu tố khách quan ảnh hưởng..."></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Nguyên nhân chủ quan</label>
+                        <textarea class="form-control" name="issue${issueCount}_subjective" rows="3"
+                                  placeholder="Các yếu tố chủ quan từ nhân sự..."></textarea>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Đề xuất giải pháp</label>
+                        <textarea class="form-control" name="issue${issueCount}_solutions" rows="3"
+                                  placeholder="Các giải pháp đề xuất..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn remove-btn" onclick="this.parentElement.remove()">
+                        <i class="bi bi-trash"></i> Xóa vấn đề này
+                    </button>
+                </div>
+            `;
+            timeline.appendChild(newIssue);
+        }
+        
+        // Form submission
+        document.getElementById('meetingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Basic validation
+            const requiredFields = this.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!isValid) {
+                alert('Vui lòng điền đầy đủ các trường bắt buộc!');
+                return;
+            }
+            
+            // Submit form (in real app, this would be AJAX)
+            if (confirm('Bạn có chắc chắn muốn lưu biên bản này?')) {
+                // In real app: this.submit();
+                alert('Biên bản đã được lưu thành công!');
+                this.reset();
+            }
+        });
+        
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const startTime = new Date(now.getTime() - (60 * 60 * 1000)); // 1 hour ago
+            const endTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now
+            
+            document.querySelector('input[name="startTime"]').value = 
+                startTime.toISOString().slice(0, 16);
+            document.querySelector('input[name="endTime"]').value = 
+                endTime.toISOString().slice(0, 16);
+                
+            // Set task deadline to next week
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            document.querySelector('input[name="taskDeadlines[]"]').value = 
+                nextWeek.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>

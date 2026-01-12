@@ -3,1822 +3,1169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo KPI Phòng Kinh Doanh</title>
+    <title><%= reportTitle %> - Hệ thống KPI Phòng Kinh Doanh</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <style>
-        .card-header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-            color: white;
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #0069d9;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-color: #f8f9fa;
+            --blue-dark: #0056b3;
+            --blue-light: #17a2b8;
+            --gray-light: #6c757d;
         }
-        .table-header {
-            background-color: #34495e;
-            color: white;
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .nav-tabs .nav-link.active {
-            background-color: #2c3e50;
-            color: white;
-            border-color: #2c3e50;
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--blue-dark) !important;
         }
-        .nav-tabs .nav-link {
-            color: #2c3e50;
-            font-weight: 500;
-        }
-        .kpi-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
-        }
-        .kpi-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .kpi-label {
-            color: #7f8c8d;
-            font-size: 14px;
-        }
-        .progress-kpi {
-            height: 25px;
-            border-radius: 5px;
-        }
-        .filter-section {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .excel-btn {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
             border: none;
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: linear-gradient(45deg, var(--primary-color), var(--blue-dark));
             color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+            border: none;
         }
-        .tab-content {
-            padding-top: 20px;
+        
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--blue-dark));
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s;
         }
-        .number-cell {
-            text-align: right;
-            font-family: 'Courier New', monospace;
+        
+        .btn-primary:hover {
+            background: linear-gradient(45deg, var(--blue-dark), var(--primary-color));
+            transform: scale(1.05);
         }
-        .status-badge {
-            padding: 5px 10px;
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .kpi-badge {
+            padding: 8px 15px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 0.9rem;
         }
-        .status-success {
-            background-color: #d4edda;
+        
+        .kpi-good {
+            background: linear-gradient(45deg, #d4edda, #c3e6cb);
             color: #155724;
         }
-        .status-warning {
-            background-color: #fff3cd;
+        
+        .kpi-warning {
+            background: linear-gradient(45deg, #fff3cd, #ffeaa7);
             color: #856404;
         }
-        .status-danger {
-            background-color: #f8d7da;
+        
+        .kpi-danger {
+            background: linear-gradient(45deg, #f8d7da, #f5c6cb);
             color: #721c24;
         }
-        .sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
+        
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .stat-card-sales {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+        }
+        
+        .stat-card-conversion {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+        }
+        
+        .stat-card-customer {
+            background: linear-gradient(45deg, #17a2b8, #138496);
+        }
+        
+        .stat-card-revenue {
+            background: linear-gradient(45deg, #6f42c1, #5a3d8e);
+        }
+        
+        .filter-section {
             background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+        
+        .table-hover tbody tr:hover {
+            background: linear-gradient(90deg, rgba(0,123,255,0.05), rgba(0,86,179,0.05));
+        }
+        
+        .table thead th {
+            background: linear-gradient(45deg, var(--primary-color), var(--blue-dark));
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 15px;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background: linear-gradient(45deg, var(--primary-color), var(--blue-dark));
+            border-color: var(--primary-color);
+        }
+        
+        .excel-btn {
+            background: linear-gradient(45deg, #1d6f42, #28a745);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .excel-btn:hover {
+            background: linear-gradient(45deg, #28a745, #1d6f42);
+            transform: scale(1.05);
+            color: white;
+        }
+        
+        .report-title {
+            color: var(--blue-dark);
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+        
+        .info-box {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            border-left: 5px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+        
+        .export-section {
+            position: sticky;
+            top: 20px;
+            z-index: 100;
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-4">
-        <!-- Header -->
-        <div class="row mb-4 sticky-header">
-            <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-0"><i class="bi bi-graph-up-arrow"></i> HỆ THỐNG BÁO CÁO KPI PHÒNG KINH DOANH</h4>
-                            <small class="text-white">Đánh giá hiệu suất nhân sự - Phân tích dữ liệu toàn diện</small>
-                        </div>
-                        <div>
-                            <button class="btn excel-btn btn-sm me-2" onclick="exportToExcel()">
-                                <i class="bi bi-file-excel"></i> Xuất Excel
-                            </button>
-                            <button class="btn btn-light btn-sm" onclick="printReport()">
-                                <i class="bi bi-printer"></i> In báo cáo
-                            </button>
-                        </div>
-                    </div>
-                </div>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-graph-up"></i> HỆ THỐNG KPI PHÒNG KINH DOANH
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/baocao-kpi-phong-kinh-doanh">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/bien-ban-cuoc-hop">
+                            <i class="bi bi-journal-text"></i> Biên bản họp
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/export-excel-kpi" class="excel-btn">
+                            <i class="bi bi-file-earmark-excel"></i> Xuất Excel
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1 class="report-title">
+                    <i class="bi bi-bar-chart-line"></i> <%= reportTitle %>
+                </h1>
+                <p class="text-muted">
+                    <i class="bi bi-calendar"></i> Thời gian: <%= new Date().toLocaleDateString('vi-VN') %>
+                </p>
+            </div>
+            <div class="col-md-4 text-end export-section">
+                <a href="/export-excel-kpi?filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>" 
+                   class="btn excel-btn">
+                    <i class="bi bi-file-earmark-excel"></i> Xuất Excel
+                </a>
             </div>
         </div>
 
         <!-- Filter Section -->
+        <div class="filter-section">
+            <form method="GET" action="/baocao-kpi-phong-kinh-doanh" class="row g-3">
+                <input type="hidden" name="loaiBaoCao" value="<%= loaiBaoCao %>">
+                
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Loại báo cáo</label>
+                    <select name="loaiBaoCao" class="form-select" onchange="this.form.submit()">
+                        <option value="tongHop" <%= loaiBaoCao === 'tongHop' ? 'selected' : '' %>>Tổng hợp KPI</option>
+                        <option value="baoGiaDonHang" <%= loaiBaoCao === 'baoGiaDonHang' ? 'selected' : '' %>>Báo giá & Đơn hàng</option>
+                        <option value="doanhSoTheoNV" <%= loaiBaoCao === 'doanhSoTheoNV' ? 'selected' : '' %>>Doanh số theo NV</option>
+                        <option value="donHangHuy" <%= loaiBaoCao === 'donHangHuy' ? 'selected' : '' %>>Đơn hàng hủy</option>
+                        <option value="topKhachHang" <%= loaiBaoCao === 'topKhachHang' ? 'selected' : '' %>>Top khách hàng</option>
+                        <option value="khachHangCu" <%= loaiBaoCao === 'khachHangCu' ? 'selected' : '' %>>Khách hàng cũ</option>
+                        <option value="khachHangMoi" <%= loaiBaoCao === 'khachHangMoi' ? 'selected' : '' %>>Khách hàng mới</option>
+                        <option value="khachChuyenDoi" <%= loaiBaoCao === 'khachChuyenDoi' ? 'selected' : '' %>>Khách chuyển đổi</option>
+                        <option value="donHangPheDuyet" <%= loaiBaoCao === 'donHangPheDuyet' ? 'selected' : '' %>>Đơn hàng phê duyệt</option>
+                        <option value="khachHangMoiTao" <%= loaiBaoCao === 'khachHangMoiTao' ? 'selected' : '' %>>Khách hàng mới tạo</option>
+                        <option value="khachHangDaiLyMoi" <%= loaiBaoCao === 'khachHangDaiLyMoi' ? 'selected' : '' %>>Khách đại lý mới</option>
+                        <option value="khachHangBanGiao" <%= loaiBaoCao === 'khachHangBanGiao' ? 'selected' : '' %>>Khách hàng bàn giao</option>
+                        <option value="hoaHongKD" <%= loaiBaoCao === 'hoaHongKD' ? 'selected' : '' %>>Hoa hồng KD</option>
+                        <option value="hoaHongQC" <%= loaiBaoCao === 'hoaHongQC' ? 'selected' : '' %>>Hoa hồng QC</option>
+                        <option value="baiDangBanHang" <%= loaiBaoCao === 'baiDangBanHang' ? 'selected' : '' %>>Bài đăng bán hàng</option>
+                        <option value="ketQuaChienDich" <%= loaiBaoCao === 'ketQuaChienDich' ? 'selected' : '' %>>Kết quả chiến dịch</option>
+                        <option value="chamSocKH" <%= loaiBaoCao === 'chamSocKH' ? 'selected' : '' %>>Chăm sóc KH</option>
+                        <option value="baoCaoKyThuat" <%= loaiBaoCao === 'baoCaoKyThuat' ? 'selected' : '' %>>Kỹ thuật - Thiết kế</option>
+                        <option value="thucHienCV" <%= loaiBaoCao === 'thucHienCV' ? 'selected' : '' %>>Thực hiện công việc</option>
+                        <option value="chamCong" <%= loaiBaoCao === 'chamCong' ? 'selected' : '' %>>Chấm công</option>
+                        <option value="khaoSat" <%= loaiBaoCao === 'khaoSat' ? 'selected' : '' %>>Khảo sát công trình</option>
+                        <option value="vanPhong" <%= loaiBaoCao === 'vanPhong' ? 'selected' : '' %>>Làm việc văn phòng</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Thời gian</label>
+                    <select name="filterType" class="form-select" onchange="toggleDateInputs(this.value)">
+                        <option value="day" <%= filterType === 'day' ? 'selected' : '' %>>Theo ngày</option>
+                        <option value="week" <%= filterType === 'week' ? 'selected' : '' %>>Theo tuần</option>
+                        <option value="month" <%= filterType === 'month' ? 'selected' : '' %>>Theo tháng</option>
+                        <option value="quarter" <%= filterType === 'quarter' ? 'selected' : '' %>>Theo quý</option>
+                        <option value="year" <%= filterType === 'year' ? 'selected' : '' %>>Theo năm</option>
+                        <option value="range" <%= filterType === 'range' ? 'selected' : '' %>>Khoảng thời gian</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-3" id="startDateDiv">
+                    <label class="form-label fw-bold" id="startDateLabel">
+                        <%= filterType === 'range' ? 'Từ ngày' : 
+                           filterType === 'day' ? 'Ngày' : 
+                           filterType === 'week' ? 'Tuần bắt đầu' :
+                           filterType === 'month' ? 'Tháng' :
+                           filterType === 'quarter' ? 'Quý' : 'Năm' %>
+                    </label>
+                    <input type="<%= ['month', 'quarter', 'year'].includes(filterType) ? 'month' : 'date' %>" 
+                           name="startDate" 
+                           class="form-control" 
+                           value="<%= startDate %>">
+                </div>
+                
+                <div class="col-md-3" id="endDateDiv" style="<%= filterType === 'range' ? '' : 'display:none;' %>">
+                    <label class="form-label fw-bold">Đến ngày</label>
+                    <input type="date" name="endDate" class="form-control" value="<%= endDate %>">
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Nhân viên</label>
+                    <select name="nhanVien" class="form-select">
+                        <option value="all">Tất cả nhân viên</option>
+                        <% nhanVienList && nhanVienList.forEach(function(nv) { %>
+                            <option value="<%= nv %>" <%= nhanVien === nv ? 'selected' : '' %>>
+                                <%= nv %>
+                            </option>
+                        <% }); %>
+                    </select>
+                </div>
+                
+                <div class="col-md-12 mt-3">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="bi bi-funnel"></i> Lọc dữ liệu
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="resetFilters()">
+                        <i class="bi bi-arrow-clockwise"></i> Đặt lại
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Statistics Cards -->
+        <% if (loaiBaoCao === 'tongHop') { %>
         <div class="row mb-4">
-            <div class="col-12">
-                <div class="filter-section shadow-sm">
-                    <form id="filterForm" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="reportType" class="form-label">Loại báo cáo</label>
-                            <select class="form-select" id="reportType" name="reportType">
-                                <optgroup label="Bộ phận Kinh Doanh">
-                                    <option value="tong-quan" <%= reportType === 'tong-quan' ? 'selected' : '' %>>Tổng quan KPI</option>
-                                    <option value="bao-giao-don-hang" <%= reportType === 'bao-giao-don-hang' ? 'selected' : '' %>>Báo giá & Đơn hàng</option>
-                                    <option value="doanh-so-theo-nv" <%= reportType === 'doanh-so-theo-nv' ? 'selected' : '' %>>Doanh số theo NV</option>
-                                    <option value="don-hang-huy" <%= reportType === 'don-hang-huy' ? 'selected' : '' %>>Đơn hàng hủy</option>
-                                    <option value="top-100-khach-hang" <%= reportType === 'top-100-khach-hang' ? 'selected' : '' %>>Top 100 KH doanh số</option>
-                                    <option value="khach-hang-cu" <%= reportType === 'khach-hang-cu' ? 'selected' : '' %>>KH cũ (≥ 2 đơn)</option>
-                                    <option value="khach-hang-moi" <%= reportType === 'khach-hang-moi' ? 'selected' : '' %>>KH mới (1 đơn)</option>
-                                    <option value="chuyen-doi-bao-gia" <%= reportType === 'chuyen-doi-bao-gia' ? 'selected' : '' %>>Chuyển đổi báo giá</option>
-                                    <option value="don-hang-phe-duyet" <%= reportType === 'don-hang-phe-duyet' ? 'selected' : '' %>>Đơn hàng phê duyệt</option>
-                                    <option value="khach-hang-moi-tao" <%= reportType === 'khach-hang-moi-tao' ? 'selected' : '' %>>KH mới được tạo</option>
-                                    <option value="khach-hang-dai-ly-moi" <%= reportType === 'khach-hang-dai-ly-moi' ? 'selected' : '' %>>KH đại lý mới</option>
-                                    <option value="khach-hang-ban-giao" <%= reportType === 'khach-hang-ban-giao' ? 'selected' : '' %>>KH được bàn giao</option>
-                                </optgroup>
-                                <optgroup label="Marketing & Truyền thông">
-                                    <option value="marketing-bai-dang" <%= reportType === 'marketing-bai-dang' ? 'selected' : '' %>>Bài đăng marketing</option>
-                                    <option value="marketing-chien-dich" <%= reportType === 'marketing-chien-dich' ? 'selected' : '' %>>Chiến dịch quảng cáo</option>
-                                </optgroup>
-                                <optgroup label="Chăm sóc khách hàng">
-                                    <option value="cham-soc-khach-hang" <%= reportType === 'cham-soc-khach-hang' ? 'selected' : '' %>>Chăm sóc khách hàng</option>
-                                </optgroup>
-                                <optgroup label="Kỹ thuật & Thiết kế">
-                                    <option value="ky-thuat-ban-ve" <%= reportType === 'ky-thuat-ban-ve' ? 'selected' : '' %>>Bản vẽ kỹ thuật</option>
-                                </optgroup>
-                                <optgroup label="Thực hiện công việc">
-                                    <option value="thuc-hien-cong-viec" <%= reportType === 'thuc-hien-cong-viec' ? 'selected' : '' %>>Công việc được giao</option>
-                                </optgroup>
-                                <optgroup label="Chấm công">
-                                    <option value="cham-cong" <%= reportType === 'cham-cong' ? 'selected' : '' %>>Chấm công làm việc</option>
-                                    <option value="khao-sat-cong-trinh" <%= reportType === 'khao-sat-cong-trinh' ? 'selected' : '' %>>Khảo sát công trình</option>
-                                    <option value="lam-viec-van-phong" <%= reportType === 'lam-viec-van-phong' ? 'selected' : '' %>>Làm việc tại VP</option>
-                                </optgroup>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label for="filterType" class="form-label">Chu kỳ</label>
-                            <select class="form-select" id="filterType" name="filterType">
-                                <% for (const [key, value] of Object.entries(periods)) { %>
-                                    <option value="<%= key %>" <%= filterType === key ? 'selected' : '' %>><%= value %></option>
-                                <% } %>
-                            </select>
-                        </div>
-
-                        <!-- Dynamic date inputs based on filterType -->
-                        <div class="col-md-2" id="dateInput" style="<%= filterType === 'ngay' ? '' : 'display:none;' %>">
-                            <label for="customDate" class="form-label">Ngày</label>
-                            <input type="date" class="form-control" id="customDate" name="customDate" value="<%= customDate || new Date().toISOString().split('T')[0] %>">
-                        </div>
-                        <%
-function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-%>
-
-
-                        <div class="col-md-2" id="weekInput" style="<%= filterType === 'tuan' ? '' : 'display:none;' %>">
-                            <label for="week" class="form-label">Tuần</label>
-                            <input type="number" class="form-control" id="week" name="week" min="1" max="53" value="<%= week || getWeekNumber(new Date()) %>">
-                        </div>
-
-                        <div class="col-md-2" id="monthInput" style="<%= filterType === 'thang' ? '' : 'display:none;' %>">
-                            <label for="month" class="form-label">Tháng</label>
-                            <select class="form-select" id="month" name="month">
-                                <% for(let m = 1; m <= 12; m++) { %>
-                                    <option value="<%= m %>" <%= month == m ? 'selected' : '' %>>Tháng <%= m %></option>
-                                <% } %>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2" id="quarterInput" style="<%= filterType === 'quy' ? '' : 'display:none;' %>">
-                            <label for="quarter" class="form-label">Quý</label>
-                            <select class="form-select" id="quarter" name="quarter">
-                                <% for(let q = 1; q <= 4; q++) { %>
-                                    <option value="<%= q %>" <%= quarter == q ? 'selected' : '' %>>Quý <%= q %></option>
-                                <% } %>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2" id="yearInput">
-                            <label for="year" class="form-label">Năm</label>
-                            <select class="form-select" id="year" name="year">
-                                <% for(let y = year - 5; y <= year + 1; y++) { %>
-                                    <option value="<%= y %>" <%= year == y ? 'selected' : '' %>>Năm <%= y %></option>
-                                <% } %>
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label for="employeeCode" class="form-label">Nhân viên</label>
-                            <select class="form-select select2" id="employeeCode" name="employeeCode">
-                                <option value="">Tất cả nhân viên</option>
-                                <% employees.forEach(emp => { %>
-                                    <option value="<%= emp.split(' - ')[0] %>" <%= employeeCode === emp.split(' - ')[0] ? 'selected' : '' %>>
-                                        <%= emp %>
-                                    </option>
-                                <% }); %>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-search"></i> Lọc dữ liệu
-                            </button>
-                        </div>
-                    </form>
+            <div class="col-md-3">
+                <div class="stat-card stat-card-sales">
+                    <i class="bi bi-currency-dollar fs-1 mb-2"></i>
+                    <h3><%= formatNumber(Object.values(data.baoGiaDonHang || {}).reduce((sum, item) => sum + (item.tongDoanhSo || 0), 0)) %></h3>
+                    <p class="mb-0">Tổng doanh số</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-card-conversion">
+                    <i class="bi bi-percent fs-1 mb-2"></i>
+                    <h3>
+                        <% 
+                            const totalBaoGia = Object.values(data.baoGiaDonHang || {}).reduce((sum, item) => sum + (item.tongBaoGia || 0), 0);
+                            const totalDonHang = Object.values(data.baoGiaDonHang || {}).reduce((sum, item) => sum + (item.tongDonHang || 0), 0);
+                            const avgConversion = totalBaoGia > 0 ? ((totalDonHang / totalBaoGia) * 100).toFixed(1) : 0;
+                        %>
+                        <%= avgConversion %>%
+                    </h3>
+                    <p class="mb-0">Tỷ lệ chuyển đổi</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-card-customer">
+                    <i class="bi bi-people fs-1 mb-2"></i>
+                    <h3><%= data.topKhachHang ? data.topKhachHang.length : 0 %></h3>
+                    <p class="mb-0">Khách hàng tiềm năng</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card stat-card-revenue">
+                    <i class="bi bi-cash-stack fs-1 mb-2"></i>
+                    <h3>
+                        <% 
+                            const totalRevenue = (data.doanhSoTheoNV || []).reduce((sum, item) => sum + (item.doanhSoThucTe || 0), 0);
+                        %>
+                        <%= formatNumber(totalRevenue) %>
+                    </h3>
+                    <p class="mb-0">Doanh số thực tế</p>
                 </div>
             </div>
         </div>
-
-        <!-- Summary Cards -->
-        <% if (reportType === 'tong-quan') { %>
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-label">Tổng doanh số</div>
-                        <div class="kpi-value text-primary">
-                            <%= formatNumber(reportData.doanhSo?.reduce((sum, item) => sum + item.doanhSoThucTe, 0) || 0) %>
-                        </div>
-                        <small>VNĐ</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-label">Tổng đơn hàng</div>
-                        <div class="kpi-value text-success">
-                            <%= reportData.baoGiaoDonHang?.reduce((sum, item) => sum + item.tongDonHang, 0) || 0 %>
-                        </div>
-                        <small>đơn hàng</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-label">Tỷ lệ chuyển đổi</div>
-                        <div class="kpi-value text-warning">
-                            <% 
-                                const tongBaoGia = reportData.baoGiaoDonHang?.reduce((sum, item) => sum + item.tongBaoGia, 0) || 0;
-                                const tongDonHang = reportData.baoGiaoDonHang?.reduce((sum, item) => sum + item.tongDonHang, 0) || 0;
-                                const tyLe = tongBaoGia > 0 ? (tongDonHang / tongBaoGia * 100).toFixed(2) : 0;
-                            %>
-                            <%= tyLe %>%
-                        </div>
-                        <small>báo giá → đơn hàng</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="kpi-card">
-                        <div class="kpi-label">KH mới</div>
-                        <div class="kpi-value text-info">
-                            <%= reportData.khachHangMoi?.length || 0 %>
-                        </div>
-                        <small>khách hàng</small>
-                    </div>
-                </div>
-            </div>
         <% } %>
 
-        <!-- Main Report Content -->
-        <div class="row">
-            <div class="col-12">
-                <!-- Báo cáo Tổng quan -->
-                <% if (reportType === 'tong-quan') { %>
-                    <div class="card shadow">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-bar-chart"></i> TỔNG QUAN KPI PHÒNG KINH DOANH</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <!-- Báo giá & Đơn hàng -->
-                                <div class="col-md-6 mb-4">
-                                    <h6 class="border-bottom pb-2">Báo giá & Đơn hàng theo NV</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-sm">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Nhân viên</th>
-                                                    <th>Báo giá</th>
-                                                    <th>Đơn hàng</th>
-                                                    <th>Tỷ lệ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.baoGiaoDonHang && reportData.baoGiaoDonHang.length > 0) { %>
-                                                    <% reportData.baoGiaoDonHang.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.tenNV %></td>
-                                                            <td class="text-center"><%= item.tongBaoGia %></td>
-                                                            <td class="text-center"><%= item.tongDonHang %></td>
-                                                            <td class="text-center"><%= item.tyLeChuyenDoi %>%</td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="4" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <!-- Doanh số theo NV -->
-                                <div class="col-md-6 mb-4">
-                                    <h6 class="border-bottom pb-2">Doanh số theo NV</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-sm">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Nhân viên</th>
-                                                    <th>Thực tế</th>
-                                                    <th>Mục tiêu</th>
-                                                    <th>Đạt</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.doanhSo && reportData.doanhSo.length > 0) { %>
-                                                    <% reportData.doanhSo.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.tenNV %></td>
-                                                            <td class="number-cell"><%= formatNumber(item.doanhSoThucTe) %></td>
-                                                            <td class="number-cell"><%= formatNumber(item.mucTieuKPI) %></td>
-                                                            <td class="text-center">
-                                                                <% const tyLe = parseFloat(item.tyLeDat); %>
-                                                                <span class="status-badge <%= tyLe >= 100 ? 'status-success' : tyLe >= 80 ? 'status-warning' : 'status-danger' %>">
-                                                                    <%= item.tyLeDat %>%
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="4" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <!-- Đơn hàng hủy gần đây -->
-                                <div class="col-md-12 mb-4">
-                                    <h6 class="border-bottom pb-2">Đơn hàng hủy gần đây</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>STT</th>
-                                                    <th>Mã đơn</th>
-                                                    <th>Khách hàng</th>
-                                                    <th>NV bán</th>
-                                                    <th>Doanh số hủy</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.donHangHuy && reportData.donHangHuy.data && reportData.donHangHuy.data.length > 0) { %>
-                                                    <% reportData.donHangHuy.data.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.stt %></td>
-                                                            <td><%= item.maDonHang %></td>
-                                                            <td><%= item.tenKhachHang %></td>
-                                                            <td><%= item.nhanVienBan %></td>
-                                                            <td class="number-cell"><%= formatNumber(item.doanhSoHuy) %></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="5" class="text-center">Không có đơn hàng hủy</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Báo cáo Báo giá & Đơn hàng -->
-                <% } else if (reportType === 'bao-giao-don-hang') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> BÁO CÁO BÁO GIÁ & ĐƠN HÀNG THEO NHÂN VIÊN</h5>
-                            <span class="badge bg-primary">KPI Kinh doanh</span>
-                        </div>
-                        <div class="card-body">
+        <!-- Report Content -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-table"></i> <%= reportTitle %>
+                </h5>
+                <span class="kpi-badge kpi-good">
+                    <i class="bi bi-calendar-check"></i> 
+                    <%= filterType === 'day' ? 'Theo ngày' :
+                       filterType === 'week' ? 'Theo tuần' :
+                       filterType === 'month' ? 'Theo tháng' :
+                       filterType === 'quarter' ? 'Theo quý' :
+                       filterType === 'year' ? 'Theo năm' : 'Khoảng thời gian' %>
+                </span>
+            </div>
+            <div class="card-body">
+                <!-- Báo cáo tổng hợp -->
+                <% if (loaiBaoCao === 'tongHop') { %>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="bi bi-person-check"></i> Báo cáo báo giá & đơn hàng
+                            </h6>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
+                                <table class="table table-hover">
+                                    <thead>
                                         <tr>
-                                            <th>STT</th>
-                                            <th>Mã NV</th>
-                                            <th>Tên nhân viên</th>
+                                            <th>Nhân viên</th>
                                             <th>Tổng báo giá</th>
                                             <th>Tổng đơn hàng</th>
-                                            <th>Tỷ lệ chuyển đổi (%)</th>
-                                            <th>Doanh số (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
+                                            <th>Tỷ lệ chuyển đổi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.maNV %></td>
-                                                    <td><%= item.tenNV %></td>
-                                                    <td class="text-center"><%= item.tongBaoGia %></td>
-                                                    <td class="text-center"><%= item.tongDonHang %></td>
-                                                    <td class="text-center">
-                                                        <div class="progress progress-kpi">
-                                                            <div class="progress-bar <%= parseFloat(item.tyLeChuyenDoi) >= 30 ? 'bg-success' : parseFloat(item.tyLeChuyenDoi) >= 20 ? 'bg-warning' : 'bg-danger' %>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <%= Math.min(parseFloat(item.tyLeChuyenDoi), 100) %>%">
-                                                                <%= item.tyLeChuyenDoi %>%
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="number-cell"><%= formatNumber(item.doanhSoBR) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
+                                        <% for (const [nv, item] of Object.entries(data.baoGiaDonHang || {})) { %>
+                                        <tr>
+                                            <td><strong><%= nv %></strong></td>
+                                            <td><span class="badge bg-info"><%= item.tongBaoGia || 0 %></span></td>
+                                            <td><span class="badge bg-success"><%= item.tongDonHang || 0 %></span></td>
+                                            <td>
+                                                <span class="<%= (item.tyLeChuyenDoi || 0) >= 30 ? 'kpi-badge kpi-good' : 
+                                                               (item.tyLeChuyenDoi || 0) >= 15 ? 'kpi-badge kpi-warning' : 
+                                                               'kpi-badge kpi-danger' %>">
+                                                    <%= (item.tyLeChuyenDoi || 0).toFixed(1) %>%
+                                                </span>
+                                            </td>
+                                        </tr>
                                         <% } %>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    </div>
-
-                <!-- Báo cáo Doanh số theo NV -->
-                <% } else if (reportType === 'doanh-so-theo-nv') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-cash-stack"></i> BÁO CÁO DOANH SỐ THEO NHÂN VIÊN</h5>
-                            <span class="badge bg-success">KPI Doanh số</span>
-                        </div>
-                        <div class="card-body">
+                        
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="bi bi-graph-up"></i> Doanh số theo nhân viên
+                            </h6>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
+                                <table class="table table-hover">
+                                    <thead>
                                         <tr>
-                                            <th>STT</th>
-                                            <th>Mã NV</th>
-                                            <th>Tên nhân viên</th>
-                                            <th>Doanh số thực tế (BR)</th>
-                                            <th>Mục tiêu KPI</th>
-                                            <th>Tỷ lệ đạt (%)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
+                                            <th>Nhân viên</th>
+                                            <th>Doanh số thực tế</th>
+                                            <th>KPI mục tiêu</th>
+                                            <th>Tỷ lệ hoàn thành</th>
+                                            <th>Đánh giá</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.maNV %></td>
-                                                    <td><%= item.tenNV %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.doanhSoThucTe) %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.mucTieuKPI) %></td>
-                                                    <td class="text-center">
-                                                        <% const tyLe = parseFloat(item.tyLeDat); %>
-                                                        <div class="progress progress-kpi">
-                                                            <div class="progress-bar <%= tyLe >= 100 ? 'bg-success' : tyLe >= 80 ? 'bg-warning' : 'bg-danger' %>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <%= Math.min(tyLe, 100) %>%">
-                                                                <%= item.tyLeDat %>%
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td><input type="text" class="form-control form-control-sm" value="<%= formatNumber(item.mucTieuKPI) %>"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" value="<%= item.tyLeDat %>%"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" value="<%= item.ghiChu || '' %>"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
+                                        <% (data.doanhSoTheoNV || []).forEach(function(item) { %>
+                                        <tr>
+                                            <td><strong><%= item.tenNhanVien %></strong></td>
+                                            <td><span class="fw-bold text-success"><%= formatNumber(item.doanhSoThucTe) %></span></td>
+                                            <td><%= formatNumber(item.kpiMucTieu) %></td>
+                                            <td>
+                                                <span class="<%= item.tyLeHoanThanh >= 100 ? 'kpi-badge kpi-good' : 
+                                                               item.tyLeHoanThanh >= 70 ? 'kpi-badge kpi-warning' : 
+                                                               'kpi-badge kpi-danger' %>">
+                                                    <%= item.tyLeHoanThanh.toFixed(1) %>%
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge <%= item.danhGia === 'Đạt' ? 'bg-success' : 
+                                                                     item.danhGia === 'Chưa đạt' ? 'bg-danger' : 
+                                                                     'bg-secondary' %>">
+                                                    <%= item.danhGia %>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-
-                <!-- Báo cáo Đơn hàng hủy -->
-                <% } else if (reportType === 'don-hang-huy') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-x-octagon"></i> BÁO CÁO ĐƠN HÀNG HỦY</h5>
-                            <span class="badge bg-danger">Cần xem xét</span>
-                        </div>
-                        <div class="card-body">
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="bi bi-trophy"></i> Top 10 khách hàng doanh số cao nhất
+                            </h6>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
+                                <table class="table table-hover">
+                                    <thead>
                                         <tr>
-                                            <th>STT</th>
-                                            <th>Mã đơn hàng</th>
+                                            <th>#</th>
                                             <th>Khách hàng ID</th>
                                             <th>Tên khách hàng</th>
-                                            <th>Nhân viên bán</th>
-                                            <th>Doanh số hủy (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.maDonHang %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.nhanVienBan %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.doanhSoHuy) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="9" class="text-center">Không có đơn hàng hủy</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Pagination -->
-                            <% if (pagination && pagination.totalPages > 1) { %>
-                                <nav class="mt-3">
-                                    <ul class="pagination justify-content-center">
-                                        <% for(let i = 1; i <= pagination.totalPages; i++) { %>
-                                            <li class="page-item <%= i === pagination.page ? 'active' : '' %>">
-                                                <a class="page-link" 
-                                                   href="?reportType=don-hang-huy&page=<%= i %>&filterType=<%= filterType %>&year=<%= year %>&month=<%= month %>&employeeCode=<%= employeeCode %>">
-                                                    <%= i %>
-                                                </a>
-                                            </li>
-                                        <% } %>
-                                    </ul>
-                                </nav>
-                            <% } %>
-                        </div>
-                    </div>
-
-                <!-- Top 100 Khách hàng -->
-                <% } else if (reportType === 'top-100-khach-hang') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-trophy"></i> TOP 100 KHÁCH HÀNG DOANH SỐ CAO NHẤT</h5>
-                            <span class="badge bg-warning">Phân tích KH</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Số đơn hàng</th>
-                                            <th>Tổng doanh số (BE)</th>
-                                            <th>Tổng doanh số (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td class="text-center"><%= item.soDonHang %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBE) %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBR) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Khách hàng cũ -->
-                <% } else if (reportType === 'khach-hang-cu') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-people"></i> KHÁCH HÀNG CŨ (≥ 2 ĐƠN HÀNG)</h5>
-                            <span class="badge bg-info">Khách hàng trung thành</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Nhân viên bán</th>
-                                            <th>Số đơn hàng</th>
-                                            <th>Tổng doanh số (BE)</th>
-                                            <th>Tổng doanh số (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.nhanVienBan %></td>
-                                                    <td class="text-center"><%= item.soDonHang %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBE) %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBR) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Pagination -->
-                            <% if (pagination && pagination.totalPages > 1) { %>
-                                <nav class="mt-3">
-                                    <ul class="pagination justify-content-center">
-                                        <% for(let i = 1; i <= pagination.totalPages; i++) { %>
-                                            <li class="page-item <%= i === pagination.page ? 'active' : '' %>">
-                                                <a class="page-link" 
-                                                   href="?reportType=khach-hang-cu&page=<%= i %>&filterType=<%= filterType %>&year=<%= year %>&month=<%= month %>">
-                                                    <%= i %>
-                                                </a>
-                                            </li>
-                                        <% } %>
-                                    </ul>
-                                </nav>
-                            <% } %>
-                        </div>
-                    </div>
-
-                <!-- Khách hàng mới -->
-                <% } else if (reportType === 'khach-hang-moi') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-person-plus"></i> KHÁCH HÀNG MỚI (1 ĐƠN HÀNG)</h5>
-                            <span class="badge bg-success">Khách hàng mới</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Nhân viên bán</th>
-                                            <th>Doanh số (BE)</th>
-                                            <th>Doanh số (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.nhanVienBan %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBE) %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSoBR) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Pagination -->
-                            <% if (pagination && pagination.totalPages > 1) { %>
-                                <nav class="mt-3">
-                                    <ul class="pagination justify-content-center">
-                                        <% for(let i = 1; i <= pagination.totalPages; i++) { %>
-                                            <li class="page-item <%= i === pagination.page ? 'active' : '' %>">
-                                                <a class="page-link" 
-                                                   href="?reportType=khach-hang-moi&page=<%= i %>&filterType=<%= filterType %>&year=<%= year %>&month=<%= month %>">
-                                                    <%= i %>
-                                                </a>
-                                            </li>
-                                        <% } %>
-                                    </ul>
-                                </nav>
-                            <% } %>
-                        </div>
-                    </div>
-
-                <!-- Chuyển đổi báo giá -->
-                <% } else if (reportType === 'chuyen-doi-bao-gia') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-arrow-right-circle"></i> KHÁCH HÀNG CHUYỂN ĐỔI TỪ BÁO GIÁ → ĐƠN HÀNG</h5>
-                            <span class="badge bg-primary">Tỷ lệ chuyển đổi</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Nhân viên bán</th>
-                                            <th>Có báo giá</th>
-                                            <th>Có đơn hàng</th>
-                                            <th>Doanh số (BR)</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.nhanVienBan %></td>
-                                                    <td class="text-center"><i class="bi bi-check-lg text-success"></i></td>
-                                                    <td class="text-center"><i class="bi bi-check-lg text-success"></i></td>
-                                                    <td class="number-cell"><%= formatNumber(item.doanhSoBR) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Pagination -->
-                            <% if (pagination && pagination.totalPages > 1) { %>
-                                <nav class="mt-3">
-                                    <ul class="pagination justify-content-center">
-                                        <% for(let i = 1; i <= pagination.totalPages; i++) { %>
-                                            <li class="page-item <%= i === pagination.page ? 'active' : '' %>">
-                                                <a class="page-link" 
-                                                   href="?reportType=chuyen-doi-bao-gia&page=<%= i %>&filterType=<%= filterType %>&year=<%= year %>&month=<%= month %>">
-                                                    <%= i %>
-                                                </a>
-                                            </li>
-                                        <% } %>
-                                    </ul>
-                                </nav>
-                            <% } %>
-                        </div>
-                    </div>
-
-                <!-- Đơn hàng phê duyệt -->
-                <% } else if (reportType === 'don-hang-phe-duyet') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-check-circle"></i> ĐƠN HÀNG ĐƯỢC PHÊ DUYỆT THEO NHÂN VIÊN</h5>
-                            <span class="badge bg-success">Quy trình phê duyệt</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Nhân viên phê duyệt</th>
                                             <th>Số đơn hàng</th>
                                             <th>Tổng doanh số</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
+                                            <th>Tổng thành tiền</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach(item => { %>
-                                                <tr>
-                                                    <td><%= item.stt %></td>
-                                                    <td><%= item.nhanVienPheDuyet %></td>
-                                                    <td class="text-center"><%= item.soDonHang %></td>
-                                                    <td class="number-cell"><%= formatNumber(item.tongDoanhSo) %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="7" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
+                                        <% (data.topKhachHang || []).slice(0, 10).forEach(function(item, index) { %>
+                                        <tr>
+                                            <td><%= index + 1 %></td>
+                                            <td><code><%= item.khachHangID %></code></td>
+                                            <td><strong><%= item.tenKhach %></strong></td>
+                                            <td><span class="badge bg-info"><%= item.soDonHang %></span></td>
+                                            <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
+                                            <td><%= formatNumber(item.tongThanhTien) %></td>
+                                        </tr>
+                                        <% }); %>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-
-                <!-- Khách hàng mới tạo -->
-                <% } else if (reportType === 'khach-hang-moi-tao') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-person-plus"></i> KHÁCH HÀNG MỚI ĐƯỢC TẠO</h5>
-                            <span class="badge bg-info">Mở rộng thị trường</span>
-                        </div>
-                        <div class="card-body">
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h6 class="fw-bold text-primary mb-3">
+                                <i class="bi bi-x-circle"></i> Đơn hàng hủy gần đây
+                            </h6>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
+                                <table class="table table-hover">
+                                    <thead>
                                         <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Loại khách</th>
-                                            <th>Nguồn khách</th>
-                                            <th>NV phụ trách</th>
-                                            <th>Người tạo</th>
                                             <th>Ngày tạo</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.loaiKhach %></td>
-                                                    <td><%= item.nguonKhach %></td>
-                                                    <td><%= item.nhanVienPhuTrach %></td>
-                                                    <td><%= item.nguoiTao %></td>
-                                                    <td><%= item.ngayTao %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="11" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Khách hàng đại lý mới -->
-                <% } else if (reportType === 'khach-hang-dai-ly-moi') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-shop"></i> KHÁCH HÀNG ĐẠI LÝ MỚI</h5>
-                            <span class="badge bg-warning">Phát triển đại lý</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Loại khách</th>
-                                            <th>Nguồn khách</th>
-                                            <th>NV phụ trách</th>
-                                            <th>Ngày tạo</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><span class="badge bg-warning"><%= item.loaiKhach %></span></td>
-                                                    <td><%= item.nguonKhach %></td>
-                                                    <td><%= item.nhanVienPhuTrach %></td>
-                                                    <td><%= item.ngayTao %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Khách hàng được bàn giao -->
-                <% } else if (reportType === 'khach-hang-ban-giao') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> KHÁCH HÀNG ĐƯỢC BÀN GIAO</h5>
-                            <span class="badge bg-info">Quản lý khách hàng</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng ID</th>
-                                            <th>Tên khách hàng</th>
-                                            <th>Nguồn khách</th>
-                                            <th>NV phụ trách</th>
-                                            <th>Người tạo</th>
-                                            <th>Ngày bàn giao</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.khachHangID %></td>
-                                                    <td><%= item.tenKhachHang %></td>
-                                                    <td><%= item.nguonKhach %></td>
-                                                    <td><%= item.nhanVienPhuTrach %></td>
-                                                    <td><%= item.nguoiTao %></td>
-                                                    <td><%= item.ngayBanGiao %></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Bài đăng marketing -->
-                <% } else if (reportType === 'marketing-bai-dang') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-megaphone"></i> BÀI ĐĂNG MARKETING</h5>
-                            <span class="badge bg-purple">Marketing</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <h6>Theo nhân viên</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Nhân viên</th>
-                                                    <th>Số bài đăng</th>
-                                                    <th>Mục tiêu</th>
-                                                    <th>Kết quả</th>
-                                                    <th>Ghi chú</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.theoNhanVien && reportData.theoNhanVien.length > 0) { %>
-                                                    <% reportData.theoNhanVien.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.tenNV %></td>
-                                                            <td class="text-center"><%= item.soBaiDang %></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6>Theo kênh đăng</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Kênh đăng</th>
-                                                    <th>Số bài đăng</th>
-                                                    <th>Mục tiêu</th>
-                                                    <th>Kết quả</th>
-                                                    <th>Ghi chú</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.theoKenh && reportData.theoKenh.length > 0) { %>
-                                                    <% reportData.theoKenh.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.kenhDang %></td>
-                                                            <td class="text-center"><%= item.soBaiDang %></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h6>Chi tiết bài đăng</h6>
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
                                             <th>Nhân viên</th>
-                                            <th>Kênh đăng</th>
-                                            <th>Link bài đăng</th>
-                                            <th>Hình ảnh</th>
-                                            <th>Ngày đăng</th>
+                                            <th>Mã đơn</th>
+                                            <th>Tên khách</th>
+                                            <th>Thành tiền</th>
+                                            <th>Doanh số KPI</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <% if (reportData.theoNhanVien && reportData.theoNhanVien.length > 0) { %>
-                                            <% let detailIndex = 1; %>
-                                            <% reportData.theoNhanVien.forEach(nv => { %>
-                                                <% if (nv.baiDang && nv.baiDang.length > 0) { %>
-                                                    <% nv.baiDang.forEach(bai => { %>
-                                                        <tr>
-                                                            <td><%= detailIndex++ %></td>
-                                                            <td><%= nv.tenNV %></td>
-                                                            <td><%= bai.kenhDang %></td>
-                                                            <td>
-                                                                <% if (bai.link) { %>
-                                                                    <a href="<%= bai.link %>" target="_blank" class="btn btn-sm btn-outline-primary">
-                                                                        <i class="bi bi-link"></i> Xem
-                                                                    </a>
-                                                                <% } else { %>
-                                                                    Không có link
-                                                                <% } %>
-                                                            </td>
-                                                            <td>
-                                                                <% if (bai.hinhAnh) { %>
-                                                                    <a href="<%= bai.hinhAnh %>" target="_blank" class="btn btn-sm btn-outline-success">
-                                                                        <i class="bi bi-image"></i> Xem
-                                                                    </a>
-                                                                <% } else { %>
-                                                                    Không có ảnh
-                                                                <% } %>
-                                                            </td>
-                                                            <td><%= bai.ngayBaoCao %></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } %>
-                                            <% }); %>
-                                            <% if (detailIndex === 1) { %>
-                                                <tr><td colspan="6" class="text-center">Không có chi tiết bài đăng</td></tr>
+                                        <% (data.donHangHuy?.data || []).forEach(function(item) { %>
+                                        <tr class="table-danger">
+                                            <td><%= formatDate(item.ngayTao) %></td>
+                                            <td><strong><%= item.tenNhanVien %></strong></td>
+                                            <td><code><%= item.maDon %></code></td>
+                                            <td><%= item.tenKhach %></td>
+                                            <td><span class="text-danger"><%= formatNumber(item.thanhTien) %></span></td>
+                                            <td><span class="text-danger"><%= formatNumber(item.doanhSoKPI) %></span></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <% if (data.donHangHuy?.totalPages > 1) { %>
+                            <nav class="mt-3">
+                                <ul class="pagination justify-content-center">
+                                    <% for (let i = 1; i <= data.donHangHuy.totalPages; i++) { %>
+                                    <li class="page-item <%= data.donHangHuy.currentPage === i ? 'active' : '' %>">
+                                        <a class="page-link" href="?loaiBaoCao=donHangHuy&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>&page=<%= i %>">
+                                            <%= i %>
+                                        </a>
+                                    </li>
+                                    <% } %>
+                                </ul>
+                            </nav>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } else if (loaiBaoCao === 'baoGiaDonHang') { %>
+                    <!-- Báo cáo báo giá & đơn hàng -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo thể hiện số lượng báo giá và đơn hàng của từng nhân viên, cùng tỷ lệ chuyển đổi.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nhân viên</th>
+                                    <th>Tổng báo giá</th>
+                                    <th>Tổng đơn hàng</th>
+                                    <th>Tổng doanh số</th>
+                                    <th>Tỷ lệ chuyển đổi</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% for (const [nv, item] of Object.entries(data)) { %>
+                                <tr>
+                                    <td><strong><%= nv %></strong></td>
+                                    <td><span class="badge bg-info"><%= item.tongBaoGia || 0 %></span></td>
+                                    <td><span class="badge bg-success"><%= item.tongDonHang || 0 %></span></td>
+                                    <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
+                                    <td>
+                                        <span class="<%= (item.tyLeChuyenDoi || 0) >= 30 ? 'kpi-badge kpi-good' : 
+                                                       (item.tyLeChuyenDoi || 0) >= 15 ? 'kpi-badge kpi-warning' : 
+                                                       'kpi-badge kpi-danger' %>">
+                                            <%= (item.tyLeChuyenDoi || 0).toFixed(1) %>%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else if (loaiBaoCao === 'doanhSoTheoNV') { %>
+                    <!-- Doanh số theo nhân viên -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo thể hiện doanh số thực tế so với KPI mục tiêu của từng nhân viên.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nhân viên</th>
+                                    <th>Doanh số thực tế</th>
+                                    <th>KPI mục tiêu</th>
+                                    <th>Tỷ lệ hoàn thành</th>
+                                    <th>Đánh giá</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item) { %>
+                                <tr>
+                                    <td><strong><%= item.tenNhanVien %></strong></td>
+                                    <td><span class="fw-bold text-success"><%= formatNumber(item.doanhSoThucTe) %></span></td>
+                                    <td><%= formatNumber(item.kpiMucTieu) %></td>
+                                    <td>
+                                        <span class="<%= item.tyLeHoanThanh >= 100 ? 'kpi-badge kpi-good' : 
+                                                       item.tyLeHoanThanh >= 70 ? 'kpi-badge kpi-warning' : 
+                                                       'kpi-badge kpi-danger' %>">
+                                            <%= item.tyLeHoanThanh.toFixed(1) %>%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge <%= item.danhGia === 'Đạt' ? 'bg-success' : 
+                                                             item.danhGia === 'Chưa đạt' ? 'bg-danger' : 
+                                                             'bg-secondary' %>">
+                                            <%= item.danhGia %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else if (loaiBaoCao === 'donHangHuy') { %>
+                    <!-- Đơn hàng hủy -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Danh sách đơn hàng bị hủy, hiển thị thông tin khách hàng và nhân viên bán hàng.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Ngày tạo</th>
+                                    <th>Nhân viên</th>
+                                    <th>Mã đơn</th>
+                                    <th>Tên khách</th>
+                                    <th>Thành tiền</th>
+                                    <th>Doanh số KPI</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.data.forEach(function(item) { %>
+                                <tr class="table-danger">
+                                    <td><%= formatDate(item.ngayTao) %></td>
+                                    <td><strong><%= item.tenNhanVien %></strong></td>
+                                    <td><code><%= item.maDon %></code></td>
+                                    <td><%= item.tenKhach %></td>
+                                    <td><span class="text-danger"><%= formatNumber(item.thanhTien) %></span></td>
+                                    <td><span class="text-danger"><%= formatNumber(item.doanhSoKPI) %></span></td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <% if (data.totalPages > 1) { %>
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            <% for (let i = 1; i <= data.totalPages; i++) { %>
+                            <li class="page-item <%= data.currentPage === i ? 'active' : '' %>">
+                                <a class="page-link" href="?loaiBaoCao=donHangHuy&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>&page=<%= i %>">
+                                    <%= i %>
+                                </a>
+                            </li>
+                            <% } %>
+                        </ul>
+                    </nav>
+                    <% } %>
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Tổng cộng:</strong> <%= data.total %> đơn hàng bị hủy
+                        <% 
+                            const totalRevenueLost = data.data.reduce((sum, item) => sum + (item.doanhSoKPI || 0), 0);
+                        %>
+                        <br>Tổng doanh số bị mất: <span class="text-danger fw-bold"><%= formatNumber(totalRevenueLost) %></span>
+                    </div>
+                <% } else if (loaiBaoCao === 'topKhachHang') { %>
+                    <!-- Top khách hàng -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Top 100 khách hàng có doanh số cao nhất, sắp xếp từ cao xuống thấp.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Khách hàng ID</th>
+                                    <th>Tên khách hàng</th>
+                                    <th>Số đơn hàng</th>
+                                    <th>Tổng doanh số</th>
+                                    <th>Tổng thành tiền</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item, index) { %>
+                                <tr>
+                                    <td><%= index + 1 %></td>
+                                    <td><code><%= item.khachHangID %></code></td>
+                                    <td><strong><%= item.tenKhach %></strong></td>
+                                    <td><span class="badge bg-info"><%= item.soDonHang %></span></td>
+                                    <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
+                                    <td><%= formatNumber(item.tongThanhTien) %></td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else if (loaiBaoCao === 'ketQuaChienDich') { %>
+                    <!-- Kết quả chiến dịch quảng cáo -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo phân tích hiệu quả chiến dịch quảng cáo, so sánh chi phí dự kiến và thực tế.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Mã chiến dịch</th>
+                                    <th>Tên chiến dịch</th>
+                                    <th>Kênh chạy</th>
+                                    <th>Chi phí dự kiến</th>
+                                    <th>Chi phí thực tế</th>
+                                    <th>Số LEAD</th>
+                                    <th>Tỷ lệ tiêu thu</th>
+                                    <th>CP trung bình/LEAD</th>
+                                    <th>Đánh giá</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item) { %>
+                                <tr>
+                                    <td><code><%= item.maChienDich %></code></td>
+                                    <td><strong><%= item.tenChienDich %></strong></td>
+                                    <td><span class="badge bg-secondary"><%= item.kenhChay %></span></td>
+                                    <td><%= formatNumber(item.chiPhiDuKien) %></td>
+                                    <td>
+                                        <span class="<%= item.chiPhiThucTe > item.chiPhiDuKien ? 'text-danger' : 'text-success' %>">
+                                            <%= formatNumber(item.chiPhiThucTe) %>
+                                        </span>
+                                    </td>
+                                    <td><span class="badge bg-info"><%= item.soLead %></span></td>
+                                    <td>
+                                        <span class="<%= item.tyLeTieuThu > 100 ? 'kpi-badge kpi-danger' : 
+                                                       item.tyLeTieuThu >= 80 ? 'kpi-badge kpi-good' : 
+                                                       item.tyLeTieuThu >= 50 ? 'kpi-badge kpi-warning' : 
+                                                       'kpi-badge kpi-danger' %>">
+                                            <%= item.tyLeTieuThu.toFixed(1) %>%
+                                        </span>
+                                    </td>
+                                    <td><%= formatNumber(item.chiPhiTrungBinhLead) %></td>
+                                    <td>
+                                        <span class="badge <%= item.danhGia === 'Vượt ngân sách' ? 'bg-danger' : 
+                                                             item.danhGia === 'Đạt mục tiêu' ? 'bg-success' : 
+                                                             item.danhGia === 'Cần cải thiện' ? 'bg-warning' : 
+                                                             'bg-secondary' %>">
+                                            <%= item.danhGia %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else if (loaiBaoCao === 'baoCaoKyThuat') { %>
+                    <!-- Báo cáo Kỹ thuật - Thiết kế -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo thể hiện hiệu suất của bộ phận kỹ thuật - thiết kế, thời gian tiếp nhận và hoàn thành bản vẽ.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Số lần thiết kế</th>
+                                    <th>Loại bản vẽ</th>
+                                    <th>Nhân sự kỹ thuật</th>
+                                    <th>Thời gian tiếp nhận (phút)</th>
+                                    <th>Thời gian thực hiện (ngày)</th>
+                                    <th>Đánh giá tiếp nhận</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item) { %>
+                                <tr>
+                                    <td><code><%= item.maDonHang %></code></td>
+                                    <td><span class="badge bg-info"><%= item.soLanThietKe %></span></td>
+                                    <td><%= item.loaiBanVe %></td>
+                                    <td><strong><%= item.nhanSuKyThuat %></strong></td>
+                                    <td>
+                                        <% if (item.thoiGianTiepNhanPhut !== null) { %>
+                                            <span class="<%= item.thoiGianTiepNhanPhut <= 30 ? 'text-success' : 'text-danger' %>">
+                                                <%= item.thoiGianTiepNhanPhut %> phút
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-muted">Không xác định</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (item.thoiGianThucHienNgay !== null) { %>
+                                            <span class="<%= item.thoiGianThucHienNgay <= 3 ? 'text-success' : 
+                                                           item.thoiGianThucHienNgay <= 7 ? 'text-warning' : 
+                                                           'text-danger' %>">
+                                                <%= item.thoiGianThucHienNgay %> ngày
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-muted">Đang thực hiện</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <span class="badge <%= item.danhGiaTiepNhan === 'Đạt' ? 'bg-success' : 
+                                                             item.danhGiaTiepNhan === 'Chậm trễ' ? 'bg-danger' : 
+                                                             'bg-secondary' %>">
+                                            <%= item.danhGiaTiepNhan %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else if (loaiBaoCao === 'chamCong') { %>
+                    <!-- Báo cáo chấm công -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo số ngày làm việc đã được duyệt và chưa được duyệt theo từng nhân sự.
+                    </div>
+                    
+                    <h6 class="fw-bold text-success mt-4">
+                        <i class="bi bi-check-circle"></i> Đã duyệt
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nhân sự</th>
+                                    <th>Bộ phận</th>
+                                    <th>Số ngày đã duyệt</th>
+                                    <th>Số ngày chưa duyệt</th>
+                                    <th>Tổng số ngày</th>
+                                    <th>Tỷ lệ duyệt</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.daDuyet.forEach(function(item) { %>
+                                <tr class="table-success">
+                                    <td><strong><%= item.tenNhanSu %></strong></td>
+                                    <td><%= item.boPhan %></td>
+                                    <td><span class="badge bg-success"><%= item.soNgayDaDuyet %></span></td>
+                                    <td><span class="badge bg-secondary"><%= item.soNgayChuaDuyet %></span></td>
+                                    <td><%= item.tongSoNgay %></td>
+                                    <td>
+                                        <span class="kpi-badge kpi-good">
+                                            <%= ((item.soNgayDaDuyet / item.tongSoNgay) * 100).toFixed(1) %>%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <h6 class="fw-bold text-danger mt-4">
+                        <i class="bi bi-x-circle"></i> Chưa duyệt
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nhân sự</th>
+                                    <th>Bộ phận</th>
+                                    <th>Số ngày đã duyệt</th>
+                                    <th>Số ngày chưa duyệt</th>
+                                    <th>Tổng số ngày</th>
+                                    <th>Tỷ lệ duyệt</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.chuaDuyet.forEach(function(item) { %>
+                                <tr class="table-danger">
+                                    <td><strong><%= item.tenNhanSu %></strong></td>
+                                    <td><%= item.boPhan %></td>
+                                    <td><span class="badge bg-success"><%= item.soNgayDaDuyet %></span></td>
+                                    <td><span class="badge bg-danger"><%= item.soNgayChuaDuyet %></span></td>
+                                    <td><%= item.tongSoNgay %></td>
+                                    <td>
+                                        <span class="kpi-badge kpi-danger">
+                                            <%= ((item.soNgayDaDuyet / item.tongSoNgay) * 100).toFixed(1) %>%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <!-- Các báo cáo khác -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo dạng bảng với đầy đủ thông tin và cột ghi chú cho quản lý.
+                    </div>
+                    <div class="table-responsive">
+                        <% if (Array.isArray(data)) { %>
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <% if (data.length > 0) { 
+                                        const sample = data[0];
+                                        Object.keys(sample).forEach(function(key) { %>
+                                            <% if (key !== 'danhSachCongTrinh' && key !== 'danhSachCongViec') { %>
+                                            <th><%= key.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); }) %></th>
                                             <% } %>
-                                        <% } else { %>
-                                            <tr><td colspan="6" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Chiến dịch marketing -->
-                <% } else if (reportType === 'marketing-chien-dich') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-bullseye"></i> CHIẾN DỊCH QUẢNG CÁO</h5>
-                            <span class="badge bg-purple">Marketing</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Công việc</th>
-                                            <th>Người thực hiện</th>
-                                            <th>Ngày thực hiện</th>
-                                            <th>File kết quả</th>
-                                            <th>Kết quả</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.tenCongViec %></td>
-                                                    <td><%= item.nguoiThucHien %></td>
-                                                    <td><%= item.ngayThucHien %></td>
-                                                    <td>
-                                                        <% if (item.linkXem) { %>
-                                                            <a href="<%= item.linkXem %>" target="_blank" class="btn btn-sm btn-outline-primary">
-                                                                <i class="bi bi-play-btn"></i> Xem kết quả
-                                                            </a>
-                                                        <% } else if (item.fileKetQua) { %>
-                                                            <small><%= item.fileKetQua %></small>
-                                                        <% } else { %>
-                                                            Không có file
-                                                        <% } %>
-                                                    </td>
-                                                    <td><span class="badge <%= item.ketQua === 'Hoàn thành' ? 'bg-success' : 'bg-warning' %>">
-                                                        <%= item.ketQua || 'Đang thực hiện' %>
-                                                    </span></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
+                                        <% }); %>
+                                    <% } %>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.forEach(function(item) { %>
+                                <tr>
+                                    <% Object.keys(item).forEach(function(key) { 
+                                        if (key !== 'danhSachCongTrinh' && key !== 'danhSachCongViec') {
+                                            const value = item[key];
+                                            let displayValue = value;
+                                            
+                                            if (typeof value === 'number') {
+                                                if (key.toLowerCase().includes('tyle') || key.toLowerCase().includes('percent')) {
+                                                    displayValue = value.toFixed(1) + '%';
+                                                } else if (key.toLowerCase().includes('doanhso') || key.toLowerCase().includes('tien')) {
+                                                    displayValue = formatNumber(value);
+                                                } else {
+                                                    displayValue = formatNumber(value);
+                                                }
+                                            }
+                                    %>
+                                    <td><%= displayValue %></td>
+                                    <% } }); %>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                        <% } else if (typeof data === 'object') { %>
+                        <p class="text-muted">Dữ liệu được nhóm theo từng nhân viên/phòng ban.</p>
+                        <% for (const [key, value] of Object.entries(data)) { %>
+                        <h6 class="mt-3 mb-2 fw-bold text-primary"><%= key %></h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <% if (Array.isArray(value) && value.length > 0) {
+                                            const sample = value[0];
+                                            Object.keys(sample).forEach(function(col) { %>
+                                            <th><%= col %></th>
                                             <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="9" class="text-center">Không có dữ liệu</td></tr>
                                         <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (Array.isArray(value)) {
+                                        value.forEach(function(item) { %>
+                                    <tr>
+                                        <% Object.values(item).forEach(function(val) { %>
+                                        <td><%= val %></td>
+                                        <% }); %>
+                                        <td>
+                                            <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                        </td>
+                                    </tr>
+                                    <% }); } %>
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-
-                <!-- Chăm sóc khách hàng -->
-                <% } else if (reportType === 'cham-soc-khach-hang') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-telephone-outbound"></i> CHĂM SÓC KHÁCH HÀNG</h5>
-                            <span class="badge bg-info">Customer Service</span>
+                        <% } %>
+                        <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị cho báo cáo này.
                         </div>
-                        <div class="card-body">
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <h6>Thống kê theo nhân viên</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Nhân viên</th>
-                                                    <th>Số lượt CS</th>
-                                                    <th>Mục tiêu</th>
-                                                    <th>Kết quả</th>
-                                                    <th>Ghi chú</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.thongKeNhanVien && reportData.thongKeNhanVien.length > 0) { %>
-                                                    <% reportData.thongKeNhanVien.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.tenNV %></td>
-                                                            <td class="text-center"><%= item.soLuotChamSoc %></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h6>Chi tiết chăm sóc</h6>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Khách hàng</th>
-                                            <th>Hình thức</th>
-                                            <th>Nội dung</th>
-                                            <th>Nhân viên</th>
-                                            <th>Kết quả</th>
-                                            <th>Ngày hẹn tiếp</th>
-                                            <th>Ngày CS</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData.chiTiet && reportData.chiTiet.length > 0) { %>
-                                            <% reportData.chiTiet.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><strong><%= item.tenKhach %></strong><br><small><%= item.khachHangID %></small></td>
-                                                    <td><%= item.hinhThuc %></td>
-                                                    <td><small><%= item.noiDung %></small></td>
-                                                    <td><%= item.tenNV %></td>
-                                                    <td><span class="badge bg-info"><%= item.ketQua || 'Đã liên hệ' %></span></td>
-                                                    <td><%= item.ngayHenTiep || 'Chưa hẹn' %></td>
-                                                    <td><%= item.ngayChamSoc %></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Kỹ thuật bản vẽ -->
-                <% } else if (reportType === 'ky-thuat-ban-ve') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-rulers"></i> BẢN VẼ KỸ THUẬT</h5>
-                            <span class="badge bg-secondary">Kỹ thuật</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <h6>Thống kê theo kỹ sư</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead class="table-header">
-                                                <tr>
-                                                    <th>Kỹ sư</th>
-                                                    <th>Số bản vẽ</th>
-                                                    <th>Tổng số lần TK</th>
-                                                    <th>Mục tiêu</th>
-                                                    <th>Kết quả</th>
-                                                    <th>Ghi chú</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <% if (reportData.thongKeKySu && reportData.thongKeKySu.length > 0) { %>
-                                                    <% reportData.thongKeKySu.forEach(item => { %>
-                                                        <tr>
-                                                            <td><%= item.kySu %></td>
-                                                            <td class="text-center"><%= item.soBanVe %></td>
-                                                            <td class="text-center"><%= item.tongSoLanThietKe %></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                            <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                        </tr>
-                                                    <% }); %>
-                                                <% } else { %>
-                                                    <tr><td colspan="6" class="text-center">Không có dữ liệu</td></tr>
-                                                <% } %>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h6>Chi tiết bản vẽ</h6>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Mã đơn hàng</th>
-                                            <th>Số lần TK</th>
-                                            <th>Loại file</th>
-                                            <th>Loại bản vẽ</th>
-                                            <th>Kỹ sư</th>
-                                            <th>Thời gian TH</th>
-                                            <th>Ngày tạo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData.chiTiet && reportData.chiTiet.length > 0) { %>
-                                            <% reportData.chiTiet.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.maDonHang %></td>
-                                                    <td class="text-center"><%= item.soLanThietKe %></td>
-                                                    <td><%= item.loaiFile %></td>
-                                                    <td><%= item.loaiBanVe %></td>
-                                                    <td><%= item.kySu %></td>
-                                                    <td><%= item.thoiGianThucHien %></td>
-                                                    <td><%= item.ngayTao %></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Thực hiện công việc -->
-                <% } else if (reportType === 'thuc-hien-cong-viec') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-check2-square"></i> THỰC HIỆN CÔNG VIỆC ĐƯỢC GIAO</h5>
-                            <span class="badge bg-primary">Quản lý công việc</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Nhân viên</th>
-                                            <th>Tổng CV được giao</th>
-                                            <th>Đã tiếp nhận</th>
-                                            <th>Đã hoàn thành</th>
-                                            <th>Tỷ lệ tiếp nhận</th>
-                                            <th>Tỷ lệ hoàn thành</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.tenNV %></td>
-                                                    <td class="text-center"><%= item.tongCongViec %></td>
-                                                    <td class="text-center"><%= item.daTiepNhan %></td>
-                                                    <td class="text-center"><%= item.daHoanThanh %></td>
-                                                    <td>
-                                                        <div class="progress progress-kpi">
-                                                            <div class="progress-bar <%= parseFloat(item.tyLeTiepNhan) >= 90 ? 'bg-success' : parseFloat(item.tyLeTiepNhan) >= 70 ? 'bg-warning' : 'bg-danger' %>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <%= Math.min(parseFloat(item.tyLeTiepNhan), 100) %>%">
-                                                                <%= item.tyLeTiepNhan %>%
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div class="progress progress-kpi">
-                                                            <div class="progress-bar <%= parseFloat(item.tyLeHoanThanh) >= 90 ? 'bg-success' : parseFloat(item.tyLeHoanThanh) >= 70 ? 'bg-warning' : 'bg-danger' %>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <%= Math.min(parseFloat(item.tyLeHoanThanh), 100) %>%">
-                                                                <%= item.tyLeHoanThanh %>%
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Chấm công -->
-                <% } else if (reportType === 'cham-cong') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-calendar-check"></i> CHẤM CÔNG LÀM VIỆC</h5>
-                            <span class="badge bg-dark">HR</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Nhân viên</th>
-                                            <th>Bộ phận</th>
-                                            <th>Số ngày công</th>
-                                            <th>Được duyệt</th>
-                                            <th>Không duyệt</th>
-                                            <th>Tỷ lệ duyệt</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.nhanVien %></td>
-                                                    <td><%= item.boPhan %></td>
-                                                    <td class="text-center"><%= item.soNgayCong %></td>
-                                                    <td class="text-center"><%= item.duyet %></td>
-                                                    <td class="text-center"><%= item.khongDuyet %></td>
-                                                    <td>
-                                                        <% 
-                                                            const tyLeDuyet = item.soNgayCong > 0 ? (item.duyet / item.soNgayCong * 100).toFixed(2) : 0;
-                                                        %>
-                                                        <div class="progress progress-kpi">
-                                                            <div class="progress-bar <%= tyLeDuyet >= 90 ? 'bg-success' : tyLeDuyet >= 70 ? 'bg-warning' : 'bg-danger' %>" 
-                                                                 role="progressbar" 
-                                                                 style="width: <%= Math.min(tyLeDuyet, 100) %>%">
-                                                                <%= tyLeDuyet %>%
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="10" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Khảo sát công trình -->
-                <% } else if (reportType === 'khao-sat-cong-trinh') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-binoculars"></i> KHẢO SÁT CÔNG TRÌNH</h5>
-                            <span class="badge bg-info">Field Work</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Nhân viên</th>
-                                            <th>Ngày</th>
-                                            <th>Mô tả công việc</th>
-                                            <th>Loại việc</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.nhanVien %></td>
-                                                    <td><%= item.ngay %></td>
-                                                    <td><small><%= item.moTa %></small></td>
-                                                    <td><span class="badge bg-info"><%= item.loaiViec %></span></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                <!-- Làm việc tại văn phòng -->
-                <% } else if (reportType === 'lam-viec-van-phong') { %>
-                    <div class="card shadow">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-building"></i> LÀM VIỆC TẠI VĂN PHÒNG</h5>
-                            <span class="badge bg-secondary">Office Work</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th>STT</th>
-                                            <th>Nhân viên</th>
-                                            <th>Ngày</th>
-                                            <th>Mô tả công việc</th>
-                                            <th>Loại việc</th>
-                                            <th>Mục tiêu</th>
-                                            <th>Kết quả</th>
-                                            <th>Ghi chú</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (reportData && reportData.length > 0) { %>
-                                            <% reportData.forEach((item, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 %></td>
-                                                    <td><%= item.nhanVien %></td>
-                                                    <td><%= item.ngay %></td>
-                                                    <td><small><%= item.moTa %></small></td>
-                                                    <td><span class="badge bg-secondary"><%= item.loaiViec %></span></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập mục tiêu"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập kết quả"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Nhập ghi chú"></td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr><td colspan="8" class="text-center">Không có dữ liệu</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <% } %>
                     </div>
                 <% } %>
             </div>
+            
+            <div class="card-footer">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <i class="bi bi-clock-history"></i> Cập nhật lần cuối: <%= new Date().toLocaleString('vi-VN') %>
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-success btn-sm">
+                            <i class="bi bi-save"></i> Lưu ghi chú
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <!-- Đánh giá hiện trạng -->
+        
+        <!-- Quick Links -->
         <div class="row mt-4">
-            <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> ĐÁNH GIÁ HIỆN TRẠNG TỒN TẠI</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="evaluationForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Nguyên nhân khách quan:</label>
-                                    <textarea class="form-control" rows="3" placeholder="Nhập nguyên nhân khách quan ảnh hưởng đến KPI..."></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Nguyên nhân chủ quan:</label>
-                                    <textarea class="form-control" rows="3" placeholder="Nhập nguyên nhân chủ quan từ phía nhân sự/quản lý..."></textarea>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label class="form-label">Kết luận & Đánh giá:</label>
-                                    <textarea class="form-control" rows="3" placeholder="Nhập kết luận tổng quan về tình hình thực hiện KPI..."></textarea>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label class="form-label">Công việc tiếp theo cần triển khai:</label>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered" id="nextTasksTable">
-                                            <thead>
-                                                <tr>
-                                                    <th>STT</th>
-                                                    <th>Công việc</th>
-                                                    <th>Người phụ trách</th>
-                                                    <th>Thời hạn</th>
-                                                    <th>Ghi chú</th>
-                                                    <th></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="nextTasksBody">
-                                                <tr>
-                                                    <td>1</td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Mô tả công việc"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Người phụ trách"></td>
-                                                    <td><input type="date" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
-                                                    <td><button type="button" class="btn btn-sm btn-danger" onclick="removeTask(this)"><i class="bi bi-trash"></i></button></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <button type="button" class="btn btn-sm btn-success" onclick="addTask()">
-                                        <i class="bi bi-plus-circle"></i> Thêm công việc
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12 text-end">
-                                    <button type="button" class="btn btn-primary" onclick="saveEvaluation()">
-                                        <i class="bi bi-save"></i> Lưu đánh giá
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+            <div class="col-md-12">
+                <h5 class="mb-3"><i class="bi bi-link-45deg"></i> Truy cập nhanh</h5>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="?loaiBaoCao=baoGiaDonHang&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-primary btn-sm">
+                        Báo giá & Đơn hàng
+                    </a>
+                    <a href="?loaiBaoCao=doanhSoTheoNV&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-primary btn-sm">
+                        Doanh số
+                    </a>
+                    <a href="?loaiBaoCao=donHangHuy&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-danger btn-sm">
+                        Đơn hàng hủy
+                    </a>
+                    <a href="?loaiBaoCao=topKhachHang&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-success btn-sm">
+                        Top KH
+                    </a>
+                    <a href="?loaiBaoCao=ketQuaChienDich&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-warning btn-sm">
+                        Chiến dịch QC
+                    </a>
+                    <a href="?loaiBaoCao=baoCaoKyThuat&filterType=<%= filterType %>&startDate=<%= startDate %>" class="btn btn-outline-info btn-sm">
+                        Kỹ thuật
+                    </a>
+                    <a href="/bien-ban-cuoc-hop" class="btn btn-outline-dark btn-sm">
+                        <i class="bi bi-journal-text"></i> Biên bản họp
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="mt-5 py-3 bg-white border-top">
+        <div class="container text-center">
+            <p class="mb-0 text-muted">
+                <i class="bi bi-c-circle"></i> 2024 Hệ thống KPI Phòng Kinh Doanh. 
+                Phiên bản 1.0 | <span class="text-primary">Phát triển bởi Đội ngũ Kỹ thuật</span>
+            </p>
+        </div>
+    </footer>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/vi.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        // Initialize Select2
+        // Khởi tạo DataTable
         $(document).ready(function() {
-            $('.select2').select2({
-                language: "vi",
-                placeholder: "Chọn nhân viên",
-                allowClear: true
-            });
-        });
-
-        // Dynamic date inputs based on filter type
-        document.getElementById('filterType').addEventListener('change', function() {
-            const filterType = this.value;
-            
-            // Hide all date inputs
-            document.getElementById('dateInput').style.display = 'none';
-            document.getElementById('weekInput').style.display = 'none';
-            document.getElementById('monthInput').style.display = 'none';
-            document.getElementById('quarterInput').style.display = 'none';
-            
-            // Show relevant input
-            switch(filterType) {
-                case 'ngay':
-                    document.getElementById('dateInput').style.display = 'block';
-                    break;
-                case 'tuan':
-                    document.getElementById('weekInput').style.display = 'block';
-                    break;
-                case 'thang':
-                    document.getElementById('monthInput').style.display = 'block';
-                    break;
-                case 'quy':
-                    document.getElementById('quarterInput').style.display = 'block';
-                    break;
-            }
-        });
-
-        // Form submission
-        document.getElementById('filterForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            const params = new URLSearchParams();
-            
-            for (const [key, value] of formData.entries()) {
-                if (value) params.append(key, value);
-            }
-            
-            window.location.href = `/baocao-kpi?${params.toString()}`;
-        });
-
-        // Export to Excel
-        function exportToExcel() {
-            const formData = new FormData(document.getElementById('filterForm'));
-            const params = new URLSearchParams();
-            
-            for (const [key, value] of formData.entries()) {
-                if (value) params.append(key, value);
-            }
-            
-            window.location.href = `/export/kpi?${params.toString()}`;
-        }
-
-        // Print report
-        function printReport() {
-            window.print();
-        }
-
-        // Evaluation form functions
-        let taskCounter = 1;
-        
-        function addTask() {
-            taskCounter++;
-            const tableBody = document.getElementById('nextTasksBody');
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>${taskCounter}</td>
-                <td><input type="text" class="form-control form-control-sm" placeholder="Mô tả công việc"></td>
-                <td><input type="text" class="form-control form-control-sm" placeholder="Người phụ trách"></td>
-                <td><input type="date" class="form-control form-control-sm"></td>
-                <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
-                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeTask(this)"><i class="bi bi-trash"></i></button></td>
-            `;
-            tableBody.appendChild(newRow);
-        }
-        
-        function removeTask(button) {
-            const row = button.closest('tr');
-            if (document.getElementById('nextTasksBody').children.length > 1) {
-                row.remove();
-                // Renumber rows
-                const rows = document.querySelectorAll('#nextTasksBody tr');
-                rows.forEach((row, index) => {
-                    row.cells[0].textContent = index + 1;
-                });
-                taskCounter = rows.length;
-            }
-        }
-        
-        function saveEvaluation() {
-            const form = document.getElementById('evaluationForm');
-            const formData = new FormData(form);
-            
-            // Collect tasks
-            const tasks = [];
-            const taskRows = document.querySelectorAll('#nextTasksBody tr');
-            taskRows.forEach(row => {
-                const task = {
-                    description: row.cells[1].querySelector('input').value,
-                    responsible: row.cells[2].querySelector('input').value,
-                    deadline: row.cells[3].querySelector('input').value,
-                    notes: row.cells[4].querySelector('input').value
-                };
-                if (task.description || task.responsible) {
-                    tasks.push(task);
-                }
-            });
-            
-            const evaluationData = {
-                objectiveReasons: formData.get('objectiveReasons') || '',
-                subjectiveReasons: formData.get('subjectiveReasons') || '',
-                conclusion: formData.get('conclusion') || '',
-                nextTasks: tasks
-            };
-            
-            // Send data to server
-            fetch('/kpi/nhap-danh-gia', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            $('table').DataTable({
+                pageLength: 10,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/vi.json'
                 },
-                body: JSON.stringify(evaluationData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Đã lưu đánh giá thành công!');
-                    // Clear form
-                    form.reset();
-                    document.getElementById('nextTasksBody').innerHTML = `
-                        <tr>
-                            <td>1</td>
-                            <td><input type="text" class="form-control form-control-sm" placeholder="Mô tả công việc"></td>
-                            <td><input type="text" class="form-control form-control-sm" placeholder="Người phụ trách"></td>
-                            <td><input type="date" class="form-control form-control-sm"></td>
-                            <td><input type="text" class="form-control form-control-sm" placeholder="Ghi chú"></td>
-                            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeTask(this)"><i class="bi bi-trash"></i></button></td>
-                        </tr>
-                    `;
-                    taskCounter = 1;
-                } else {
-                    alert('Lỗi khi lưu đánh giá: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Đã xảy ra lỗi khi lưu đánh giá');
+                dom: '<"row"<"col-md-6"l><"col-md-6"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>'
             });
+        });
+        
+        // Toggle date inputs based on filter type
+        function toggleDateInputs(filterType) {
+            const startDateDiv = document.getElementById('startDateDiv');
+            const endDateDiv = document.getElementById('endDateDiv');
+            const startDateLabel = document.getElementById('startDateLabel');
+            
+            let label = 'Ngày';
+            let inputType = 'date';
+            
+            switch(filterType) {
+                case 'day':
+                    label = 'Ngày';
+                    inputType = 'date';
+                    break;
+                case 'week':
+                    label = 'Tuần bắt đầu';
+                    inputType = 'date';
+                    break;
+                case 'month':
+                    label = 'Tháng';
+                    inputType = 'month';
+                    break;
+                case 'quarter':
+                    label = 'Quý';
+                    inputType = 'month';
+                    break;
+                case 'year':
+                    label = 'Năm';
+                    inputType = 'month';
+                    break;
+                case 'range':
+                    label = 'Từ ngày';
+                    inputType = 'date';
+                    break;
+            }
+            
+            startDateLabel.textContent = label;
+            startDateDiv.querySelector('input').type = inputType;
+            
+            if (filterType === 'range') {
+                endDateDiv.style.display = 'block';
+            } else {
+                endDateDiv.style.display = 'none';
+            }
         }
-
-        // Helper function for week number
-        function getWeekNumber(date) {
-            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-            const dayNum = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        
+        // Reset filters
+        function resetFilters() {
+            window.location.href = '/baocao-kpi-phong-kinh-doanh';
         }
+        
+        // Initialize date inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleDateInputs('<%= filterType %>');
+        });
     </script>
 </body>
 </html>
