@@ -286,11 +286,10 @@
         <!-- Filter Section -->
         <div class="filter-section">
             <form method="GET" action="/baocao-kpi-phong-kinh-doanh" class="row g-3" id="filterForm">
-                <input type="hidden" name="loaiBaoCao" value="<%= loaiBaoCao %>">
                 
                 <div class="col-md-3">
                     <label class="form-label fw-bold">Loại báo cáo</label>
-                    <select name="loaiBaoCao" class="form-select" onchange="this.form.submit()">
+                    <select name="loaiBaoCao" class="form-select" id="loaiBaoCaoSelect">
                         <option value="tongHop" <%= loaiBaoCao === 'tongHop' ? 'selected' : '' %>>Tổng hợp KPI</option>
                         <option value="baoGiaDonHang" <%= loaiBaoCao === 'baoGiaDonHang' ? 'selected' : '' %>>Báo giá & Đơn hàng</option>
                         <option value="doanhSoTheoNV" <%= loaiBaoCao === 'doanhSoTheoNV' ? 'selected' : '' %>>Doanh số theo NV</option>
@@ -620,8 +619,8 @@
                                         <% for (const [nv, item] of Object.entries(data.baoGiaDonHang || {})) { %>
                                         <tr>
                                             <td><strong><%= nv %></strong></td>
-                                            <td><span class="badge bg-info"><%= item.tongBaoGia || 0 %></span></td>
-                                            <td><span class="badge bg-success"><%= item.tongDonHang || 0 %></span></td>
+                                            <td><span class="badge bg-info"><%= formatNumber(item.tongBaoGia || 0) %></span></td>
+                                            <td><span class="badge bg-success"><%= formatNumber(item.tongDonHang || 0) %></span></td>
                                             <td>
                                                 <span class="<%= (item.tyLeChuyenDoi || 0) >= 30 ? 'kpi-badge kpi-good' : 
                                                                (item.tyLeChuyenDoi || 0) >= 15 ? 'kpi-badge kpi-warning' : 
@@ -698,8 +697,8 @@
                                             <th>Khách hàng ID</th>
                                             <th>Tên khách hàng</th>
                                             <th>Số đơn hàng</th>
-                                            <th>Tổng doanh số</th>
-                                            <th>Tổng thành tiền</th>
+                                            <th>Tổng doanh số KPI</th>
+                                            <th>Tổng doanh số ĐH</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -782,7 +781,7 @@
                                     <th>Nhân viên</th>
                                     <th>Tổng báo giá</th>
                                     <th>Tổng đơn hàng</th>
-                                    <th>Tổng doanh số</th>
+                                    <th>Tổng doanh số KPI</th>
                                     <th>Tỷ lệ chuyển đổi</th>
                                     <th>Ghi chú</th>
                                 </tr>
@@ -791,8 +790,8 @@
                                 <% for (const [nv, item] of Object.entries(data)) { %>
                                 <tr>
                                     <td><strong><%= nv %></strong></td>
-                                    <td><span class="badge bg-info"><%= item.tongBaoGia || 0 %></span></td>
-                                    <td><span class="badge bg-success"><%= item.tongDonHang || 0 %></span></td>
+                                    <td><span class="badge bg-info"><%= formatNumber(item.tongBaoGia || 0) %></span></td>
+                                    <td><span class="badge bg-success"><%= formatNumber(item.tongDonHang || 0) %></span></td>
                                     <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
                                     <td>
                                         <span class="<%= (item.tyLeChuyenDoi || 0) >= 30 ? 'kpi-badge kpi-good' : 
@@ -881,7 +880,7 @@
                                     <th>Nhân viên</th>
                                     <th>Mã đơn</th>
                                     <th>Tên khách</th>
-                                    <th>Thành tiền</th>
+                                    <th>Doanh số ĐH</th>
                                     <th>Doanh số KPI</th>
                                     <th>Ghi chú</th>
                                 </tr>
@@ -944,8 +943,8 @@
                                     <th>Khách hàng ID</th>
                                     <th>Tên khách hàng</th>
                                     <th>Số đơn hàng</th>
-                                    <th>Tổng doanh số</th>
-                                    <th>Tổng thành tiền</th>
+                                    <th>Tổng doanh số KPI</th>
+                                    <th>Tổng doanh số ĐH</th>
                                     <th>Ghi chú</th>
                                 </tr>
                             </thead>
@@ -971,6 +970,259 @@
                         <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
                     </div>
                     <% } %>
+                <% } else if (loaiBaoCao === 'khachHangCu') { %>
+                    <!-- Doanh số khách hàng cũ (từ 2 đơn hàng trở lên) -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i>
+                        Doanh số khách hàng cũ (khách có từ 2 đơn hàng trở lên)
+                    </div>
+                    <% if (data && data.data && data.data.length > 0) { %>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Khách hàng ID</th>
+                                    <th>Tên khách hàng</th>
+                                    <th>Nhân viên bán</th>
+                                    <th>Số lượng ĐH</th>
+                                    <th>Tổng doanh số KPI</th>
+                                    <th>Tổng doanh số ĐH</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.data.forEach(function(item, index) { %>
+                                <tr>
+                                    <td><%= (data.currentPage - 1) * 10 + index + 1 %></td>
+                                    <td><code><%= item.khachHangID %></code></td>
+                                    <td><strong><%= item.tenKhach %></strong></td>
+                                    <td><%= item.tenNhanVien %></td>
+                                    <td><span class="badge bg-info"><%= item.soDonHang %></span></td>
+                                    <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
+                                    <td><%= formatNumber(item.tongThanhTien) %></td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <% if (data.totalPages > 1) { %>
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            <% for (let i = 1; i <= data.totalPages; i++) { %>
+                            <li class="page-item <%= data.currentPage === i ? 'active' : '' %>">
+                                <a class="page-link" href="?loaiBaoCao=khachHangCu&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>&page=<%= i %>">
+                                    <%= i %>
+                                </a>
+                            </li>
+                            <% } %>
+                        </ul>
+                    </nav>
+                    <% } %>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
+                <% } else if (loaiBaoCao === 'khachHangMoi') { %>
+                    <!-- Doanh số khách hàng mới (chỉ 1 đơn hàng) -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i>
+                        Doanh số khách hàng mới (khách chỉ có 1 đơn hàng trong kỳ)
+                    </div>
+                    <% if (data && data.data && data.data.length > 0) { %>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Khách hàng ID</th>
+                                    <th>Tên khách</th>
+                                    <th>Nhân viên</th>
+                                    <th>Số đơn</th>
+                                    <th>Tổng doanh số KPI</th>
+                                    <th>Tổng doanh số ĐH</th>
+                                    <th>Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% data.data.forEach(function(item, index) { %>
+                                <tr>
+                                    <td><%= (data.currentPage - 1) * 10 + index + 1 %></td>
+                                    <td><code><%= item.khachHangID %></code></td>
+                                    <td><strong><%= item.tenKhach %></strong></td>
+                                    <td><%= item.tenNhanVien %></td>
+                                    <td><span class="badge bg-info"><%= item.soDonHang %></span></td>
+                                    <td><span class="fw-bold text-success"><%= formatNumber(item.tongDoanhSo) %></span></td>
+                                    <td><%= formatNumber(item.tongThanhTien) %></td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                    <% if (data.totalPages > 1) { %>
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            <% for (let i = 1; i <= data.totalPages; i++) { %>
+                            <li class="page-item <%= data.currentPage === i ? 'active' : '' %>">
+                                <a class="page-link" href="?loaiBaoCao=khachHangMoi&filterType=<%= filterType %>&startDate=<%= startDate %>&endDate=<%= endDate %>&page=<%= i %>">
+                                    <%= i %>
+                                </a>
+                            </li>
+                            <% } %>
+                        </ul>
+                    </nav>
+                    <% } %>
+                    <% } else { %>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                    </div>
+                    <% } %>
+
+                <% } else if (loaiBaoCao === 'khachHangMoiTao') { %>
+                    <!-- Khách hàng mới được tạo (nhóm theo người tạo) -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Khách hàng mới được tạo theo người tạo (hiển thị số lượng bên phải)
+                    </div>
+                    <% if (data && typeof data === 'object' && Object.keys(data).length > 0) { %>
+                        <% Object.entries(data).forEach(function([nguoiTao, customers]) { %>
+                            <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                                <h6 class="mb-0"><i class="bi bi-person-circle"></i> <%= nguoiTao %></h6>
+                                <div class="text-end">
+                                    <small class="text-muted">Tổng:</small>
+                                    <span class="badge bg-primary ms-2"><%= Array.isArray(customers) ? customers.length : 0 %></span>
+                                </div>
+                            </div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Khách hàng ID</th>
+                                            <th>Tên khách</th>
+                                            <th>Loại khách</th>
+                                            <th>Nguồn</th>
+                                            <th>Ngày tạo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% (customers || []).forEach(function(c) { %>
+                                        <tr>
+                                            <td><code><%= c.khachHangID %></code></td>
+                                            <td><strong><%= c.tenKhach %></strong></td>
+                                            <td><%= c.loaiKhach %></td>
+                                            <td><%= c.nguonKhach %></td>
+                                            <td><%= formatDate(c.ngayTao) %></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                        </div>
+                    <% } %>
+
+                <% } else if (loaiBaoCao === 'khachHangDaiLyMoi') { %>
+                    <!-- Khách hàng đại lý mới (nhóm theo người tạo) -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Khách hàng đại lý mới theo người tạo (hiển thị số lượng bên phải)
+                    </div>
+                    <% if (data && typeof data === 'object' && Object.keys(data).length > 0) { %>
+                        <% Object.entries(data).forEach(function([nguoiTao, customers]) { %>
+                            <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                                <h6 class="mb-0"><i class="bi bi-person-circle"></i> <%= nguoiTao %></h6>
+                                <div class="text-end">
+                                    <small class="text-muted">Tổng:</small>
+                                    <span class="badge bg-primary ms-2"><%= Array.isArray(customers) ? customers.length : 0 %></span>
+                                </div>
+                            </div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Khách hàng ID</th>
+                                            <th>Tên khách</th>
+                                            <th>Loại đại lý</th>
+                                            <th>Nguồn</th>
+                                            <th>Ngày tạo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% (customers || []).forEach(function(c) { %>
+                                        <tr>
+                                            <td><code><%= c.khachHangID %></code></td>
+                                            <td><strong><%= c.tenKhach %></strong></td>
+                                            <td><%= c.loaiDaiLy || c.loaiKhach %></td>
+                                            <td><%= c.nguonKhach %></td>
+                                            <td><%= formatDate(c.ngayTao) %></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                        </div>
+                    <% } %>
+
+                <% } else if (loaiBaoCao === 'khachHangBanGiao') { %>
+                    <!-- Khách hàng được bàn giao (nhóm theo người bàn giao) -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Khách hàng được bàn giao theo người bàn giao (hiển thị số lượng bên phải)
+                    </div>
+                    <% if (data && typeof data === 'object' && Object.keys(data).length > 0) { %>
+                        <% Object.entries(data).forEach(function([nguoiBanGiao, customers]) { %>
+                            <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                                <h6 class="mb-0"><i class="bi bi-person-circle"></i> <%= nguoiBanGiao %></h6>
+                                <div class="text-end">
+                                    <small class="text-muted">Tổng:</small>
+                                    <span class="badge bg-primary ms-2"><%= Array.isArray(customers) ? customers.length : 0 %></span>
+                                </div>
+                            </div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Khách hàng ID</th>
+                                            <th>Tên khách</th>
+                                            <th>Loại khách</th>
+                                            <th>Nguồn</th>
+                                            <th>Ngày bàn giao</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% (customers || []).forEach(function(c) { %>
+                                        <tr>
+                                            <td><code><%= c.khachHangID %></code></td>
+                                            <td><strong><%= c.tenKhach %></strong></td>
+                                            <td><%= c.loaiKhach %></td>
+                                            <td><%= c.nguonKhach %></td>
+                                            <td><%= formatDate(c.ngayBanGiao || c.ngayTao || c.ngay) %></td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
+                        </div>
+                    <% } %>
+
                 <% } else if (loaiBaoCao === 'ketQuaChienDich') { %>
                     <!-- Kết quả chiến dịch quảng cáo -->
                     <div class="info-box">
@@ -1197,6 +1449,117 @@
                         <i class="bi bi-info-circle"></i> Không có dữ liệu để hiển thị. Vui lòng kiểm tra lại bộ lọc.
                     </div>
                     <% } %>
+                <% } else if (loaiBaoCao === 'chamSocKH') { %>
+                    <!-- Báo cáo Chăm sóc khách hàng -->
+                    <div class="info-box">
+                        <i class="bi bi-info-circle"></i> 
+                        Báo cáo Chăm sóc khách hàng (tổng hợp theo nhân viên và chi tiết cuộc gọi)
+                    </div>
+                    <% if (data && (Array.isArray(data.tongHop) && data.tongHop.length > 0 || Array.isArray(data.chiTiet) && data.chiTiet.length > 0)) { %>
+                        <% if (Array.isArray(data.tongHop) && data.tongHop.length > 0) { %>
+                            <h6 class="mt-2">Tổng hợp theo nhân viên</h6>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Nhân viên</th>
+                                            <th>Số lần chăm sóc</th>
+                                            <th>Số chuyển đổi</th>
+                                            <th>Tỷ lệ chuyển đổi</th>
+                                            <th>Đánh giá</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% data.tongHop.forEach(function(r) { %>
+                                        <tr>
+                                            <td><strong><%= r.tenNhanVien %></strong></td>
+                                            <td><span class="badge bg-info"><%= r.soLanChamSoc %></span></td>
+                                            <td><span class="badge bg-success"><%= r.soChuyenDoiContacts %></span></td>
+                                            <td><%= (r.tyLeChuyenDoi || 0).toFixed(1) %>%</td>
+                                            <td>
+                                                <% let evalText = 'Chưa có đánh giá';
+                                                   if (r.tyLeChuyenDoi >= 50) evalText = 'Hiệu quả cao';
+                                                   else if (r.tyLeChuyenDoi >= 20) evalText = 'Trung bình';
+                                                   else if (r.tyLeChuyenDoi > 0) evalText = 'Cần cải thiện';
+                                                   else evalText = 'Chưa chuyển đổi';
+                                                %>
+                                                <span class="badge <%= evalText === 'Hiệu quả cao' ? 'bg-success' : evalText === 'Trung bình' ? 'bg-warning' : 'bg-secondary' %>"><%= evalText %></span>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+
+                        <% if (Array.isArray(data.chiTiet) && data.chiTiet.length > 0) { %>
+                            <h6 class="mt-3">Chi tiết chăm sóc</h6>
+                            <div class="alert alert-light small">Khung thời gian kiểm tra chuyển đổi: <strong>30 ngày</strong> kể từ "Ngày chăm sóc". Nếu trong 30 ngày tiếp theo khách phát sinh bản ghi có <em>trạng thái</em> là "Báo giá" hoặc "Đơn hàng" sẽ được tính là chuyển đổi; nếu có cả hai, lấy sự kiện sớm nhất (ưu tiên "Đơn hàng" khi xuất hiện).</div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Ngày chăm sóc</th>
+                                            <th>Nhân viên</th>
+                                            <th>Khách hàng ID</th>
+                                            <th>Tên khách</th>
+                                            <th>Hình thức</th>
+                                            <th>Kết quả</th>
+                                            <th>Nội dung chăm sóc</th>
+                                            <th>Ngày hẹn tiếp theo</th>
+                                            <th>Chuyển đổi</th>
+                                            <th>Loại kết quả</th>
+                                            <th>Ngày kết quả</th>
+                                            <th>Đánh giá chăm sóc</th>
+                                            <th>Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% data.chiTiet.forEach(function(item) { %>
+                                        <tr>
+                                            <td><%= item.ngayChamSoc %></td>
+                                            <td><strong><%= item.tenNhanVien %></strong></td>
+                                            <td><code><%= item.khachHangID %></code></td>
+                                            <td><%= item.tenKhach %></td>
+                                            <td><%= item.hinhThuc %></td>
+                                            <td><%= item.ketQua %></td>
+                                            <td><%= item.noiDungTiep %></td>
+                                            <td><%= item.ngayHenTiep %></td>
+                                            <td>
+                                                <% if (item.hadOrder) { %>
+                                                    <span class="badge bg-success">Yes</span>
+                                                <% } else if (item.hadQuote) { %>
+                                                    <span class="badge bg-info">Yes</span>
+                                                <% } else { %>
+                                                    <span class="badge bg-secondary">No</span>
+                                                <% } %>
+                                            </td>
+                                            <td><%= item.outcomeType || '-' %></td>
+                                            <td><%= item.outcomeDate ? item.outcomeDate : '-' %></td>
+                                            <td>
+                                                <% let evalText = '';
+                                                   if (item.hadOrder) evalText = 'Xuất đơn - Hiệu quả';
+                                                   else if (item.hadQuote) evalText = 'Đạt báo giá';
+                                                   else if (item.daysToOutcome !== null && item.daysToOutcome <= 7) evalText = 'Tiếp cận nhanh - Chưa chuyển đổi';
+                                                   else evalText = 'Cần cải thiện';
+                                                %>
+                                                <span class="badge <%= item.hadOrder ? 'bg-success' : item.hadQuote ? 'bg-info' : 'bg-warning' %>"><%= evalText %></span>
+                                            </td>
+                                            <td>
+                                                <textarea class="form-control form-control-sm" rows="1" placeholder="Nhập ghi chú..."></textarea>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    <% } else { %>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Không có dữ liệu chăm sóc khách hàng trong khoảng thời gian này.
+                        </div>
+                    <% } %>
+
                 <% } else { %>
                     <!-- Các báo cáo khác -->
                     <div class="info-box">
@@ -1338,8 +1701,8 @@
     <footer class="mt-5 py-3 bg-white border-top">
         <div class="container text-center">
             <p class="mb-0 text-muted">
-                <i class="bi bi-c-circle"></i> 2024 Hệ thống KPI Phòng Kinh Doanh. 
-                Phiên bản 1.0 | <span class="text-primary">Phát triển bởi Đội ngũ Kỹ thuật</span>
+                <i class="bi bi-c-circle"></i> Hệ thống KPI Phòng Kinh Doanh. 
+                Phiên bản 1.0 | <span class="text-primary">Phát triển bởi TIẾN ĐẸP TRAI</span>
             </p>
         </div>
     </footer>
@@ -1412,49 +1775,72 @@
         
         // Hiển thị modal chọn tháng/năm
         function showMonthYearModal() {
-            // Set giá trị hiện tại nếu có
-            <% if (filterType === 'month' && startDate) { 
-                const monthParts = startDate.split('-');
-                if (monthParts.length === 2) { %>
-                    $('#monthSelect').val('<%= monthParts[1] %>');
-                    $('#yearSelect').val('<%= monthParts[0] %>');
-                <% } %>
-            <% } else { %>
+            // Set giá trị hiện tại nếu có - lấy từ hidden input (client-side)
+            const monthYearVal = document.getElementById('monthYearValue')?.value;
+            if (monthYearVal) {
+                const monthParts = monthYearVal.split('-');
+                if (monthParts.length === 2) {
+                    $('#monthSelect').val(monthParts[1]);
+                    $('#yearSelect').val(monthParts[0]);
+                }
+            } else {
                 // Set mặc định là tháng và năm hiện tại
                 const now = new Date();
                 $('#monthSelect').val(('0' + (now.getMonth() + 1)).slice(-2));
                 $('#yearSelect').val(now.getFullYear());
-            <% } %>
+            }
+            // Đảm bảo filterType được cập nhật
+            const filterSelect = document.getElementById('filterTypeSelect');
+            if (filterSelect) {
+                filterSelect.value = 'month';
+                if (typeof updateDateInputs === 'function') updateDateInputs();
+            }
             $('#monthYearModal').modal('show');
         }
         
         // Hiển thị modal chọn quý/năm
         function showQuarterYearModal() {
-            <% if (filterType === 'quarter' && startDate) { 
-                const quarterParts = startDate.split('-');
-                if (quarterParts.length === 2) { %>
-                    $('#quarterSelect').val('<%= quarterParts[0] %>');
-                    $('#quarterYearSelect').val('<%= quarterParts[1] %>');
-                <% } %>
-            <% } else { %>
+            // Lấy giá trị hiện tại từ hidden input (client-side)
+            const quarterYearVal = document.getElementById('quarterYearValue')?.value;
+            if (quarterYearVal) {
+                const quarterParts = quarterYearVal.split('-');
+                if (quarterParts.length === 2) {
+                    $('#quarterSelect').val(quarterParts[0]);
+                    $('#quarterYearSelect').val(quarterParts[1]);
+                }
+            } else {
                 // Set mặc định là quý và năm hiện tại
                 const now = new Date();
                 const currentQuarter = Math.floor((now.getMonth() + 3) / 3);
                 $('#quarterSelect').val(currentQuarter);
                 $('#quarterYearSelect').val(now.getFullYear());
-            <% } %>
+            }
+            // Đảm bảo filterType được cập nhật
+            const filterSelectQ = document.getElementById('filterTypeSelect');
+            if (filterSelectQ) {
+                filterSelectQ.value = 'quarter';
+                if (typeof updateDateInputs === 'function') updateDateInputs();
+            }
             $('#quarterYearModal').modal('show');
         }
         
         // Hiển thị modal chọn năm
         function showYearOnlyModal() {
-            <% if (filterType === 'year' && startDate) { %>
-                $('#yearOnlySelect').val('<%= startDate %>');
-            <% } else { %>
+            // Lấy giá trị hiện tại từ hidden input (client-side)
+            const yearOnlyVal = document.getElementById('yearOnlyValue')?.value;
+            if (yearOnlyVal) {
+                $('#yearOnlySelect').val(yearOnlyVal);
+            } else {
                 // Set mặc định là năm hiện tại
                 const now = new Date();
                 $('#yearOnlySelect').val(now.getFullYear());
-            <% } %>
+            }
+            // Đảm bảo filterType được cập nhật
+            const filterSelectY = document.getElementById('filterTypeSelect');
+            if (filterSelectY) {
+                filterSelectY.value = 'year';
+                if (typeof updateDateInputs === 'function') updateDateInputs();
+            }
             $('#yearOnlyModal').modal('show');
         }
         
@@ -1529,6 +1915,52 @@
                 alert('Không có ghi chú nào để lưu!');
             }
         }
+
+        // Khi thay đổi 'Loại báo cáo' -> reset các bộ lọc về mặc định và submit
+        (function() {
+            const loaiSelect = document.getElementById('loaiBaoCaoSelect');
+            if (!loaiSelect) return;
+
+            loaiSelect.addEventListener('change', function() {
+                const form = document.getElementById('filterForm');
+                if (!form) return;
+
+                // Trước khi submit: chỉ giữ một input[name="startDate"] có giá trị (nếu có), xóa các input khác
+                const startDateInputs = Array.from(form.querySelectorAll('input[name="startDate"]'));
+                if (startDateInputs.length > 1) {
+                    let keeper = startDateInputs.find(i => i.value && i.value.toString().trim() !== '');
+                    if (!keeper) keeper = startDateInputs[0];
+                    startDateInputs.forEach(i => { if (i !== keeper) i.remove(); });
+                }
+
+                // Đảm bảo các hidden inputs month/quarter/year phù hợp với filterType
+                const filterSelect = document.getElementById('filterTypeSelect');
+                if (filterSelect) {
+                    // If user changed report type without changing filterType, keep it as is.
+                    // But ensure hidden inputs reflect the current UI displays.
+                    // If month display has value but monthYearValue missing, set it.
+                    try {
+                        const monthDisplay = document.getElementById('monthYearDisplay');
+                        const monthHidden = document.getElementById('monthYearValue');
+                        if (monthDisplay && monthDisplay.value && monthDisplay.value.toString().trim() !== '' && !monthHidden) {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'startDate';
+                            input.id = 'monthYearValue';
+                            // attempt to parse display like "Tháng 01/2026" -> "2026-01"
+                            const m = monthDisplay.value.match(/(\d{2})\/(\d{4})$/);
+                            if (m) input.value = `${m[2]}-${m[1]}`;
+                            form.appendChild(input);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                // Debug: optional console log
+                // console.log('Submitting form, startDate values:', Array.from(form.querySelectorAll('input[name="startDate"]')).map(i=>i.value));
+
+                form.submit();
+            });
+        })();
         
         // Xử lý form submission
         document.getElementById('filterForm').addEventListener('submit', function(e) {
@@ -1549,11 +1981,13 @@
                 if (endDateInput) endDateInput.remove();
             }
             
-            // Đảm bảo chỉ có một input startDate
-            if (filterType === 'month' || filterType === 'quarter' || filterType === 'year') {
-                const startDateInputs = document.querySelectorAll('input[name="startDate"]');
-                startDateInputs.forEach((input, index) => {
-                    if (index > 0) input.remove();
+            // Đảm bảo chỉ có một input startDate - giữ lại input có giá trị nếu có
+            const startDateInputs = Array.from(document.querySelectorAll('input[name="startDate"]'));
+            if (startDateInputs.length > 1) {
+                let keeper = startDateInputs.find(i => i.value && i.value.toString().trim() !== '');
+                if (!keeper) keeper = startDateInputs[0];
+                startDateInputs.forEach(i => {
+                    if (i !== keeper) i.remove();
                 });
             }
         });

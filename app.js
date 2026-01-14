@@ -3115,6 +3115,26 @@ function numberToWords(number) {
     }
 }
 
+// Helper nhỏ trong phần KPI: in danh sách sheet của các spreadsheet để debug
+async function logAllSheetsForKPI(spreadsheetIds) {
+    if (!spreadsheetIds || !Array.isArray(spreadsheetIds)) return;
+    for (const it of spreadsheetIds) {
+        const id = it.id;
+        const label = it.label || id;
+        if (!id) {
+            console.warn('[logAllSheetsForKPI] missing id for', label);
+            continue;
+        }
+        try {
+            const meta = await sheets.spreadsheets.get({ spreadsheetId: id, includeGridData: false });
+            const titles = (meta.data.sheets || []).map(s => s.properties && s.properties.title).filter(Boolean);
+            console.log(`[logAllSheetsForKPI] ${label} (${id}) -> ${titles.join(', ')}`);
+        } catch (err) {
+            console.error(`[logAllSheetsForKPI] Error fetching metadata for ${label} (${id}):`, err && err.message ? err.message : err);
+        }
+    }
+}
+
 // Hàm đọc số thành chữ tiếng Việt (chuẩn hóa)
 function numberToWords1(number) {
   if (number === null || number === undefined || isNaN(number)) return '';
@@ -7923,13 +7943,37 @@ async function generateExcelReport() {
  */
 async function readSheet(spreadsheetId, range) {
     try {
+        // Chuẩn hoá range: nếu có sheetName!cols thì bọc sheetName trong dấu nháy đơn an toàn
+        let useRange = range;
+        try {
+            if (typeof range === 'string' && range.indexOf('!') !== -1) {
+                const parts = range.split('!');
+                const sheetName = parts.slice(0, -1).join('!');
+                const cols = parts[parts.length - 1];
+                const safeName = "'" + String(sheetName).replace(/'/g, "''") + "'";
+                useRange = `${safeName}!${cols}`;
+            }
+        } catch (e) {
+            useRange = range;
+        }
+
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range,
+            range: useRange,
         });
         return response.data.values || [];
     } catch (error) {
         console.error(`Lỗi đọc sheet ${range}:`, error);
+        // Nếu lỗi parse range, in danh sách sheet hiện có để debug
+        try {
+            if (spreadsheetId) {
+                const meta = await sheets.spreadsheets.get({ spreadsheetId, includeGridData: false });
+                const titles = (meta.data.sheets || []).map(s => s.properties && s.properties.title).filter(Boolean);
+                console.error('Danh sách sheet có trong spreadsheet:', titles);
+            }
+        } catch (metaErr) {
+            console.error('Không thể lấy metadata spreadsheet:', metaErr && metaErr.message ? metaErr.message : metaErr);
+        }
         return [];
     }
 }
@@ -7952,9 +7996,17 @@ function parseDate(dateStr) {
         }
     }
     
-    // Nếu là chuỗi
-    if (typeof dateStr === 'string') {
-        dateStr = dateStr.trim();
+        // Nếu là chuỗi
+        if (typeof dateStr === 'string') {
+        // Chuẩn hóa: loại bỏ khoảng trắng thừa và các dấu phẩy thừa (ví dụ: "2026-01-12,,," -> "2026-01-12")
+        dateStr = dateStr.replace(/\s+/g, ' ').trim();
+        // Nếu có nhiều phần cách nhau bởi dấu phẩy, lấy phần đầu có nội dung
+        if (dateStr.indexOf(',') !== -1) {
+            const parts = dateStr.split(',').map(s => s.trim()).filter(Boolean);
+            if (parts.length > 0) dateStr = parts[0];
+        }
+        // Loại bỏ các dấu phẩy dư ở cuối
+        dateStr = dateStr.replace(/,+$/g, '').trim();
         if (dateStr === '') return null;
         
         // 1. Định dạng YYYY-MM (tháng/năm)
@@ -8186,9 +8238,6 @@ app.locals.getQuarter = getQuarter;
 // HÀM XỬ LÝ BÁO CÁO KPI
 // ============================================
 
-//  HÀM LẤY DANH SÁCH NHÂN VIÊN
-// ============================================
-
 async function getNhanVienList() {
     try {
         const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
@@ -8225,7 +8274,7 @@ async function getBaoCaoBaoGiaDonHang(
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
 
-    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
+    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BS');
     if (!data || data.length < 2) {
       console.log('❌ Không có dữ liệu từ sheet Don_hang');
       return {};
@@ -8251,36 +8300,21 @@ async function getBaoCaoBaoGiaDonHang(
       thanhTien: 56,         // BE
       hoaHongQC: 65,         // BN
       doanhSoKPI: 69,        // BR
-      hoaHongKD: 70          // BS
+      hoaHongKD: 70          // BR (zero-based index)
     };
 
-    // Lọc theo ngày
-    let filteredData = filterByDate(
-      rows,
-      colIndex.ngayTao,
-      filterType,
-      startDate,
-      endDate
-    );
-
-    // Lọc theo nhân viên
-    if (nhanVien !== 'all') {
-      filteredData = filteredData.filter(row => {
-        const tenNV = row[colIndex.tenNV] || '';
-        const maNV = row[colIndex.maNV] || '';
-        return tenNV === nhanVien || maNV === nhanVien;
-      });
-
-      console.log(
-        `Sau khi lọc theo nhân viên "${nhanVien}": ${filteredData.length} dòng`
-      );
-    }
-
-    // Nhóm theo nhân viên
-    const result = {};
-
-    filteredData.forEach(row => {
-      const nv = row[colIndex.tenNV] || 'Chưa xác định';
+        // Lọc theo ngày
+        let filteredData = filterByDate(
+            rows,
+            colIndex.ngayTao,
+            filterType,
+            startDate,
+            endDate
+        );
+        // Nhóm theo nhân viên
+        const result = {};
+        filteredData.forEach(row => {
+            const nv = row[colIndex.tenNV] || 'Chưa xác định';
 
       if (!result[nv]) {
         result[nv] = {
@@ -8306,13 +8340,15 @@ async function getBaoCaoBaoGiaDonHang(
       }
     });
 
-    // Tính tỷ lệ chuyển đổi
-    Object.keys(result).forEach(nv => {
-      if (result[nv].tongBaoGia > 0) {
-        result[nv].tyLeChuyenDoi =
-          (result[nv].tongDonHang / result[nv].tongBaoGia) * 100;
-      }
-    });
+        // Tính tỷ lệ chuyển đổi
+        Object.keys(result).forEach(nv => {
+            const totalQuotes = (result[nv].tongBaoGia || 0) + (result[nv].tongDonHang || 0);
+            if (totalQuotes > 0) {
+                result[nv].tyLeChuyenDoi = (result[nv].tongDonHang / totalQuotes) * 100;
+            } else {
+                result[nv].tyLeChuyenDoi = 0;
+            }
+        });
 
     return result;
 
@@ -8350,7 +8386,7 @@ async function getDoanhSoTheoNhanVien(filterType = 'month', startDate = null, en
         mucTieu: 10,       // K
         ngayBatDau: 14,    // O
         ngayKetThuc: 15,   // P
-        tinhTrang: 17      // R
+        tinhTrang: 16      // R
     };
     
     // Lọc và tính doanh số thực tế
@@ -8379,23 +8415,83 @@ async function getDoanhSoTheoNhanVien(filterType = 'month', startDate = null, en
     });
     
     // Lấy KPI doanh số
-    const kpiDoanhSo = kpiData.slice(1).filter(row => 
-        row[kpiColIndex.moTaKPI] === 'Doanh số bán hàng' &&
-        row[kpiColIndex.tinhTrang] === 'Áp dụng'
-    );
+    // Match on `tenKPI` (cột C) and ensure `tinhTrang` = 'Áp dụng'
+    // Additionally, if a date filter is provided (month/quarter/year/range/day),
+    // only include KPI rows whose [ngayBatDau, ngayKetThuc] range overlaps the requested period.
+    function getRequestedPeriod(filterType, startDate, endDate) {
+        if (!startDate && !endDate) return null;
+        let s = null, e = null;
+        try {
+            if (filterType === 'month') {
+                // startDate expected as YYYY-MM
+                const parts = (startDate || '').split('-');
+                if (parts.length === 2) {
+                    s = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+                    e = new Date(s.getFullYear(), s.getMonth() + 1, 0);
+                }
+            } else if (filterType === 'quarter') {
+                // startDate expected as `${quarter}-${year}` e.g. '1-2024'
+                const parts = (startDate || '').split('-');
+                if (parts.length === 2) {
+                    const q = parseInt(parts[0], 10);
+                    const y = parseInt(parts[1], 10);
+                    const monthStart = (q - 1) * 3;
+                    s = new Date(y, monthStart, 1);
+                    e = new Date(y, monthStart + 3, 0);
+                }
+            } else if (filterType === 'year') {
+                const y = parseInt(startDate, 10);
+                if (!isNaN(y)) {
+                    s = new Date(y, 0, 1);
+                    e = new Date(y, 11, 31);
+                }
+            } else if (filterType === 'range') {
+                s = parseDate(startDate);
+                e = parseDate(endDate) || s;
+            } else if (filterType === 'day' || filterType === 'week') {
+                s = parseDate(startDate);
+                e = parseDate(endDate) || s;
+            }
+        } catch (err) {
+            // fallback: null
+            s = null; e = null;
+        }
+        if (s && e) return { start: s, end: e };
+        return null;
+    }
+
+    const reqPeriod = getRequestedPeriod(filterType, startDate, endDate);
+
+    const kpiDoanhSo = kpiData.slice(1).filter(row => {
+        const tenKPIVal = (row[kpiColIndex.tenKPI] || '').toString().trim();
+        const tinhTrangVal = (row[kpiColIndex.tinhTrang] || '').toString().trim();
+        if (tenKPIVal !== 'Doanh số bán hàng') return false;
+        if (tinhTrangVal !== 'Áp dụng') return false;
+
+        if (!reqPeriod) return true;
+
+        const kpiStart = parseDate(row[kpiColIndex.ngayBatDau]);
+        const kpiEnd = parseDate(row[kpiColIndex.ngayKetThuc]);
+        if (!kpiStart || !kpiEnd) return false;
+
+        // Overlap check
+        return !(kpiEnd < reqPeriod.start || kpiStart > reqPeriod.end);
+    });
     
     // Kết hợp dữ liệu
     const result = [];
     Object.keys(doanhSoThucTe).forEach(nv => {
-        const kpiNV = kpiDoanhSo.find(kpi => kpi[kpiColIndex.tenNhanSu] === nv);
-        
+        // Lấy tất cả hàng KPI áp dụng cho nhân sự này trong khoảng (kpiDoanhSo đã lọc theo overlap)
+        const kpiRows = kpiDoanhSo.filter(kpi => (kpi[kpiColIndex.tenNhanSu] || '').toString().trim() === nv);
+        // Cộng tổng mục tiêu (mucTieu) — cần hỗ trợ KPI đặt theo tháng/nhỏ hơn khoảng lọc
+        const kpiMucTieuSum = kpiRows.reduce((s, r) => s + (parseFloat(r[kpiColIndex.mucTieu] || 0) || 0), 0);
+
         result.push({
             tenNhanVien: nv,
             doanhSoThucTe: doanhSoThucTe[nv],
-            kpiMucTieu: kpiNV ? parseFloat(kpiNV[kpiColIndex.mucTieu] || 0) : 0,
-            tyLeHoanThanh: kpiNV && parseFloat(kpiNV[kpiColIndex.mucTieu]) > 0 ? 
-                (doanhSoThucTe[nv] / parseFloat(kpiNV[kpiColIndex.mucTieu])) * 100 : 0,
-            danhGia: kpiNV ? (doanhSoThucTe[nv] >= parseFloat(kpiNV[kpiColIndex.mucTieu]) ? 'Đạt' : 'Chưa đạt') : 'Không có KPI'
+            kpiMucTieu: kpiMucTieuSum,
+            tyLeHoanThanh: kpiMucTieuSum > 0 ? (doanhSoThucTe[nv] / kpiMucTieuSum) * 100 : 0,
+            danhGia: kpiMucTieuSum > 0 ? (doanhSoThucTe[nv] >= kpiMucTieuSum ? 'Đạt' : 'Chưa đạt') : 'Không có KPI'
         });
     });
     
@@ -8438,7 +8534,7 @@ async function getDonHangHuy(page = 1, pageSize = 10, filterType = 'month', star
     const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
     
     const result = paginatedData.map(row => ({
-        ngayTao: row[colIndex.ngayTao],
+        ngayTao: app.locals.formatDate(row[colIndex.ngayTao]),
         tenNhanVien: row[colIndex.tenNV],
         maDon: row[colIndex.maDon],
         tenKhach: row[colIndex.tenKhach],
@@ -8891,19 +8987,19 @@ async function getKhachHangBanGiao(filterType = 'month', startDate = null, endDa
  * 4.1.12 Tổng hợp hoa hồng kinh doanh
  */
 async function getHoaHongKinhDoanh(filterType = 'month', startDate = null, endDate = null) {
-    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
+    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BS');
     if (!data || data.length < 2) return [];
     
     const headers = data[0];
     const rows = data.slice(1);
 
-    const colIndex = {
-      ngayTao: 1,            // B
-      tenNV: 2,              // C
-      trangThaiTao: 38,      // AM
-      pheDuyet: 39,          // AN
-      hoaHongKD: 70          // BS
-    };
+        const colIndex = {
+            ngayTao: 1,            // B
+            tenNV: 2,              // C
+            trangThaiTao: 38,      // AM
+            pheDuyet: 39,          // AN
+            hoaHongKD: 70          // BS (zero-based index)
+        };
     
     let filteredData = rows.filter(row => 
         row[colIndex.trangThaiTao] === 'Đơn hàng' &&
@@ -9133,31 +9229,101 @@ async function getChamSocKhachHang(filterType = 'month', startDate = null, endDa
     
     // Tổng hợp theo nhân viên
     const tongHop = {};
-    filteredData.forEach(row => {
+
+    // Also read Don_hang to correlate outcomes (quotes/orders)
+    const donHangData = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
+    const donHangRows = (donHangData && donHangData.length > 1) ? donHangData.slice(1) : [];
+
+    // Map khachHangID -> list of orders/quotes
+    const donHangMap = {};
+    if (donHangRows.length > 0) {
+        // use column indexes consistent with other functions
+        const dhCol = {
+            ngayTao: 1,
+            khachHangID: 7,
+            trangThaiTao: 38
+        };
+        donHangRows.forEach(r => {
+            const id = r[dhCol.khachHangID];
+            if (!id) return;
+            if (!donHangMap[id]) donHangMap[id] = [];
+            donHangMap[id].push({
+                trangThaiTao: r[dhCol.trangThaiTao],
+                ngayTao: r[dhCol.ngayTao]
+            });
+        });
+    }
+
+    // Default window: consider outcomes within 30 days after contact
+    const OUTCOME_WINDOW_DAYS = 30;
+
+    // Build details and summary
+    const chiTiet = filteredData.map(row => {
+        const ngayCham = parseDate(row[colIndex.ngayChamSoc]);
+        const ngayHen = parseDate(row[colIndex.ngayHenTiep]);
         const nv = row[colIndex.tenNV] || 'Chưa xác định';
+        const khId = row[colIndex.khachHangID];
+
+        // initialize summary bucket
         if (!tongHop[nv]) {
-            tongHop[nv] = 0;
+            tongHop[nv] = { soLanChamSoc: 0, soChuyenDoiContacts: 0 };
         }
-        tongHop[nv]++;
+        tongHop[nv].soLanChamSoc++;
+
+        // find outcomes for this customer
+        const outcomes = (donHangMap[khId] || []).map(o => ({
+            trangThaiTao: o.trangThaiTao,
+            ngayTao: parseDate(o.ngayTao)
+        })).filter(o => o.ngayTao && ngayCham && (o.ngayTao >= ngayCham) && ((o.ngayTao - ngayCham) <= OUTCOME_WINDOW_DAYS * 24 * 3600 * 1000));
+
+        const hadQuote = outcomes.some(o => (o.trangThaiTao || '').toString().trim() === 'Báo giá');
+        const hadOrder = outcomes.some(o => (o.trangThaiTao || '').toString().trim() === 'Đơn hàng');
+
+        let outcomeType = null;
+        let outcomeDate = null;
+        if (outcomes.length > 0) {
+            // pick earliest outcome
+            outcomes.sort((a,b) => a.ngayTao - b.ngayTao);
+            outcomeType = outcomes[0].trangThaiTao;
+            outcomeDate = outcomes[0].ngayTao;
+            // count this contact as converted
+            tongHop[nv].soChuyenDoiContacts++;
+        }
+
+        const daysToOutcome = (outcomeDate && ngayCham) ? Math.round((outcomeDate - ngayCham)/(24*3600*1000)) : null;
+
+        // Format dates for UI (ensure dd/mm/yyyy)
+        const ngayChamStr = app.locals.formatDate(ngayCham);
+        const ngayHenStr = app.locals.formatDate(ngayHen);
+        const outcomeDateStr = app.locals.formatDate(outcomeDate);
+
+        return {
+            ngayChamSoc: ngayChamStr,
+            tenNhanVien: row[colIndex.tenNV],
+            khachHangID: khId,
+            tenKhach: row[colIndex.tenKhach],
+            hinhThuc: row[colIndex.hinhThuc],
+            ketQua: row[colIndex.ketQua],
+            noiDungTiep: row[colIndex.noiDungTiep],
+            ngayHenTiep: ngayHenStr,
+            hadQuote,
+            hadOrder,
+            outcomeType,
+            outcomeDate: outcomeDateStr,
+            daysToOutcome
+        };
     });
-    
-    // Chi tiết chăm sóc
-    const chiTiet = filteredData.map(row => ({
-        ngayChamSoc: row[colIndex.ngayChamSoc],
-        tenNhanVien: row[colIndex.tenNV],
-        khachHangID: row[colIndex.khachHangID],
-        tenKhach: row[colIndex.tenKhach],
-        hinhThuc: row[colIndex.hinhThuc],
-        ketQua: row[colIndex.ketQua],
-        noiDungTiep: row[colIndex.noiDungTiep],
-        ngayHenTiep: row[colIndex.ngayHenTiep]
+
+    // Convert tongHop to array with conversion metric
+    const tongHopArr = Object.keys(tongHop).map(nv => ({
+        tenNhanVien: nv,
+        soLanChamSoc: tongHop[nv].soLanChamSoc,
+        soChuyenDoiContacts: tongHop[nv].soChuyenDoiContacts,
+        tyLeChuyenDoi: tongHop[nv].soLanChamSoc > 0 ? (tongHop[nv].soChuyenDoiContacts / tongHop[nv].soLanChamSoc) * 100 : 0
     }));
-    
+
     return {
-        tongHop: Object.keys(tongHop).map(nv => ({
-            tenNhanVien: nv,
-            soLanChamSoc: tongHop[nv]
-        })),
+        tongHop: tongHopArr,
         chiTiet
     };
 }
@@ -9515,12 +9681,41 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         const {
             loaiBaoCao = 'tongHop',
             filterType = 'none', // Mặc định là 'none' thay vì 'month'
-            startDate,
-            endDate,
             nhanVien = 'all',
             page = 1
         } = req.query;
+
+        // Normalize startDate/endDate in case multiple query params with same name were sent
+        const pickSingle = (v) => {
+            if (Array.isArray(v)) {
+                const found = v.find(x => x !== undefined && x !== null && x.toString().trim() !== '');
+                return found !== undefined ? found.toString() : (v[0] !== undefined ? v[0].toString() : '');
+            }
+            return v !== undefined && v !== null ? v.toString() : '';
+        };
+
+        const startDate = pickSingle(req.query.startDate);
+        const endDate = pickSingle(req.query.endDate);
         
+        // Nếu debugSheets=1 thì in ra danh sách sheet của các spreadsheet liên quan
+        if (req.query && (req.query.debugSheets === '1' || req.query.debugSheets === 'true')) {
+            await logAllSheetsForKPI([
+                { id: SPREADSHEET_ID, label: 'MAIN' },
+                { id: SPREADSHEET_HC_ID, label: 'HC' },
+                { id: SPREADSHEET_QC_TT_ID, label: 'QC_TT' },
+                { id: SPREADSHEET_BOM_ID, label: 'BOM' },
+                { id: SPREADSHEET_KHVT_ID, label: 'KHVT' }
+            ]);
+        }
+
+        // Debug: log raw query parameters for troubleshooting duplicate/malformed startDate
+        try {
+            console.log('--- [KPI ROUTE] Raw req.query.startDate ->', req.query.startDate);
+            console.log('--- [KPI ROUTE] Full req.query ->', JSON.stringify(req.query));
+        } catch (e) {
+            console.log('--- [KPI ROUTE] Error logging req.query', e && e.message);
+        }
+
         let data = {};
         let reportTitle = 'Báo cáo tổng hợp KPI';
         
