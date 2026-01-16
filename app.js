@@ -5486,18 +5486,18 @@ app.get("/baoluongkhoan", async (req, res) => {
 
             // Signatures
             let sig2 = sheet2.rowCount + 2;
-            sheet2.mergeCells(`A${sig2}:B${sig2}`);
-            sheet2.getCell(`A${sig2}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
-            sheet2.getCell(`A${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            sheet2.getCell(`A${sig2}`).font = { bold: true };
-            sheet2.mergeCells(`C${sig2}:D${sig2}`);
+            // Place signatures into columns B, C, D respectively
+            sheet2.getCell(`B${sig2}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+            sheet2.getCell(`B${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet2.getCell(`B${sig2}`).font = { bold: true };
+
             sheet2.getCell(`C${sig2}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
             sheet2.getCell(`C${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet2.getCell(`C${sig2}`).font = { bold: true };
-            sheet2.mergeCells(`E${sig2}:E${sig2}`);
-            sheet2.getCell(`E${sig2}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
-            sheet2.getCell(`E${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            sheet2.getCell(`E${sig2}`).font = { bold: true };
+
+            sheet2.getCell(`D${sig2}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+            sheet2.getCell(`D${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet2.getCell(`D${sig2}`).font = { bold: true };
 
             // Page setup & print area (A4 portrait)
             sheet2.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
