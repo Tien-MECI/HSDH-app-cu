@@ -5283,6 +5283,17 @@ app.get("/baoluongkhoan", async (req, res) => {
         // Nếu yêu cầu xuất Excel
         if (exportExcel === 'true') {
             const workbook = new exceljs.Workbook();
+
+            // Helper: chuyển index cột (1-based) sang chữ cái Excel (A, B, ...)
+            const colToLetter = (col) => {
+                let letter = '';
+                while (col > 0) {
+                    const rem = (col - 1) % 26;
+                    letter = String.fromCharCode(65 + rem) + letter;
+                    col = Math.floor((col - 1) / 26);
+                }
+                return letter;
+            };
             
             // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
             const sheet1 = workbook.addWorksheet('Danh sách đơn hàng trả khoán giao vận');
@@ -5373,27 +5384,36 @@ app.get("/baoluongkhoan", async (req, res) => {
             })();
             const totalRow1 = sheet1.addRow(['', 'TỔNG CỘNG', '', '', '', '', sumDonGia, sumThanhTien]);
             totalRow1.font = { bold: true };
-            for (let j of [7,8]) {
+            // Đặt format số và viền cho ô tổng
+            for (let j = 1; j <= 8; j++) {
                 const c = totalRow1.getCell(j);
-                c.numFmt = '#,##0';
+                c.border = {
+                    top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+                };
+                if (j === 7 || j === 8) c.numFmt = '#,##0';
             }
 
-            // Thêm phần ký xác nhận dưới bảng
+            // Thêm phần ký xác nhận dưới bảng (hai dòng trong một ô, in đậm và căn giữa)
             let sigRow = sheet1.rowCount + 2;
             sheet1.mergeCells(`A${sigRow}:B${sigRow}`);
-            sheet1.getCell(`A${sigRow}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-            sheet1.getCell(`A${sigRow}`).alignment = { horizontal: 'center' };
+            sheet1.getCell(`A${sigRow}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+            sheet1.getCell(`A${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet1.getCell(`A${sigRow}`).font = { bold: true };
 
             sheet1.mergeCells(`C${sigRow}:D${sigRow}`);
-            sheet1.getCell(`C${sigRow}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-            sheet1.getCell(`C${sigRow}`).alignment = { horizontal: 'center' };
+            sheet1.getCell(`C${sigRow}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+            sheet1.getCell(`C${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet1.getCell(`C${sigRow}`).font = { bold: true };
 
             sheet1.mergeCells(`E${sigRow}:H${sigRow}`);
-            sheet1.getCell(`E${sigRow}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-            sheet1.getCell(`E${sigRow}`).alignment = { horizontal: 'center' };
+            sheet1.getCell(`E${sigRow}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+            sheet1.getCell(`E${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet1.getCell(`E${sigRow}`).font = { bold: true };
+
+            // Page setup & print area (A4 portrait)
+            sheet1.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+            const lastCol1 = sheet1.columnCount || 8;
+            sheet1.pageSetup.printArea = `A1:${colToLetter(lastCol1)}${sheet1.rowCount}`;
             
             // Sheet 2: TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ/LOẠI ĐƠN HÀNG
             const sheet2 = workbook.addWorksheet('Tổng hợp khoán giao vận');
@@ -5457,22 +5477,32 @@ app.get("/baoluongkhoan", async (req, res) => {
             })();
             const totalRow2 = sheet2.addRow(['', 'TỔNG CỘNG', '', sumSheet2Col4]);
             totalRow2.font = { bold: true };
+            // Border và format cho totalRow2
+            for (let j = 1; j <= 4; j++) {
+                const c = totalRow2.getCell(j);
+                c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            }
             totalRow2.getCell(4).numFmt = '#,##0';
 
             // Signatures
             let sig2 = sheet2.rowCount + 2;
             sheet2.mergeCells(`A${sig2}:B${sig2}`);
-            sheet2.getCell(`A${sig2}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-            sheet2.getCell(`A${sig2}`).alignment = { horizontal: 'center' };
+            sheet2.getCell(`A${sig2}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+            sheet2.getCell(`A${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet2.getCell(`A${sig2}`).font = { bold: true };
             sheet2.mergeCells(`C${sig2}:D${sig2}`);
-            sheet2.getCell(`C${sig2}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-            sheet2.getCell(`C${sig2}`).alignment = { horizontal: 'center' };
+            sheet2.getCell(`C${sig2}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+            sheet2.getCell(`C${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet2.getCell(`C${sig2}`).font = { bold: true };
             sheet2.mergeCells(`E${sig2}:E${sig2}`);
-            sheet2.getCell(`E${sig2}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-            sheet2.getCell(`E${sig2}`).alignment = { horizontal: 'center' };
+            sheet2.getCell(`E${sig2}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+            sheet2.getCell(`E${sig2}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet2.getCell(`E${sig2}`).font = { bold: true };
+
+            // Page setup & print area (A4 portrait)
+            sheet2.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+            const lastCol2 = sheet2.columnCount || 4;
+            sheet2.pageSetup.printArea = `A1:${colToLetter(lastCol2)}${sheet2.rowCount}`;
             
             // Sheet 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN
             const sheet3 = workbook.addWorksheet('Tổng hợp chi trả khoán GV theo loại ĐH');
@@ -5536,22 +5566,32 @@ app.get("/baoluongkhoan", async (req, res) => {
             })();
             const totalRow3 = sheet3.addRow(['', 'TỔNG CỘNG', sumSheet3Col3, '']);
             totalRow3.font = { bold: true };
+            // border for total
+            for (let j = 1; j <= 4; j++) {
+                totalRow3.getCell(j).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            }
             totalRow3.getCell(3).numFmt = '#,##0';
 
-            // Signatures sheet3
+            // Signatures sheet3 (Giám đốc to column D as requested)
             let sig3 = sheet3.rowCount + 2;
             sheet3.mergeCells(`A${sig3}:B${sig3}`);
-            sheet3.getCell(`A${sig3}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-            sheet3.getCell(`A${sig3}`).alignment = { horizontal: 'center' };
+            sheet3.getCell(`A${sig3}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+            sheet3.getCell(`A${sig3}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet3.getCell(`A${sig3}`).font = { bold: true };
-            sheet3.mergeCells(`C${sig3}:D${sig3}`);
-            sheet3.getCell(`C${sig3}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-            sheet3.getCell(`C${sig3}`).alignment = { horizontal: 'center' };
+            sheet3.mergeCells(`C${sig3}:C${sig3}`);
+            sheet3.getCell(`C${sig3}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+            sheet3.getCell(`C${sig3}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet3.getCell(`C${sig3}`).font = { bold: true };
-            sheet3.mergeCells(`E${sig3}:E${sig3}`);
-            sheet3.getCell(`E${sig3}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-            sheet3.getCell(`E${sig3}`).alignment = { horizontal: 'center' };
-            sheet3.getCell(`E${sig3}`).font = { bold: true };
+            // Giám đốc vào column D
+            sheet3.mergeCells(`D${sig3}:D${sig3}`);
+            sheet3.getCell(`D${sig3}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+            sheet3.getCell(`D${sig3}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet3.getCell(`D${sig3}`).font = { bold: true };
+
+            // Page setup & print area (A4 portrait)
+            sheet3.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+            const lastCol3 = sheet3.columnCount || 4;
+            sheet3.pageSetup.printArea = `A1:${colToLetter(lastCol3)}${sheet3.rowCount}`;
             
             // Sheet 4: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT
             const sheet4 = workbook.addWorksheet('Danh sách đơn khoán lắp đặt');
@@ -5626,23 +5666,31 @@ app.get("/baoluongkhoan", async (req, res) => {
                 })();
                 const totalRow4 = sheet4.addRow(['', 'TỔNG CỘNG', sumSheet4Col3, sumSheet4Col4, '']);
                 totalRow4.font = { bold: true };
+                for (let j = 1; j <= 5; j++) {
+                    totalRow4.getCell(j).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                }
                 totalRow4.getCell(3).numFmt = '#,##0';
                 totalRow4.getCell(4).numFmt = '#,##0';
 
                 // Signatures sheet4
                 let sig4 = sheet4.rowCount + 2;
                 sheet4.mergeCells(`A${sig4}:B${sig4}`);
-                sheet4.getCell(`A${sig4}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-                sheet4.getCell(`A${sig4}`).alignment = { horizontal: 'center' };
+                sheet4.getCell(`A${sig4}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+                sheet4.getCell(`A${sig4}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet4.getCell(`A${sig4}`).font = { bold: true };
                 sheet4.mergeCells(`C${sig4}:D${sig4}`);
-                sheet4.getCell(`C${sig4}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-                sheet4.getCell(`C${sig4}`).alignment = { horizontal: 'center' };
+                sheet4.getCell(`C${sig4}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+                sheet4.getCell(`C${sig4}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet4.getCell(`C${sig4}`).font = { bold: true };
                 sheet4.mergeCells(`E${sig4}:E${sig4}`);
-                sheet4.getCell(`E${sig4}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-                sheet4.getCell(`E${sig4}`).alignment = { horizontal: 'center' };
+                sheet4.getCell(`E${sig4}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+                sheet4.getCell(`E${sig4}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet4.getCell(`E${sig4}`).font = { bold: true };
+
+                // Page setup & print area (A4 portrait)
+                sheet4.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+                const lastCol4 = sheet4.columnCount || 5;
+                sheet4.pageSetup.printArea = `A1:${colToLetter(lastCol4)}${sheet4.rowCount}`;
 
              // Sheet 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT
             const sheet5 = workbook.addWorksheet('Tổng hợp lương khoán lắp đặt theo nhân sự');
@@ -5714,22 +5762,30 @@ app.get("/baoluongkhoan", async (req, res) => {
                 })();
                 const totalRow5 = sheet5.addRow(['', 'TỔNG CỘNG', '', sumSheet5Col4, '']);
                 totalRow5.font = { bold: true };
+                for (let j = 1; j <= 5; j++) {
+                    totalRow5.getCell(j).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                }
                 totalRow5.getCell(4).numFmt = '#,##0';
 
                 // Signatures sheet5
                 let sig5 = sheet5.rowCount + 2;
                 sheet5.mergeCells(`A${sig5}:B${sig5}`);
-                sheet5.getCell(`A${sig5}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-                sheet5.getCell(`A${sig5}`).alignment = { horizontal: 'center' };
+                sheet5.getCell(`A${sig5}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+                sheet5.getCell(`A${sig5}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet5.getCell(`A${sig5}`).font = { bold: true };
                 sheet5.mergeCells(`C${sig5}:D${sig5}`);
-                sheet5.getCell(`C${sig5}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-                sheet5.getCell(`C${sig5}`).alignment = { horizontal: 'center' };
+                sheet5.getCell(`C${sig5}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+                sheet5.getCell(`C${sig5}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet5.getCell(`C${sig5}`).font = { bold: true };
                 sheet5.mergeCells(`E${sig5}:E${sig5}`);
-                sheet5.getCell(`E${sig5}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-                sheet5.getCell(`E${sig5}`).alignment = { horizontal: 'center' };
+                sheet5.getCell(`E${sig5}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+                sheet5.getCell(`E${sig5}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet5.getCell(`E${sig5}`).font = { bold: true };
+
+                // Page setup & print area (A4 portrait)
+                sheet5.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+                const lastCol5 = sheet5.columnCount || 5;
+                sheet5.pageSetup.printArea = `A1:${colToLetter(lastCol5)}${sheet5.rowCount}`;
             
             // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
             const sheet6 = workbook.addWorksheet('Tổng hợp khoán dịch vụ theo nhân sự');
@@ -5827,22 +5883,30 @@ app.get("/baoluongkhoan", async (req, res) => {
                 ];
                 const totalRow6 = sheet6.addRow(totals6);
                 totalRow6.font = { bold: true };
+                for (let j = 1; j <= sheet6.columnCount; j++) {
+                    totalRow6.getCell(j).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                }
                 for (let c = 4; c <= 8; c++) totalRow6.getCell(c).numFmt = '#,##0';
 
                 // Signatures sheet6
                 let sig6 = sheet6.rowCount + 2;
                 sheet6.mergeCells(`A${sig6}:B${sig6}`);
-                sheet6.getCell(`A${sig6}`).value = 'Người tạo (ký, ghi rõ họ tên)';
-                sheet6.getCell(`A${sig6}`).alignment = { horizontal: 'center' };
+                sheet6.getCell(`A${sig6}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+                sheet6.getCell(`A${sig6}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet6.getCell(`A${sig6}`).font = { bold: true };
                 sheet6.mergeCells(`C${sig6}:D${sig6}`);
-                sheet6.getCell(`C${sig6}`).value = 'Kế toán (ký, ghi rõ họ tên)';
-                sheet6.getCell(`C${sig6}`).alignment = { horizontal: 'center' };
+                sheet6.getCell(`C${sig6}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+                sheet6.getCell(`C${sig6}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet6.getCell(`C${sig6}`).font = { bold: true };
                 sheet6.mergeCells(`E${sig6}:K${sig6}`);
-                sheet6.getCell(`E${sig6}`).value = 'Giám đốc (ký, ghi rõ họ tên)';
-                sheet6.getCell(`E${sig6}`).alignment = { horizontal: 'center' };
+                sheet6.getCell(`E${sig6}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+                sheet6.getCell(`E${sig6}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 sheet6.getCell(`E${sig6}`).font = { bold: true };
+
+                // Page setup & print area (A4 landscape for sheet6)
+                sheet6.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+                const lastCol6 = sheet6.columnCount || 11;
+                sheet6.pageSetup.printArea = `A1:${colToLetter(lastCol6)}${sheet6.rowCount}`;
             
             // Xuất file
             res.setHeader(
