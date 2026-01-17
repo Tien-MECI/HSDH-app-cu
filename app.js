@@ -5207,7 +5207,11 @@ app.get("/baoluongkhoan", async (req, res) => {
         const table5Data = sheet3Data
     .filter(row => {
         // Kiểm tra xem có mã nhân viên và không phải hàng trống
-        return row[1] && row[1].toString().trim() !== '';
+        if (!row[1] || row[1].toString().trim() === '') return false;
+        
+        // Chỉ lấy những dòng có cột L = 'Chi' (index 11, so sánh không phân biệt hoa thường)
+        const colL = row[11] ? row[11].toString().trim().toLowerCase() : '';
+        return colL === 'chi';
     })
     .map((row, index) => {
         // Parse các giá trị số
@@ -5241,7 +5245,7 @@ app.get("/baoluongkhoan", async (req, res) => {
         };
     })
     .filter(item => item.tongThanhTien > 0 || item.thanhTienGiaoVan > 0 || item.thanhTienLapDat > 0); // Lọc những dòng có giá trị
-
+    console.log(`Đã lọc được ${table5Data.length} nhân viên cho Bảng 5`);
     ///XỬ LÝ BẢNG KHOÁN LẮP ĐẶT
 
     const table6Data = sheet3Data
@@ -5269,6 +5273,36 @@ app.get("/baoluongkhoan", async (req, res) => {
         };
     })
     .filter(item => item.thanhTienLapDat > 0); // Lọc những dòng có giá trị
+    
+    // XỬ LÝ BẢNG 7: Danh sách đơn hàng - chi phí giao vận Quang Minh
+    // Sử dụng filteredSheet1Data để đảm bảo NgayTH (row[1]) đã thỏa mãn Tháng/Năm người dùng chọn
+    const table7Data = (filteredSheet1Data || [])
+    .filter(row => {
+        // row[5] là loại đơn hàng; so sánh không phân biệt hoa thường, sau khi trim
+        const ld = row[5] ? row[5].toString().trim().toLowerCase() : '';
+        return ld === 'giao hàng qm';
+    })
+    .map((row, index) => {
+        const maDH = row[2] ? row[2].toString().trim() : '';
+        const ngayTH = row[1] ? row[1].toString().trim() : '';
+        const loaiDonHang = row[5] ? row[5].toString().trim() : '';
+        // trọng lượng ở cột 6 (index 6)
+        const trongLuongRaw = row[6] || 0;
+        const trongLuong = parseFloat(String(trongLuongRaw).toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
+        const donGia = 2000;
+        const thanhTien = Math.round(trongLuong * donGia);
+
+        return {
+            stt: index + 1,
+            maDonHang: maDH,
+            ngayTH,
+            loaiDonHang,
+            trongLuong,
+            donGia,
+            thanhTien,
+            nhanSu: row[9] ? row[9].toString().trim() : ''
+        };
+    });
     // Format số với dấu phẩy phân cách hàng nghìn
 
         function formatNumber(num) {
@@ -5293,6 +5327,92 @@ app.get("/baoluongkhoan", async (req, res) => {
                     col = Math.floor((col - 1) / 26);
                 }
                 return letter;
+            };
+
+            // Helper: approximate Excel autofit
+            // - Tính chiều rộng mong muốn dựa trên độ dài chuỗi (bao gồm header)
+            // - Nếu tổng chiều rộng > giới hạn in (tùy orientation), co tỷ lệ xuống
+            // - Bật wrapText nếu có newline hoặc chuỗi dài hơn cột
+            const autoFitWorksheet = (ws) => {
+                try {
+                    const includeEmpty = true;
+                    const colCount = ws.columnCount || ws.columns.length || 1;
+
+                    // 1) Tính độ dài tối đa cho mỗi cột (số ký tự)
+                    const desired = new Array(colCount).fill(0);
+                    ws.eachRow({ includeEmpty }, (row) => {
+                        for (let c = 1; c <= colCount; c++) {
+                            const cell = row.getCell(c);
+                            let v = cell.value;
+                            if (v === null || v === undefined) v = '';
+                            if (typeof v === 'object') {
+                                if (v.richText) v = v.richText.map(t => t.text).join('');
+                                else if (v.text) v = v.text;
+                                else v = String(v);
+                            }
+                            const text = String(v);
+                            const lines = text.split('\n');
+                            for (const ln of lines) {
+                                const len = ln.length;
+                                if (len > desired[c - 1]) desired[c - 1] = len;
+                            }
+                        }
+                    });
+
+                    // 2) Thêm padding (một vài ký tự để không bị sát mép)
+                    const padding = 2; // ký tự
+                    for (let i = 0; i < desired.length; i++) desired[i] = Math.max(1, desired[i] + padding);
+
+                    // 3) Tính giới hạn tổng chiều rộng dựa trên orientation
+                    const orientation = (ws.pageSetup && ws.pageSetup.orientation) ? ws.pageSetup.orientation : 'portrait';
+                    // Các giá trị này là số ký tự ước lượng phù hợp với trang A4 in (chỉ ước lượng)
+                    const pageCharLimit = orientation === 'landscape' ? 220 : 110;
+
+                    const totalDesired = desired.reduce((s, v) => s + v, 0) || 1;
+
+                    let finalWidths = desired.slice();
+                    if (totalDesired > pageCharLimit) {
+                        const scale = pageCharLimit / totalDesired;
+                        for (let i = 0; i < finalWidths.length; i++) {
+                            // scale tỉ lệ, vẫn giữ tối thiểu 3 ký tự
+                            finalWidths[i] = Math.max(3, Math.floor(finalWidths[i] * scale));
+                        }
+                    }
+
+                    // 4) Gán width cho từng cột (exceljs width unit ~ số ký tự của font mặc định)
+                    for (let c = 1; c <= colCount; c++) {
+                        const w = finalWidths[c - 1] || 8;
+                        try { ws.getColumn(c).width = w; } catch (e) { /* ignore */ }
+                    }
+
+                    // 5) Bật wrapText nếu cần và set row heights theo ước lượng số dòng
+                    ws.eachRow({ includeEmpty }, (row) => {
+                        let maxLines = 1;
+                        for (let c = 1; c <= colCount; c++) {
+                            const cell = row.getCell(c);
+                            let v = cell.value;
+                            if (v === null || v === undefined) v = '';
+                            if (typeof v === 'object') {
+                                if (v.richText) v = v.richText.map(t => t.text).join('');
+                                else if (v.text) v = v.text;
+                                else v = String(v);
+                            }
+                            const text = String(v);
+                            const colWidth = finalWidths[c - 1] || 8;
+                            const explicit = text.split('\n').length;
+                            // approximate wrapped lines per cell
+                            const approxPerLine = Math.max(1, Math.ceil(text.length / Math.max(colWidth, 1)));
+                            const lines = Math.max(explicit, approxPerLine);
+                            if (lines > maxLines) maxLines = lines;
+                            if (text.includes('\n') || text.length > colWidth) {
+                                cell.alignment = Object.assign({}, cell.alignment || {}, { wrapText: true });
+                            }
+                        }
+                        row.height = Math.max(15, maxLines * 15);
+                    });
+                } catch (err) {
+                    console.warn('autoFitWorksheet error:', err && (err.message || err));
+                }
             };
             
             // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
@@ -5414,6 +5534,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             sheet1.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
             const lastCol1 = sheet1.columnCount || 8;
             sheet1.pageSetup.printArea = `A1:${colToLetter(lastCol1)}${sheet1.rowCount}`;
+            autoFitWorksheet(sheet1);
             
             // Sheet 2: TỔNG HỢP KHOÁN GIAO VẬN THEO NHÂN SỰ/LOẠI ĐƠN HÀNG
             const sheet2 = workbook.addWorksheet('Tổng hợp khoán giao vận');
@@ -5503,6 +5624,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             sheet2.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
             const lastCol2 = sheet2.columnCount || 4;
             sheet2.pageSetup.printArea = `A1:${colToLetter(lastCol2)}${sheet2.rowCount}`;
+            autoFitWorksheet(sheet2);
             
             // Sheet 3: TỔNG HỢP CHI TRẢ KHOÁN GIAO VẬN
             const sheet3 = workbook.addWorksheet('Tổng hợp chi trả khoán GV theo loại ĐH');
@@ -5592,6 +5714,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             sheet3.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
             const lastCol3 = sheet3.columnCount || 4;
             sheet3.pageSetup.printArea = `A1:${colToLetter(lastCol3)}${sheet3.rowCount}`;
+            autoFitWorksheet(sheet3);
             
             // Sheet 4: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN LẮP ĐẶT
             const sheet4 = workbook.addWorksheet('Danh sách đơn khoán lắp đặt');
@@ -5691,6 +5814,7 @@ app.get("/baoluongkhoan", async (req, res) => {
                 sheet4.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
                 const lastCol4 = sheet4.columnCount || 5;
                 sheet4.pageSetup.printArea = `A1:${colToLetter(lastCol4)}${sheet4.rowCount}`;
+                autoFitWorksheet(sheet4);
 
              // Sheet 5: TỔNG LƯƠNG KHOÁN LẮP ĐẶT
             const sheet5 = workbook.addWorksheet('Tổng hợp lương khoán lắp đặt theo nhân sự');
@@ -5786,6 +5910,7 @@ app.get("/baoluongkhoan", async (req, res) => {
                 sheet5.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
                 const lastCol5 = sheet5.columnCount || 5;
                 sheet5.pageSetup.printArea = `A1:${colToLetter(lastCol5)}${sheet5.rowCount}`;
+                autoFitWorksheet(sheet5);
             
             // Sheet 5: TỔNG LƯƠNG KHOÁN DỊCH VỤ
             const sheet6 = workbook.addWorksheet('Tổng hợp khoán dịch vụ theo nhân sự');
@@ -5907,7 +6032,92 @@ app.get("/baoluongkhoan", async (req, res) => {
                 sheet6.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
                 const lastCol6 = sheet6.columnCount || 11;
                 sheet6.pageSetup.printArea = `A1:${colToLetter(lastCol6)}${sheet6.rowCount}`;
+                autoFitWorksheet(sheet6);
             
+            // Sheet 7: TỔNG HỢP CHI PHÍ GIAO VẬN QUANG MINH
+            const sheet7 = workbook.addWorksheet('Chi phí GV - Quang Minh');
+            sheet7.mergeCells('A1:H1');
+            sheet7.getCell('A1').value = 'TỔNG HỢP CHI PHÍ GIAO VẬN QUANG MINH';
+            sheet7.getCell('A1').font = { bold: true, size: 14 };
+            sheet7.getCell('A1').alignment = { horizontal: 'center' };
+            sheet7.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
+
+            const headers7 = ['STT', 'Mã đơn hàng', 'Ngày TH', 'Loại đơn hàng', 'Trọng lượng', 'Đơn giá', 'Thành tiền', 'Nhân sự'];
+            sheet7.getRow(4).values = headers7;
+            const headerRow7 = sheet7.getRow(4);
+            headerRow7.font = { bold: true };
+            headerRow7.alignment = { horizontal: 'center' };
+
+            table7Data.forEach(item => {
+                sheet7.addRow([
+                    item.stt,
+                    item.maDonHang,
+                    item.ngayTH,
+                    item.loaiDonHang,
+                    Number(item.trongLuong) || 0,
+                    Number(item.donGia) || 0,
+                    Number(item.thanhTien) || 0,
+                    item.nhanSu
+                ]);
+            });
+
+            sheet7.columns = [
+                { width: 8 },
+                { width: 20 },
+                { width: 15 },
+                { width: 20 },
+                { width: 15 },
+                { width: 12 },
+                { width: 15 },
+                { width: 20 }
+            ];
+
+            for (let i = 4; i <= sheet7.rowCount; i++) {
+                for (let j = 1; j <= 8; j++) {
+                    const cell = sheet7.getCell(i, j);
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    if (j === 5 || j === 6 || j === 7) cell.numFmt = '#,##0';
+                }
+            }
+
+            // Tổng cho sheet7 (cột 7)
+            const dataStart7 = 5;
+            const sumSheet7Col7 = (() => {
+                let s = 0;
+                for (let r = dataStart7; r <= sheet7.rowCount; r++) {
+                    const v = sheet7.getCell(r, 7).value;
+                    const n = parseFloat(String(v || 0).toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
+                    s += n;
+                }
+                return s;
+            })();
+            const totalRow7 = sheet7.addRow(['', 'TỔNG CỘNG', '', '', '', '', sumSheet7Col7, '']);
+            totalRow7.font = { bold: true };
+            for (let j = 1; j <= 8; j++) {
+                totalRow7.getCell(j).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            }
+            totalRow7.getCell(7).numFmt = '#,##0';
+
+            // Signatures sheet7
+            let sig7 = sheet7.rowCount + 2;
+            sheet7.mergeCells(`A${sig7}:B${sig7}`);
+            sheet7.getCell(`A${sig7}`).value = 'Người tạo\n(ký, ghi rõ họ tên)';
+            sheet7.getCell(`A${sig7}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet7.getCell(`A${sig7}`).font = { bold: true };
+            sheet7.mergeCells(`C${sig7}:D${sig7}`);
+            sheet7.getCell(`C${sig7}`).value = 'Kế toán MC\n(ký, ghi rõ họ tên)';
+            sheet7.getCell(`C${sig7}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet7.getCell(`C${sig7}`).font = { bold: true };
+            sheet7.mergeCells(`E${sig7}:H${sig7}`);
+            sheet7.getCell(`E${sig7}`).value = 'Kế toán QM\n(ký, ghi rõ họ tên)';
+            sheet7.getCell(`E${sig7}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet7.getCell(`E${sig7}`).font = { bold: true };
+
+            // Page setup & print area (A4 portrait)
+            sheet7.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+            const lastCol7 = sheet7.columnCount || 8;
+            sheet7.pageSetup.printArea = `A1:${colToLetter(lastCol7)}${sheet7.rowCount}`;
+            autoFitWorksheet(sheet7);
             // Xuất file
             res.setHeader(
                 'Content-Type',
@@ -5931,7 +6141,8 @@ app.get("/baoluongkhoan", async (req, res) => {
         table3: table3Data,
         table4: table4Data,
         table5: table5Data,
-        table6: table6Data
+        table6: table6Data,
+        table7: table7Data
     },
     currentPage,
     totalPages,
@@ -5941,6 +6152,7 @@ app.get("/baoluongkhoan", async (req, res) => {
     table4Data,
     table5Data,
     table6Data,
+    table7Data,
     totalRecords,
     totalAmount,
     formatNumber: (num) => {
