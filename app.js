@@ -7515,8 +7515,6 @@ async function generateTable4(pvcData, nkData, year) {
     };
 }
 
-
-// Hàm generate Table 5
 // Hàm generate Table 5: Báo cáo doanh số mảng sản phẩm/nhân viên kinh doanh
 async function generateTable5(pvcData, nkData, month, year) {
     const productGroups = [
@@ -8774,25 +8772,33 @@ app.locals.getQuarter = getQuarter;
 // ============================================
 
 async function getNhanVienList() {
-    try {
-        const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BR');
-        if (!data || data.length < 2) return [];
-        
-        const headers = data[0];
-        const rows = data.slice(1);
-        const colIndex = headers.indexOf('C'); // Cột tên nhân viên
-        
-        // Lấy danh sách nhân viên duy nhất
+  try {
+        const data = await readSheet(SPREADSHEET_HC_ID, 'Nhan_vien!A:G');
+        if (!data || data.length < 2) {
+            console.warn('⚠️ Không có dữ liệu trong sheet Nhan_vien!A:G');
+            return [];
+        }
+
+        const rows = data.slice(1); // Bỏ qua dòng tiêu đề
         const nhanVienSet = new Set();
+
         rows.forEach(row => {
-            if (row[colIndex] && row[colIndex].trim()) {
-                nhanVienSet.add(row[colIndex].trim());
+            const tenNhanVien = row[1]; // Cột B (Tên nhân viên)
+            const phongBan = row[6]; // Cột G (Phòng ban)
+
+            if (phongBan && phongBan.trim() === 'Kinh doanh' && tenNhanVien && tenNhanVien.trim()) {
+                nhanVienSet.add(tenNhanVien.trim());
             }
         });
-        
-        return Array.from(nhanVienSet).sort();
+
+        const nhanVienList = Array.from(nhanVienSet).sort();
+        if (nhanVienList.length === 0) {
+            console.warn('⚠️ Không tìm thấy nhân viên nào thuộc phòng "Kinh doanh"');
+        }
+
+        return nhanVienList;
     } catch (error) {
-        console.error('Lỗi khi lấy danh sách nhân viên:', error);
+        console.error('❌ Lỗi khi lấy danh sách nhân viên từ sheet Nhan_vien:', error);
         return [];
     }
 }
@@ -10205,7 +10211,7 @@ app.get('/debug-data', async (req, res) => {
             sampleData: sampleData,
             columns: columnData
         });
-    } catch (error) {
+        } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });

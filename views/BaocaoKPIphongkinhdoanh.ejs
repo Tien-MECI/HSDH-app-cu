@@ -376,14 +376,14 @@
                 
                 <div class="col-md-2">
                     <label class="form-label fw-bold">Nhân viên</label>
-                    <select name="nhanVien" class="form-select">
-                        <option value="all">Tất cả nhân viên</option>
+                    <select id="nhanVienDropdown" name="nhanVien" class="form-select">
+                        <option value="">Tất cả nhân viên</option>
                         <% if (nhanVienList && nhanVienList.length > 0) { %>
-                            <% nhanVienList.forEach(function(nv) { %>
-                                <option value="<%= nv %>" <%= nhanVien === nv ? 'selected' : '' %>>
-                                    <%= nv %>
-                                </option>
+                            <% nhanVienList.forEach(function(nhanVien) { %>
+                                <option value="<%= nhanVien %>"><%= nhanVien %></option>
                             <% }); %>
+                        <% } else { %>
+                            <option disabled>Không có nhân viên nào</option>
                         <% } %>
                     </select>
                 </div>
