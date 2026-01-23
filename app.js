@@ -198,14 +198,16 @@ async function loadDriveImageBase64(fileId) {
     const metaRes = await drive.files.get({
       fileId,
       fields: "id, name, mimeType",
+      supportsAllDrives: true, // Hỗ trợ Shared Drive
     });
     const mimeType = metaRes.data.mimeType || "";
     console.log(`📁 [Drive] File meta: ${metaRes.data.name} (${mimeType})`);
 
     // 2️⃣ Nếu là file ảnh gốc (PNG, JPEG, ...), tải trực tiếp
     if (mimeType.startsWith("image/")) {
+      console.log("ℹ️ File là ảnh gốc, đang tải trực tiếp...");
       const bin = await drive.files.get(
-        { fileId, alt: "media" },
+        { fileId, alt: "media", supportsAllDrives: true },
         { responseType: "arraybuffer" }
       );
       const buffer = Buffer.from(bin.data);
@@ -216,7 +218,7 @@ async function loadDriveImageBase64(fileId) {
     if (mimeType.startsWith("application/vnd.google-apps")) {
       console.log("ℹ️ File không phải ảnh gốc — thử export sang PNG...");
       const exported = await drive.files.export(
-        { fileId, mimeType: "image/png" },
+        { fileId, mimeType: "image/png", supportsAllDrives: true },
         { responseType: "arraybuffer" }
       );
       const buffer = Buffer.from(exported.data);
@@ -224,14 +226,15 @@ async function loadDriveImageBase64(fileId) {
     }
 
     // 4️⃣ Các loại khác (PDF, ...), cũng cho phép tải nếu Drive hỗ trợ alt:media
+    console.log("ℹ️ File không phải ảnh hoặc Google Apps, thử tải trực tiếp...");
     const bin = await drive.files.get(
-      { fileId, alt: "media" },
+      { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "arraybuffer" }
     );
     const buffer = Buffer.from(bin.data);
     return `data:${mimeType};base64,${buffer.toString("base64")}`;
   } catch (err) {
-    console.error(`❌ Không tải được file Drive ${fileId}:`, err.message);
+    console.error(`❌ Không tải được file Drive ${fileId}:`, err.message, err.response?.data);
     return "";
   }
 }
