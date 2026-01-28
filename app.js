@@ -1995,10 +1995,10 @@ app.get("/copy-:madh", async (req, res) => {
 
         // Tạo mảng dữ liệu mới với 33 cột (A đến AG)
         const newRows = matchedRows.map((originalRow) => {
-            const row = new Array(33).fill('');
+            const row = new Array(48).fill('');
             
             // Sao chép dữ liệu từ dòng gốc (bắt đầu từ index 0)
-            for (let i = 0; i < Math.min(originalRow.length, 33); i++) {
+            for (let i = 0; i < Math.min(originalRow.length, 48); i++) {
                 if (originalRow[i] !== undefined && originalRow[i] !== null && originalRow[i] !== '') {
                     row[i] = originalRow[i];
                 }
@@ -2032,13 +2032,13 @@ app.get("/copy-:madh", async (req, res) => {
         let targetRow = rowsPVC.length + 1; // Mặc định: sau dòng cuối cùng
         
         // 2. Hoặc dùng update thay vì append để kiểm soát chính xác vị trí
-        const targetRange = `${sheetNamePVC}!A${targetRow}:AG${targetRow + newRows.length - 1}`;
+        const targetRange = `${sheetNamePVC}!A${targetRow}:AV${targetRow + newRows.length - 1}`;
         console.log(`🎯 Sẽ ghi vào range: ${targetRange}`);
         
         // 3. Kiểm tra xem dòng targetRow có bị lệch không
         const checkRowData = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetNamePVC}!A${targetRow}:Z${targetRow}`,
+            range: `${sheetNamePVC}!A${targetRow}:AV${targetRow}`,
         });
         
         const existingData = checkRowData.data.values || [];
@@ -2058,7 +2058,7 @@ app.get("/copy-:madh", async (req, res) => {
         }
         
         // 4. Ghi dữ liệu bằng UPDATE thay vì APPEND
-        const finalRange = `${sheetNamePVC}!A${targetRow}:AG${targetRow + newRows.length - 1}`;
+        const finalRange = `${sheetNamePVC}!A${targetRow}:AV${targetRow + newRows.length - 1}`;
         console.log(`📝 Đang ghi vào ${finalRange}...`);
         
         await sheets.spreadsheets.values.update({
@@ -2073,7 +2073,7 @@ app.get("/copy-:madh", async (req, res) => {
         // === 6️⃣ Kiểm tra kết quả ===
         const verifyData = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetNamePVC}!A${targetRow}:AG${targetRow}`,
+            range: `${sheetNamePVC}!A${targetRow}:AV${targetRow}`,
         });
         
         const writtenRow = verifyData.data.values ? verifyData.data.values[0] : [];

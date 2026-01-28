@@ -330,8 +330,6 @@
                 // Tính tổng số lượng
                 const tongSoLuong = dienTich * soLuong;
                 
-                // Tính thành tiền
-                
                 // Tính thành tiền: kiểm tra đơn vị tính
                 let thanhTien = 0;
                 if (donViTinh === 'm2') {
@@ -339,19 +337,30 @@
                 } else {
                     thanhTien = donGia * soLuong;
                 }
+
+                // Log giá trị để kiểm tra tính toán
+                console.log({
+                    STT: index + 1,
+                    dienTich,
+                    soLuong,
+                    tongSoLuong,
+                    donGia,
+                    thanhTien
+                });
+
                 tongThanhTien += thanhTien;
                 
                 // Cập nhật hiển thị
-                row.querySelector('.dien-tich').textContent = dienTich.toFixed(3);
-                row.querySelector('.tong-so-luong').textContent = tongSoLuong.toFixed(3);
-                row.querySelector('.thanh-tien').textContent = formatNumber(thanhTien);
+                row.querySelector('.dien-tich').textContent = dienTich.toFixed(3).replace('.', ',');
+                row.querySelector('.tong-so-luong').textContent = tongSoLuong.toFixed(3).replace('.', ',');
+                row.querySelector('.thanh-tien').textContent = thanhTien.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
                 // Cập nhật STT
                 row.querySelector('.stt').textContent = index + 1;
                 row.dataset.index = index;
             });
             
             // Cập nhật tổng thành tiền
-            section.querySelector('.tong-thanh-tien').textContent = formatNumber(tongThanhTien);
+            section.querySelector('.tong-thanh-tien').textContent = tongThanhTien.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         }
 
         // Format số
