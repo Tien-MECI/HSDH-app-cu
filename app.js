@@ -1886,7 +1886,7 @@ app.get("/copy-:madh", async (req, res) => {
         console.log(`✅ Tìm thấy ${matchedRows.length} dòng cần sao chép.`);
 
         // === 3️⃣ Tạo mã đơn hàng mới ===
-        const yearNow = new Date().getFullYear().toString().slice(-2); // "26" (cho 2026)
+        const yearNow = new Date().getFullYear().toString().slice(-2); // "26"
         const matchParts = madh.split("-");
         
         if (matchParts.length !== 3) {
@@ -1896,7 +1896,7 @@ app.get("/copy-:madh", async (req, res) => {
         const codePrefix = matchParts[0].substring(0, 2); // "MC"
         const kinhdoanhCode = matchParts[1]; // "9"
         
-        // Lấy dữ liệu Don_hang để tìm MAX trong cột E theo mã kinh doanh và năm
+        // Lấy dữ liệu Don_hang để tìm MAX trong cột E theo mã kinh doanh và năm HIỆN TẠI
         const getDH = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetNameDH}!A:F`,
@@ -1908,7 +1908,51 @@ app.get("/copy-:madh", async (req, res) => {
         const colEIndex = 4; // cột E - số đơn hàng
         const colFIndex = 5; // cột F - mã kinh doanh
 
-        // Lọc theo năm hiện tại và mã kinh doanh
+        // Hàm lấy năm từ chuỗi ngày (hỗ trợ nhiều định dạng)
+        function getYearFromDateString(dateString) {
+            if (!dateString) return null;
+            
+            // Thử các định dạng ngày phổ biến
+            // 1. dd/mm/yyyy
+            if (dateString.includes('/')) {
+                const parts = dateString.split('/');
+                if (parts.length >= 3) {
+                    const yearPart = parts[2] || parts[parts.length - 1];
+                    if (yearPart.length === 4) {
+                        return yearPart.slice(-2);
+                    } else if (yearPart.length === 2) {
+                        return yearPart;
+                    }
+                }
+            }
+            
+            // 2. yyyy-mm-dd
+            if (dateString.includes('-')) {
+                const parts = dateString.split('-');
+                if (parts.length >= 1) {
+                    const yearPart = parts[0];
+                    if (yearPart.length === 4) {
+                        return yearPart.slice(-2);
+                    }
+                }
+            }
+            
+            // 3. Tìm 4 chữ số liên tiếp (năm đầy đủ)
+            const fullYearMatch = dateString.match(/\b(\d{4})\b/);
+            if (fullYearMatch) {
+                return fullYearMatch[1].slice(-2);
+            }
+            
+            // 4. Tìm 2 chữ số liên tiếp (năm rút gọn)
+            const shortYearMatch = dateString.match(/\b(\d{2})\b/);
+            if (shortYearMatch) {
+                return shortYearMatch[1];
+            }
+            
+            return null;
+        }
+
+        // Lọc CHÍNH XÁC theo năm HIỆN TẠI và mã kinh doanh
         const rowsFiltered = rowsDH.filter((r, i) => {
             if (i === 0) return false; // Bỏ header
             
@@ -1917,31 +1961,43 @@ app.get("/copy-:madh", async (req, res) => {
             
             if (!fVal || !dateVal) return false;
             
-            // Kiểm tra mã kinh doanh khớp và ngày chứa năm hiện tại
-            const hasYear = dateVal.includes(`20${yearNow}`) || dateVal.includes(yearNow);
-            const sameKinhDoanh = fVal === kinhdoanhCode.toString();
+            // Lấy năm từ chuỗi ngày
+            const yearFromDate = getYearFromDateString(dateVal);
             
-            return sameKinhDoanh && hasYear;
+            // Kiểm tra mã kinh doanh khớp và năm TRÙNG VỚI NĂM HIỆN TẠI
+            const sameKinhDoanh = fVal === kinhdoanhCode.toString();
+            const sameYear = yearFromDate === yearNow;
+            
+            return sameKinhDoanh && sameYear;
         });
 
-        console.log(`📊 Tìm thấy ${rowsFiltered.length} đơn hàng cùng năm và mã KD ${kinhdoanhCode}`);
+        console.log(`📊 Tìm thấy ${rowsFiltered.length} đơn hàng năm ${yearNow} và mã KD ${kinhdoanhCode}`);
+
+        // DEBUG: In chi tiết các đơn hàng đã lọc
+        console.log("📋 Chi tiết các đơn hàng đã lọc:");
+        rowsFiltered.forEach((row, idx) => {
+            const dateVal = row[colBIndex] ? row[colBIndex].toString() : "";
+            const yearFromDate = getYearFromDateString(dateVal);
+            console.log(`   ${idx+1}. Ngày: ${dateVal} (năm: ${yearFromDate}), Số đơn: ${row[colEIndex]}, Mã KD: ${row[colFIndex]}`);
+        });
 
         // Lấy tất cả giá trị số từ cột E
         const numbers = rowsFiltered
             .map((r) => {
                 const numStr = r[colEIndex] ? r[colEIndex].toString().trim() : "";
-                return parseInt(numStr);
+                const num = parseInt(numStr);
+                return isNaN(num) ? 0 : num;
             })
-            .filter((n) => !isNaN(n) && n > 0);
+            .filter((n) => n > 0);
 
-        console.log(`🔢 Các số đơn hàng đã tìm thấy: ${numbers.join(", ")}`);
+        console.log(`🔢 Các số đơn hàng đã tìm thấy: ${numbers.length > 0 ? numbers.join(", ") : "Không có"}`);
 
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
         const newNum = maxNum + 1;
         const newNumStr = String(newNum).padStart(4, "0");
 
         const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
-        console.log(`🔢 Mã đơn hàng mới: ${madhNew} (số tiếp theo: ${newNum})`);
+        console.log(`🔢 Mã đơn hàng mới: ${madhNew} (max: ${maxNum}, tiếp theo: ${newNum})`);
 
         // === 4️⃣ Tạo dữ liệu mới ===
         const today = new Date();
