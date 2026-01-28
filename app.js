@@ -1886,38 +1886,35 @@ app.get("/copy-:madh", async (req, res) => {
         console.log(`✅ Tìm thấy ${matchedRows.length} dòng cần sao chép.`);
 
         // === 3️⃣ Tạo mã đơn hàng mới ===
-        const yearNow = new Date().getFullYear().toString().slice(-2); // "26"
+        const yearNow = new Date().getFullYear().toString().slice(-2);
         const matchParts = madh.split("-");
         
         if (matchParts.length !== 3) {
             return res.send("❌ Mã đơn hàng không hợp lệ (phải dạng MC25-0-1453)");
         }
 
-        const codePrefix = matchParts[0].substring(0, 2); // "MC"
-        const kinhdoanhCode = matchParts[1]; // "9"
+        const codePrefix = matchParts[0].substring(0, 2);
+        const kinhdoanhCode = matchParts[1];
         
-        // Lấy dữ liệu Don_hang để tìm MAX trong cột E theo mã kinh doanh và năm HIỆN TẠI
+        // Lấy dữ liệu Don_hang để tìm MAX trong cột E theo mã kinh doanh và năm
         const getDH = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetNameDH}!A:F`,
         });
         const rowsDH = getDH.data.values || [];
         
-        // Chỉ số cột (0-based)
-        const colBIndex = 1; // cột B - ngày tạo
-        const colEIndex = 4; // cột E - số đơn hàng
-        const colFIndex = 5; // cột F - mã kinh doanh
+        const colBIndex = 1;
+        const colEIndex = 4;
+        const colFIndex = 5;
 
-        // Hàm lấy năm từ chuỗi ngày (hỗ trợ nhiều định dạng)
+        // Hàm lấy năm từ chuỗi ngày
         function getYearFromDateString(dateString) {
             if (!dateString) return null;
             
-            // Thử các định dạng ngày phổ biến
-            // 1. dd/mm/yyyy
             if (dateString.includes('/')) {
                 const parts = dateString.split('/');
                 if (parts.length >= 3) {
-                    const yearPart = parts[2] || parts[parts.length - 1];
+                    const yearPart = parts[2];
                     if (yearPart.length === 4) {
                         return yearPart.slice(-2);
                     } else if (yearPart.length === 2) {
@@ -1926,7 +1923,6 @@ app.get("/copy-:madh", async (req, res) => {
                 }
             }
             
-            // 2. yyyy-mm-dd
             if (dateString.includes('-')) {
                 const parts = dateString.split('-');
                 if (parts.length >= 1) {
@@ -1937,34 +1933,25 @@ app.get("/copy-:madh", async (req, res) => {
                 }
             }
             
-            // 3. Tìm 4 chữ số liên tiếp (năm đầy đủ)
             const fullYearMatch = dateString.match(/\b(\d{4})\b/);
-            if (fullYearMatch) {
-                return fullYearMatch[1].slice(-2);
-            }
+            if (fullYearMatch) return fullYearMatch[1].slice(-2);
             
-            // 4. Tìm 2 chữ số liên tiếp (năm rút gọn)
             const shortYearMatch = dateString.match(/\b(\d{2})\b/);
-            if (shortYearMatch) {
-                return shortYearMatch[1];
-            }
+            if (shortYearMatch) return shortYearMatch[1];
             
             return null;
         }
 
-        // Lọc CHÍNH XÁC theo năm HIỆN TẠI và mã kinh doanh
+        // Lọc theo năm hiện tại và mã kinh doanh
         const rowsFiltered = rowsDH.filter((r, i) => {
-            if (i === 0) return false; // Bỏ header
+            if (i === 0) return false;
             
             const fVal = r[colFIndex] ? r[colFIndex].toString().trim() : "";
             const dateVal = r[colBIndex] ? r[colBIndex].toString() : "";
             
             if (!fVal || !dateVal) return false;
             
-            // Lấy năm từ chuỗi ngày
             const yearFromDate = getYearFromDateString(dateVal);
-            
-            // Kiểm tra mã kinh doanh khớp và năm TRÙNG VỚI NĂM HIỆN TẠI
             const sameKinhDoanh = fVal === kinhdoanhCode.toString();
             const sameYear = yearFromDate === yearNow;
             
@@ -1972,14 +1959,6 @@ app.get("/copy-:madh", async (req, res) => {
         });
 
         console.log(`📊 Tìm thấy ${rowsFiltered.length} đơn hàng năm ${yearNow} và mã KD ${kinhdoanhCode}`);
-
-        // DEBUG: In chi tiết các đơn hàng đã lọc
-        console.log("📋 Chi tiết các đơn hàng đã lọc:");
-        rowsFiltered.forEach((row, idx) => {
-            const dateVal = row[colBIndex] ? row[colBIndex].toString() : "";
-            const yearFromDate = getYearFromDateString(dateVal);
-            console.log(`   ${idx+1}. Ngày: ${dateVal} (năm: ${yearFromDate}), Số đơn: ${row[colEIndex]}, Mã KD: ${row[colFIndex]}`);
-        });
 
         // Lấy tất cả giá trị số từ cột E
         const numbers = rowsFiltered
@@ -1989,8 +1968,6 @@ app.get("/copy-:madh", async (req, res) => {
                 return isNaN(num) ? 0 : num;
             })
             .filter((n) => n > 0);
-
-        console.log(`🔢 Các số đơn hàng đã tìm thấy: ${numbers.length > 0 ? numbers.join(", ") : "Không có"}`);
 
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
         const newNum = maxNum + 1;
@@ -2011,109 +1988,123 @@ app.get("/copy-:madh", async (req, res) => {
         const ddmmyyyy = `${dd}/${mm}/${yyyy}`;
         const nowFull = `${dd}/${mm}/${yyyy} ${hh}:${mi}:${ss}`;
 
-        // Hàm sinh UNIQUE ID ngẫu nhiên 8 ký tự
         function randomUID() {
             const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
             return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
         }
 
-        // Tạo mảng dữ liệu mới
-        const newRows = matchedRows.map((r) => {
-            const row = [...r];
-            row[0] = randomUID(); // A = UNIQUE ID
-            row[1] = madhNew; // B = mã đơn hàng mới
+        // Tạo mảng dữ liệu mới với 33 cột (A đến AG)
+        const newRows = matchedRows.map((originalRow) => {
+            const row = new Array(33).fill('');
             
-            // C: thay phần mã đơn hàng trong mã sản phẩm (nếu có)
+            // Sao chép dữ liệu từ dòng gốc (bắt đầu từ index 0)
+            for (let i = 0; i < Math.min(originalRow.length, 33); i++) {
+                if (originalRow[i] !== undefined && originalRow[i] !== null && originalRow[i] !== '') {
+                    row[i] = originalRow[i];
+                }
+            }
+            
+            // Cập nhật các cột cần thiết
+            row[0] = randomUID();
+            row[1] = madhNew;
+            
             if (row[2] && row[2].length >= 11) {
                 row[2] = madhNew + row[2].substring(11);
             }
             
-            row[29] = ddmmyyyy; // AD = ngày tạo
-            row[32] = nowFull; // AG = thời gian tạo đầy đủ
+            row[29] = ddmmyyyy;
+            row[32] = nowFull;
+            
             return row;
         });
 
-        // === 5️⃣ Ghi vào cuối sheet ===
-        await sheets.spreadsheets.values.append({
+        // DEBUG: Kiểm tra dữ liệu trước khi ghi
+        console.log("🔍 Kiểm tra dữ liệu sẽ ghi:");
+        console.log(`Số cột: ${newRows[0].length}`);
+        console.log(`Cột A: "${newRows[0][0]}"`);
+        console.log(`Cột B: "${newRows[0][1]}"`);
+        console.log(`Cột C: "${newRows[0][2]}"`);
+        console.log(`Cột Z (index 25): "${newRows[0][25]}"`);
+
+        // === 5️⃣ GIẢI PHÁP: Xác định vị trí ghi CHÍNH XÁC ===
+        
+        // 1. Tìm hàng trống thực sự (tất cả các ô từ A đến AG đều trống)
+        let targetRow = rowsPVC.length + 1; // Mặc định: sau dòng cuối cùng
+        
+        // 2. Hoặc dùng update thay vì append để kiểm soát chính xác vị trí
+        const targetRange = `${sheetNamePVC}!A${targetRow}:AG${targetRow + newRows.length - 1}`;
+        console.log(`🎯 Sẽ ghi vào range: ${targetRange}`);
+        
+        // 3. Kiểm tra xem dòng targetRow có bị lệch không
+        const checkRowData = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetNamePVC}!A:AG`,
+            range: `${sheetNamePVC}!A${targetRow}:Z${targetRow}`,
+        });
+        
+        const existingData = checkRowData.data.values || [];
+        if (existingData.length > 0) {
+            console.log(`⚠️ Dòng ${targetRow} đã có dữ liệu:`, existingData[0].slice(0, 5));
+            // Nếu dòng này đã có dữ liệu, tìm dòng trống tiếp theo
+            for (let i = targetRow + 1; i <= targetRow + 100; i++) {
+                const checkRow = await sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: `${sheetNamePVC}!A${i}:A${i}`,
+                });
+                if (!checkRow.data.values || checkRow.data.values.length === 0) {
+                    targetRow = i;
+                    break;
+                }
+            }
+        }
+        
+        // 4. Ghi dữ liệu bằng UPDATE thay vì APPEND
+        const finalRange = `${sheetNamePVC}!A${targetRow}:AG${targetRow + newRows.length - 1}`;
+        console.log(`📝 Đang ghi vào ${finalRange}...`);
+        
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: finalRange,
             valueInputOption: "USER_ENTERED",
-            insertDataOption: "INSERT_ROWS",
             requestBody: { values: newRows },
         });
+        
+        console.log(`✅ Đã ghi xong vào ${finalRange}`);
+
+        // === 6️⃣ Kiểm tra kết quả ===
+        const verifyData = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetNamePVC}!A${targetRow}:AG${targetRow}`,
+        });
+        
+        const writtenRow = verifyData.data.values ? verifyData.data.values[0] : [];
+        console.log(`🔍 Kiểm tra dòng vừa ghi (${targetRow}):`);
+        console.log(`Số cột: ${writtenRow.length}`);
+        console.log(`Cột A: "${writtenRow[0]}"`);
+        console.log(`Cột B: "${writtenRow[1]}"`);
+        console.log(`Cột Z (index 25): "${writtenRow[25]}"`);
 
         console.log(`✅ Đã sao chép xong đơn hàng ${madh} → ${madhNew}`);
 
-        // === 6️⃣ Trả về HTML tự đóng sau 3 giây ===
+        // === 7️⃣ Trả về HTML ===
         res.send(`
           <html lang="vi">
             <head>
               <meta charset="UTF-8" />
-              <title>Đã sao chép xong đơn hàng</title>
+              <title>Đã sao chép xong</title>
               <style>
-                body {
-                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                  text-align: center;
-                  margin-top: 100px;
-                  background-color: #f5f5f5;
-                }
-                .success-box {
-                  background: white;
-                  padding: 40px;
-                  border-radius: 10px;
-                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                  display: inline-block;
-                }
-                h2 { 
-                  color: #2ecc71; 
-                  margin-bottom: 20px;
-                }
-                .madh-old {
-                  color: #7f8c8d;
-                  font-size: 14px;
-                }
-                .madh-new {
-                  color: #e74c3c;
-                  font-size: 22px;
-                  font-weight: bold;
-                  margin: 15px 0;
-                  padding: 10px;
-                  background: #f9f9f9;
-                  border-radius: 5px;
-                  border-left: 4px solid #2ecc71;
-                }
-                .info {
-                  color: #3498db;
-                  margin-top: 20px;
-                }
+                body { font-family: sans-serif; text-align: center; margin-top: 100px; }
+                h2 { color: #2ecc71; }
+                .info { margin: 20px 0; }
               </style>
               <script>
-                setTimeout(() => {
-                  try { 
-                    window.close(); 
-                  } catch(e) {
-                    console.log("Không thể tự đóng tab:", e);
-                  }
-                }, 3000);
-                
-                // Cho phép người dùng click để đóng
-                function closeWindow() {
-                  window.close();
-                }
+                setTimeout(() => { try { window.close(); } catch(e) {} }, 3000);
               </script>
             </head>
             <body>
-              <div class="success-box">
-                <h2>✅ ĐÃ SAO CHÉP XONG!</h2>
-                <p class="madh-old">Mã cũ: <b>${madh}</b></p>
-                <div class="madh-new">${madhNew}</div>
-                <p class="info">Số dòng đã sao chép: <b>${matchedRows.length}</b></p>
-                <p class="info">Ngày tạo: <b>${ddmmyyyy}</b></p>
-                <p><small>Tab này sẽ tự đóng sau 3 giây...</small></p>
-                <button onclick="closeWindow()" style="margin-top:20px; padding:8px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
-                  Đóng ngay
-                </button>
-              </div>
+              <h2>✅ Đã sao chép xong!</h2>
+              <p>Mã mới: <b>${madhNew}</b></p>
+              <p>Vị trí: Dòng ${targetRow}</p>
+              <p>Tab này sẽ tự đóng sau 3 giây...</p>
             </body>
           </html>
         `);
@@ -2122,49 +2113,10 @@ app.get("/copy-:madh", async (req, res) => {
         console.error("❌ Lỗi khi sao chép đơn hàng:", error);
         res.status(500).send(`
           <html lang="vi">
-            <head>
-              <meta charset="UTF-8" />
-              <title>Lỗi sao chép</title>
-              <style>
-                body {
-                  font-family: sans-serif;
-                  text-align: center;
-                  margin-top: 100px;
-                  background-color: #fff5f5;
-                }
-                .error-box {
-                  background: white;
-                  padding: 40px;
-                  border-radius: 10px;
-                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                  display: inline-block;
-                  border-left: 4px solid #e74c3c;
-                }
-                h2 { 
-                  color: #e74c3c; 
-                  margin-bottom: 20px;
-                }
-                pre {
-                  text-align: left;
-                  background: #f9f9f9;
-                  padding: 15px;
-                  border-radius: 5px;
-                  overflow-x: auto;
-                  max-width: 600px;
-                  margin: 20px auto;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="error-box">
-                <h2>❌ LỖI KHI SAO CHÉP ĐƠN HÀNG</h2>
-                <p><b>Mã đơn hàng:</b> ${madh}</p>
-                <pre>${error.message}</pre>
-                <p>Vui lòng giữ tab này để kiểm tra lỗi.</p>
-                <button onclick="window.location.reload()" style="margin-top:20px; padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer;">
-                  Thử lại
-                </button>
-              </div>
+            <head><meta charset="UTF-8" /><title>Lỗi</title></head>
+            <body style="font-family:sans-serif;text-align:center;margin-top:100px;color:red;">
+              <h2>❌ Lỗi khi sao chép đơn hàng</h2>
+              <p>${error.message}</p>
             </body>
           </html>
         `);
