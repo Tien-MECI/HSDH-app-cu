@@ -102,13 +102,13 @@ if (!SPREADSHEET_ID || !SPREADSHEET_HC_ID || !SPREADSHEET_QC_TT_ID || !GAS_WEBAP
     process.exit(1);
 }
 
-if (!publicVapidKey || !privateVapidKey) {
-    console.error("❌ Thiếu biến môi trường PUBLIC_VAPID_KEY hoặc PRIVATE_VAPID_KEY");
-    process.exit(1);
-}
+//if (!publicVapidKey || !privateVapidKey) {
+    //console.error("❌ Thiếu biến môi trường PUBLIC_VAPID_KEY hoặc PRIVATE_VAPID_KEY");
+    //process.exit(1);
+//}
 
 // Cần đặt email hợp lệ để liên hệ khi có sự cố[citation:1][citation:3]
-webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
+//webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
 
 // --- Giải mã Service Account JSON ---
 const credentials = JSON.parse(
@@ -1886,46 +1886,62 @@ app.get("/copy-:madh", async (req, res) => {
         console.log(`✅ Tìm thấy ${matchedRows.length} dòng cần sao chép.`);
 
         // === 3️⃣ Tạo mã đơn hàng mới ===
-        const yearNow = new Date().getFullYear().toString().slice(-2); // "25"
+        const yearNow = new Date().getFullYear().toString().slice(-2); // "26" (cho 2026)
         const matchParts = madh.split("-");
+        
         if (matchParts.length !== 3) {
             return res.send("❌ Mã đơn hàng không hợp lệ (phải dạng MC25-0-1453)");
         }
 
         const codePrefix = matchParts[0].substring(0, 2); // "MC"
-        const kinhdoanhCode = matchParts[1]; // "0"
-
-        // Lấy dữ liệu Don_hang để tìm MAX trong E theo F = kinhdoanhCode và năm
+        const kinhdoanhCode = matchParts[1]; // "9"
+        
+        // Lấy dữ liệu Don_hang để tìm MAX trong cột E theo mã kinh doanh và năm
         const getDH = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetNameDH}!A:F`,
         });
         const rowsDH = getDH.data.values || [];
-        const colBIndex = 1; // ngày tạo
-        const colEIndex = 4; // số đơn hàng
-        const colFIndex = 5; // mã kinh doanh
+        
+        // Chỉ số cột (0-based)
+        const colBIndex = 1; // cột B - ngày tạo
+        const colEIndex = 4; // cột E - số đơn hàng
+        const colFIndex = 5; // cột F - mã kinh doanh
 
         // Lọc theo năm hiện tại và mã kinh doanh
         const rowsFiltered = rowsDH.filter((r, i) => {
-            if (i === 0) return false;
-            const fVal = r[colFIndex];
-            const dateVal = r[colBIndex];
+            if (i === 0) return false; // Bỏ header
+            
+            const fVal = r[colFIndex] ? r[colFIndex].toString().trim() : "";
+            const dateVal = r[colBIndex] ? r[colBIndex].toString() : "";
+            
             if (!fVal || !dateVal) return false;
-            // Kiểm tra có chứa năm hiện tại (vd: "2025" hoặc "25")
-            return fVal == kinhdoanhCode && (dateVal.includes(yearNow) || dateVal.includes("20" + yearNow));
+            
+            // Kiểm tra mã kinh doanh khớp và ngày chứa năm hiện tại
+            const hasYear = dateVal.includes(`20${yearNow}`) || dateVal.includes(yearNow);
+            const sameKinhDoanh = fVal === kinhdoanhCode.toString();
+            
+            return sameKinhDoanh && hasYear;
         });
 
+        console.log(`📊 Tìm thấy ${rowsFiltered.length} đơn hàng cùng năm và mã KD ${kinhdoanhCode}`);
+
+        // Lấy tất cả giá trị số từ cột E
         const numbers = rowsFiltered
-            .map((r) => parseInt(r[colEIndex]))
-            .filter((n) => !isNaN(n));
+            .map((r) => {
+                const numStr = r[colEIndex] ? r[colEIndex].toString().trim() : "";
+                return parseInt(numStr);
+            })
+            .filter((n) => !isNaN(n) && n > 0);
+
+        console.log(`🔢 Các số đơn hàng đã tìm thấy: ${numbers.join(", ")}`);
 
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
         const newNum = maxNum + 1;
-
         const newNumStr = String(newNum).padStart(4, "0");
 
         const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
-        console.log(`🔢 Mã đơn hàng mới: ${madhNew}`);
+        console.log(`🔢 Mã đơn hàng mới: ${madhNew} (số tiếp theo: ${newNum})`);
 
         // === 4️⃣ Tạo dữ liệu mới ===
         const today = new Date();
@@ -1950,9 +1966,14 @@ app.get("/copy-:madh", async (req, res) => {
             const row = [...r];
             row[0] = randomUID(); // A = UNIQUE ID
             row[1] = madhNew; // B = mã đơn hàng mới
-            if (row[2]) row[2] = madhNew + row[2].substring(11); // C: thay 11 ký tự đầu
-            row[29] = ddmmyyyy; // AD
-            row[32] = nowFull; // AG
+            
+            // C: thay phần mã đơn hàng trong mã sản phẩm (nếu có)
+            if (row[2] && row[2].length >= 11) {
+                row[2] = madhNew + row[2].substring(11);
+            }
+            
+            row[29] = ddmmyyyy; // AD = ngày tạo
+            row[32] = nowFull; // AG = thời gian tạo đầy đủ
             return row;
         });
 
@@ -1967,7 +1988,7 @@ app.get("/copy-:madh", async (req, res) => {
 
         console.log(`✅ Đã sao chép xong đơn hàng ${madh} → ${madhNew}`);
 
-        // === 6️⃣ Trả về HTML tự đóng sau 2 giây ===
+        // === 6️⃣ Trả về HTML tự đóng sau 3 giây ===
         res.send(`
           <html lang="vi">
             <head>
@@ -1975,22 +1996,68 @@ app.get("/copy-:madh", async (req, res) => {
               <title>Đã sao chép xong đơn hàng</title>
               <style>
                 body {
-                  font-family: sans-serif;
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                   text-align: center;
                   margin-top: 100px;
+                  background-color: #f5f5f5;
                 }
-                h2 { color: #2ecc71; }
+                .success-box {
+                  background: white;
+                  padding: 40px;
+                  border-radius: 10px;
+                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                  display: inline-block;
+                }
+                h2 { 
+                  color: #2ecc71; 
+                  margin-bottom: 20px;
+                }
+                .madh-old {
+                  color: #7f8c8d;
+                  font-size: 14px;
+                }
+                .madh-new {
+                  color: #e74c3c;
+                  font-size: 22px;
+                  font-weight: bold;
+                  margin: 15px 0;
+                  padding: 10px;
+                  background: #f9f9f9;
+                  border-radius: 5px;
+                  border-left: 4px solid #2ecc71;
+                }
+                .info {
+                  color: #3498db;
+                  margin-top: 20px;
+                }
               </style>
               <script>
                 setTimeout(() => {
-                  try { window.close(); } catch(e) {}
-                }, 2000);
+                  try { 
+                    window.close(); 
+                  } catch(e) {
+                    console.log("Không thể tự đóng tab:", e);
+                  }
+                }, 3000);
+                
+                // Cho phép người dùng click để đóng
+                function closeWindow() {
+                  window.close();
+                }
               </script>
             </head>
             <body>
-              <h2>✅ Đã sao chép xong đơn hàng!</h2>
-              <p>Mã mới: <b>${madhNew}</b></p>
-              <p>Tab này sẽ tự đóng sau 2 giây...</p>
+              <div class="success-box">
+                <h2>✅ ĐÃ SAO CHÉP XONG!</h2>
+                <p class="madh-old">Mã cũ: <b>${madh}</b></p>
+                <div class="madh-new">${madhNew}</div>
+                <p class="info">Số dòng đã sao chép: <b>${matchedRows.length}</b></p>
+                <p class="info">Ngày tạo: <b>${ddmmyyyy}</b></p>
+                <p><small>Tab này sẽ tự đóng sau 3 giây...</small></p>
+                <button onclick="closeWindow()" style="margin-top:20px; padding:8px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
+                  Đóng ngay
+                </button>
+              </div>
             </body>
           </html>
         `);
@@ -1999,11 +2066,49 @@ app.get("/copy-:madh", async (req, res) => {
         console.error("❌ Lỗi khi sao chép đơn hàng:", error);
         res.status(500).send(`
           <html lang="vi">
-            <head><meta charset="UTF-8" /><title>Lỗi sao chép</title></head>
-            <body style="font-family:sans-serif;text-align:center;margin-top:100px;color:red;">
-              <h2>❌ Lỗi khi sao chép đơn hàng</h2>
-              <p>${error.message}</p>
-              <p>Vui lòng giữ tab này để kiểm tra lỗi.</p>
+            <head>
+              <meta charset="UTF-8" />
+              <title>Lỗi sao chép</title>
+              <style>
+                body {
+                  font-family: sans-serif;
+                  text-align: center;
+                  margin-top: 100px;
+                  background-color: #fff5f5;
+                }
+                .error-box {
+                  background: white;
+                  padding: 40px;
+                  border-radius: 10px;
+                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                  display: inline-block;
+                  border-left: 4px solid #e74c3c;
+                }
+                h2 { 
+                  color: #e74c3c; 
+                  margin-bottom: 20px;
+                }
+                pre {
+                  text-align: left;
+                  background: #f9f9f9;
+                  padding: 15px;
+                  border-radius: 5px;
+                  overflow-x: auto;
+                  max-width: 600px;
+                  margin: 20px auto;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="error-box">
+                <h2>❌ LỖI KHI SAO CHÉP ĐƠN HÀNG</h2>
+                <p><b>Mã đơn hàng:</b> ${madh}</p>
+                <pre>${error.message}</pre>
+                <p>Vui lòng giữ tab này để kiểm tra lỗi.</p>
+                <button onclick="window.location.reload()" style="margin-top:20px; padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer;">
+                  Thử lại
+                </button>
+              </div>
             </body>
           </html>
         `);
