@@ -214,23 +214,29 @@
         // PHÂN LOẠI VẬT TƯ: VTP vs KHÔNG PHẢI VTP
         let summaryDataC_normal = [];
         let summaryDataC_VTP = [];
-        
+        let summaryDataC_VTP_PKPVC = [];
+
         if (summaryDataC && Array.isArray(summaryDataC)) {
             summaryDataC.forEach(item => {
-                if (item.code && typeof item.code === 'string' && item.code.substring(0, 3) === "VTP") {
-                    summaryDataC_VTP.push(item);
-                } else {
-                    summaryDataC_normal.push(item);
+                if (item.code && typeof item.code === 'string') {
+                    if (item.code.substring(0, 3) === "VTP" && item.code.includes("PKPVC")) {
+                        summaryDataC_VTP_PKPVC.push(item);
+                    } else if (item.code.substring(0, 3) === "VTP") {
+                        summaryDataC_VTP.push(item);
+                    } else {
+                        summaryDataC_normal.push(item);
+                    }
                 }
             });
         }
-        
+
         // TÍNH TỔNG SỐ DÒNG ĐỂ ĐÁNH STT
         let totalRows = 0;
         if (summaryDataB) totalRows += summaryDataB.length;
         totalRows += summaryDataC_normal.length;
+        totalRows += summaryDataC_VTP_PKPVC.length;
         totalRows += summaryDataC_VTP.length;
-        
+
         // BIẾN ĐẾM STT
         let currentSTT = 1;
     %>
@@ -263,6 +269,18 @@
             
             <!-- HIỂN THỊ VẬT TƯ THÔNG THƯỜNG (KHÔNG PHẢI VTP) -->
             <% summaryDataC_normal.forEach(item => { %>
+                <tr>
+                    <td><%= currentSTT++ %></td>
+                    <td></td>
+                    <td><%= item.code %></td>
+                    <td><%= item.desc %></td>
+                    <td><%= formatNumber1(item.sum) %></td>
+                    <td><%= item.DVT %></td>
+                </tr>
+            <% }) %>
+            
+            <!-- HIỂN THỊ VẬT TƯ THÔNG THƯỜNG (VTP-PKPVC) -->
+            <% summaryDataC_VTP_PKPVC.forEach(item => { %>
                 <tr>
                     <td><%= currentSTT++ %></td>
                     <td></td>
