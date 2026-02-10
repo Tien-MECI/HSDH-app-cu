@@ -5213,6 +5213,7 @@ app.get("/baoluongkhoan", async (req, res) => {
         // Xử lý bảng 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
         const table1Data = filteredSheet1Data.map((row, index) => ({
             stt: index + 1,
+            ngaythuchien: row[1],
             maDonHang: row[3] || '', // D
             nhomSanPham: row[4] || '', // E
             loaiDonHang: row[5] || '', // F
@@ -5531,24 +5532,27 @@ app.get("/baoluongkhoan", async (req, res) => {
                 }
             };
             
-            // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN
-            const sheet1 = workbook.addWorksheet('Danh sách đơn hàng trả khoán giao vận');
+            // Sheet 1: DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN GIAO VẬN
+            const sheet1 = workbook.addWorksheet('DS ĐH trả khoán GV');
             
             // Tiêu đề sheet
-            sheet1.mergeCells('A1:H1');
-            sheet1.getCell('A1').value = 'DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN';
+            sheet1.mergeCells('A1:I1');
+            sheet1.getCell('A1').value = 'DANH SÁCH ĐƠN HÀNG TRẢ KHOÁN GIAO VẬN';
             sheet1.getCell('A1').font = { bold: true, size: 16 };
             sheet1.getCell('A1').alignment = { horizontal: 'center' };
             
             // Thông tin tháng/năm
+            sheet1.mergeCells('A2:C2');
             sheet1.getCell('A2').value = `Tháng/Năm: ${monthYear}`;
             
             // Tổng số đơn và tổng thành tiền
+            sheet1.mergeCells('A3:C3');
             sheet1.getCell('A3').value = `Tổng đơn giao vận: ${totalRecords}`;
+            sheet1.mergeCells('A4:C4');
             sheet1.getCell('A4').value = `Tổng thành tiền: ${formatNumber(totalAmount)}`;
             
             // Header bảng
-            const headers1 = ['STT', 'Mã đơn hàng', 'Nhóm SP', 'Loại đơn hàng', 'Tải trọng/Kích thước', 'Nhân sự thực hiện', 'Đơn giá', 'Thành tiền'];
+            const headers1 = ['STT', 'Ngày thực hiện', 'Mã đơn hàng', 'Nhóm SP', 'Loại đơn hàng', 'Tải trọng/Kích thước', 'Nhân sự thực hiện', 'Đơn giá', 'Thành tiền'];
             sheet1.getRow(6).values = headers1;
 
             // Style cho header
@@ -5560,6 +5564,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             table1Data.forEach(item => {
                 sheet1.addRow([
                     item.stt,
+                    item.ngaythuchien,
                     item.maDonHang,
                     item.nhomSanPham,
                     item.loaiDonHang,
@@ -5573,6 +5578,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             // Định dạng cột
             sheet1.columns = [
                 { width: 8 },  // STT
+                { width: 20 }, // Ngày thực hiện
                 { width: 20 }, // Mã đơn
                 { width: 15 }, // Nhóm SP
                 { width: 20 }, // Loại đơn
@@ -5584,7 +5590,7 @@ app.get("/baoluongkhoan", async (req, res) => {
             
             // Thêm border cho toàn bộ bảng
             for (let i = 6; i <= sheet1.rowCount; i++) {
-                for (let j = 1; j <= 8; j++) {
+                for (let j = 1; j <= 9; j++) {
                     const cell = sheet1.getCell(i, j);
                     cell.border = {
                         top: { style: 'thin' },
@@ -5592,41 +5598,32 @@ app.get("/baoluongkhoan", async (req, res) => {
                         bottom: { style: 'thin' },
                         right: { style: 'thin' }
                     };
-                    if (j === 7 || j === 8) { // Cột đơn giá và thành tiền
+                    if (j === 8 || j === 9) { // Cột đơn giá và thành tiền
                         cell.numFmt = '#,##0';
                     }
                 }
             }
 
             // Thêm dòng TỔNG CỘNG (sum) và in đậm
-            const dataStart1 = 7; // header at row 6
-            const sumDonGia = (() => {
-                let s = 0;
-                for (let r = dataStart1; r <= sheet1.rowCount; r++) {
-                    const v = sheet1.getCell(r, 7).value;
-                    const n = parseFloat(String(v || 0).toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
-                    s += n;
-                }
-                return s;
-            })();
+            const dataStart1 = 7; // Dòng bắt đầu của dữ liệu trong bảng
             const sumThanhTien = (() => {
                 let s = 0;
                 for (let r = dataStart1; r <= sheet1.rowCount; r++) {
-                    const v = sheet1.getCell(r, 8).value;
+                    const v = sheet1.getCell(r, 9).value;
                     const n = parseFloat(String(v || 0).toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
                     s += n;
                 }
                 return s;
             })();
-            const totalRow1 = sheet1.addRow(['', 'TỔNG CỘNG', '', '', '', '', sumDonGia, sumThanhTien]);
+            const totalRow1 = sheet1.addRow(['', 'TỔNG CỘNG', '', '', '', '', '', '', sumThanhTien]);
             totalRow1.font = { bold: true };
             // Đặt format số và viền cho ô tổng
-            for (let j = 1; j <= 8; j++) {
+            for (let j = 1; j <= 9; j++) {
                 const c = totalRow1.getCell(j);
                 c.border = {
                     top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
                 };
-                if (j === 7 || j === 8) c.numFmt = '#,##0';
+                if (j === 9) c.numFmt = '#,##0';
             }
 
             // Thêm phần ký xác nhận dưới bảng (hai dòng trong một ô, in đậm và căn giữa)
@@ -5636,19 +5633,19 @@ app.get("/baoluongkhoan", async (req, res) => {
             sheet1.getCell(`A${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             sheet1.getCell(`A${sigRow}`).font = { bold: true };
 
-            sheet1.mergeCells(`C${sigRow}:D${sigRow}`);
-            sheet1.getCell(`C${sigRow}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
-            sheet1.getCell(`C${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            sheet1.getCell(`C${sigRow}`).font = { bold: true };
+            sheet1.mergeCells(`D${sigRow}:E${sigRow}`);
+            sheet1.getCell(`D${sigRow}`).value = 'Kế toán\n(ký, ghi rõ họ tên)';
+            sheet1.getCell(`D${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet1.getCell(`D${sigRow}`).font = { bold: true };
 
-            sheet1.mergeCells(`E${sigRow}:H${sigRow}`);
-            sheet1.getCell(`E${sigRow}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
-            sheet1.getCell(`E${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            sheet1.getCell(`E${sigRow}`).font = { bold: true };
+            sheet1.mergeCells(`F${sigRow}:I${sigRow}`);
+            sheet1.getCell(`F${sigRow}`).value = 'Giám đốc\n(ký, ghi rõ họ tên)';
+            sheet1.getCell(`F${sigRow}`).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sheet1.getCell(`F${sigRow}`).font = { bold: true };
 
             // Page setup & print area (A4 portrait)
             sheet1.pageSetup = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
-            const lastCol1 = sheet1.columnCount || 8;
+            const lastCol1 = sheet1.columnCount || 9;
             sheet1.pageSetup.printArea = `A1:${colToLetter(lastCol1)}${sheet1.rowCount}`;
             autoFitWorksheet(sheet1);
             
