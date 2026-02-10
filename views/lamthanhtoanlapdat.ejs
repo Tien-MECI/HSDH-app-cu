@@ -46,6 +46,19 @@
         input[readonly] {
         background-color: #e9ecef;
         }
+        /* Make product name column wider and allow wrapping */
+        .table th:nth-child(2), .table td:nth-child(2) {
+            min-width: 300px;
+            max-width: 800px;
+        }
+        .ten-san-pham-input {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-word;
+            resize: vertical;
+            width: 100%;
+            min-height: 48px;
+        }
     </style>
 </head>
 <body>
@@ -160,6 +173,7 @@
                     </tr>
                 </tfoot>
             </table>
+            <button type="button" class="btn btn-primary btn-them-sanpham">+ Thêm sản phẩm</button>
         </div>
     </div>
 </template>
@@ -168,7 +182,7 @@
     <template id="sanPhamTemplate">
     <tr data-index="">
         <td class="stt"></td>
-        <td class="ten-san-pham"></td>
+        <td><textarea class="form-control ten-san-pham-input" placeholder="Nhập tên sản phẩm" rows="2"></textarea></td>
         <td><input type="number" class="form-control dai-input" min="0" step="1"></td>
         <td><input type="number" class="form-control rong-input" min="0" step="1"></td>
         <td><input type="number" class="form-control cao-input" min="0" step="1"></td>
@@ -254,9 +268,10 @@
                     
                     // Đặt STT
                     tr.querySelector('.stt').textContent = index + 1;
-                    
-                    // Đặt tên sản phẩm
-                    tr.querySelector('.ten-san-pham').textContent = sp.tenSanPham;
+
+                    // Đặt tên sản phẩm (vào input)
+                    const tenInput = tr.querySelector('.ten-san-pham-input');
+                    if (tenInput) tenInput.value = sp.tenSanPham || '';
                     
                     // Đặt giá trị ban đầu
                     tr.querySelector('.dai-input').value = sp.dai || '';
@@ -265,7 +280,7 @@
                     tr.querySelector('.so-luong-input').value = sp.soLuong || '';
                     tr.querySelector('.don-vi-tinh-input').value = sp.donViTinh || '';
                     
-                    // Gắn sự kiện tính toán
+                    // Gắn sự kiện tính toán cho các input trong dòng
                     const inputs = tr.querySelectorAll('input');
                     inputs.forEach(input => {
                         input.addEventListener('input', () => tinhToanDonHang(maDonHang));
@@ -273,6 +288,33 @@
 
                     tbody.appendChild(tr);
                 });
+
+                // Thêm handler cho nút "Thêm sản phẩm" trong section
+                const addBtn = section.querySelector('.btn-them-sanpham');
+                if (addBtn) {
+                    addBtn.addEventListener('click', function() {
+                        const tbodyLocal = section.querySelector('.table-body');
+                        if (!tbodyLocal) return;
+
+                        // Clone một dòng từ template
+                        const spClone = spTemplate.content.cloneNode(true);
+                        const newTr = spClone.querySelector('tr');
+
+                        // Thiết lập STT
+                        const stt = tbodyLocal.children.length + 1;
+                        const sttCell = newTr.querySelector('.stt');
+                        if (sttCell) sttCell.textContent = stt;
+
+                        // Gắn sự kiện cho các input mới
+                        const newInputs = newTr.querySelectorAll('input');
+                        newInputs.forEach(inp => {
+                            inp.addEventListener('input', () => tinhToanDonHang(maDonHang));
+                        });
+
+                        tbodyLocal.appendChild(newTr);
+                        tinhToanDonHang(maDonHang);
+                    });
+                }
 
                 // Thêm vào container
                 document.getElementById('donHangContainer').prepend(section);
@@ -373,14 +415,25 @@
         // Xóa sản phẩm (HÀM MỚI)
         function xoaSanPham(button) {
             const row = button.closest('tr');
+            if (!row) return;
+
             const section = row.closest('.donhang-section');
-            const maDonHang = section.dataset.maDonHang;
-            
+            const maDonHang = section ? section.dataset.maDonHang : null;
+
             // Xóa dòng
             row.remove();
-            
-            // Tính toán lại
-            tinhToanDonHang(maDonHang);
+
+            // Cập nhật lại số thứ tự chỉ trong section này
+            if (section) {
+                const rows = section.querySelectorAll('.table-body tr');
+                rows.forEach((r, index) => {
+                    const sttCell = r.querySelector('.stt');
+                    if (sttCell) sttCell.textContent = index + 1;
+                });
+            }
+
+            // Tính toán lại nếu có mã đơn
+            if (maDonHang) tinhToanDonHang(maDonHang);
         }
 
         // Xuất Excel
@@ -406,7 +459,7 @@
                 // Lấy danh sách sản phẩm
                 section.querySelectorAll('.table-body tr').forEach((row, index) => {
                     danhSachSanPham.push({
-                        tenSanPham: row.querySelector('.ten-san-pham').textContent,
+                        tenSanPham: (row.querySelector('.ten-san-pham-input') && row.querySelector('.ten-san-pham-input').value) || '',
                         dai: row.querySelector('.dai-input').value,
                         rong: row.querySelector('.rong-input').value,
                         cao: row.querySelector('.cao-input').value,
