@@ -1970,7 +1970,7 @@ app.get("/copy-:madh", async (req, res) => {
             .filter((n) => n > 0);
 
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-        const newNum = maxNum + 1;
+        const newNum = maxNum;
         const newNumStr = String(newNum).padStart(4, "0");
 
         const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
