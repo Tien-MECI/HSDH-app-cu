@@ -3030,6 +3030,7 @@ app.get("/baocaolotrinh", async (req, res) => {
         };
       }
     });
+    console.log("Dữ liệu phương tiện:", phuongTienInfo);
 
     // TÍNH ĐƠN GIÁ TRUNG BÌNH RIÊNG CHO TỪNG LOẠI NHIÊN LIỆU (DO & RON)
     const giaTB_TheoLoai = { DO: { lit: 0, tien: 0 }, RON: { lit: 0, tien: 0 } };
@@ -3081,6 +3082,14 @@ app.get("/baocaolotrinh", async (req, res) => {
 
     console.log(`\nTổng số bản ghi lộ trình thỏa tháng ${month}/${year}: ${records.length} dòng`);
 
+    // Tính tienEpass theo user
+    const userEpass = {};
+    records.forEach(r => {
+      if (r.tienEpass && r.nguoiSD) {
+        userEpass[r.nguoiSD] = (userEpass[r.nguoiSD] || 0) + r.tienEpass;
+      }
+    });
+
     // Xử lý dữ liệu xe (giữ nguyên logic cũ)
     const danhSachXe = [...new Set(records.map(r => r.phuongTien))].filter(Boolean);
     const dataXe = {};
@@ -3122,8 +3131,16 @@ app.get("/baocaolotrinh", async (req, res) => {
 
       const giaNL = donGiaTB[xe.loaiNhienLieu] || 0;
       xe.tienNhienLieu = Math.round((kmCaNhan * xe.dinhMucNL / 100) * giaNL);
+          // Thêm log để kiểm tra giá trị trong quá trình tính toán
+        console.log(`\nKiểm tra xe: ${xe.tenXe}`);
+        console.log(`  - kmCaNhan: ${kmCaNhan}`);
+        console.log(`  - dinhMucNL: ${xe.dinhMucNL}`);
+        console.log(`  - giaNL: ${giaNL}`);
+        console.log(`  - tienNhienLieu (tạm tính): ${Math.round((kmCaNhan * xe.dinhMucNL / 100) * giaNL)}`);
       xe.thanhTien = xe.tienKhauHao + xe.tienNhienLieu;
     });
+
+
 
     const xeArray = Object.values(dataXe);
 
@@ -3150,6 +3167,7 @@ app.get("/baocaolotrinh", async (req, res) => {
         tongEpass,
         tongCuoi,
         coXeQuangMinh: dataXe['Xe Quang Minh']?.kmQuangMinh > 0,
+        userEpass,
       },
       logo: await loadDriveImageBase64(LOGO_FILE_ID),
       watermark: await loadDriveImageBase64(WATERMARK_FILE_ID),

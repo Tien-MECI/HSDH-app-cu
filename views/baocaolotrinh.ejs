@@ -495,7 +495,7 @@
             <% data.xeArray.forEach(function(xe, index){
                 const km = kmForUserOnVehicle(xe, user) || 0;
                 const khauhao = Math.round(km * (Number(xe.dinhMucKH) || 0));
-                const nhienlieu = Math.round((km * (Number(xe.dinhMucNL) || 0) / 100) * (Number(data.donGiaTB) || 0));
+                const nhienlieu = Math.round((km * (Number(xe.dinhMucNL) / 100) * (data.donGiaTB[xe.loaiNhienLieu] || 0)));
                 totalKmUser += km;
                 totalKhauHao_user += khauhao;
                 totalNhienLieu_user += nhienlieu;
@@ -531,7 +531,7 @@
               const k = kmForUserOnVehicle(xe,u) || 0;
               totKm += k;
               totKh += Math.round(k * (Number(xe.dinhMucKH) || 0));
-              totNl += Math.round((k * (Number(xe.dinhMucNL) || 0) / 100) * (Number(data.donGiaTB) || 0));
+              totNl += Math.round((k * (Number(xe.dinhMucNL) || 0) / 100) * (data.donGiaTB[xe.loaiNhienLieu] || 0));
             });
             grandKm += totKm; grandKh += totKh; grandNl += totNl; grandEpass += totEp;
           }
