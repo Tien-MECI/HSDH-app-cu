@@ -3106,6 +3106,7 @@ app.get("/baocaolotrinh", async (req, res) => {
         nguoiSD_QuangMinh: new Set(),
         nguoiSD_CaNhan: new Set(),
         tienEpass: 0,
+        userKmMap: {},
       };
     });
 
@@ -3120,7 +3121,10 @@ app.get("/baocaolotrinh", async (req, res) => {
       }
       if (r.mucDich === "Cá nhân") {
         xe.kmCaNhan += r.soKm;
-        if (r.nguoiSD) xe.nguoiSD_CaNhan.add(r.nguoiSD);
+        if (r.nguoiSD) {
+          xe.userKmMap[r.nguoiSD] = (xe.userKmMap[r.nguoiSD] || 0) + r.soKm;
+          xe.nguoiSD_CaNhan.add(r.nguoiSD);
+        }
       }
     });
 
