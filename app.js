@@ -15,9 +15,13 @@ import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import { userGroups, notificationRules } from './config/userGroups.js';
 import { v4 as uuidv4 } from 'uuid';
+import NodeCache from 'node-cache';
 
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
+
+// --- Cache để tối ưu bộ nhớ (TTL 30 phút) ---
+const dataCache = new NodeCache({ stdTTL: 1800, checkperiod: 600 }); // 30 phút TTL, check mỗi 10 phút
 
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
@@ -816,6 +820,19 @@ app.get("/dnc", async (req, res) => {
     }
 });
 
+// --- Hàm cached preparexkvtData ---
+async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang) {
+    const cacheKey = `xkvt_${maDonHang}`;
+    let data = dataCache.get(cacheKey);
+    if (data) {
+        console.log('📋 Sử dụng cache cho XKVT');
+        return data;
+    }
+    data = await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
+    dataCache.set(cacheKey, data);
+    return data;
+}
+
 //---YCVT-BOM---
 
 app.get('/ycvt', async (req, res) => {
@@ -829,7 +846,7 @@ app.get('/ycvt', async (req, res) => {
         ]);
 
         // Chuẩn bị dữ liệu
-        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
+        const data = await cachedPrepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
         const { d4Value, lastRowWithData } = data;
 
         // Render cho client
@@ -1842,7 +1859,7 @@ if (!maDonHang) {
 return res.status(400).send('Thiếu mã đơn hàng trong URL');
 }
 // Chuẩn bị dữ liệu (sử dụng maDonHang được cung cấp)
-const result = await preparexkvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, SPREADSHEET_KHVT_ID, maDonHang);
+const result = await cachedPreparexkvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, SPREADSHEET_KHVT_ID, maDonHang);
 console.log('✔️ Hoàn tất xử lý xuất kho VT cho:', maDonHang);
 // Trả về phản hồi cho client
 res.json({
@@ -4136,7 +4153,7 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
         ]);
 
         // --- Chuẩn bị dữ liệu (giữ nguyên logic cũ) ---
-        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
+        const data = await cachedPrepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
         const d4Value = maDonHang;
 
         // --- Render cho client (ngay, không chặn UI) ---
@@ -11345,6 +11362,12 @@ async function importLastRowWithCoefficients() {
         throw error;
     }
 }
+
+// --- Clear cache định kỳ để tránh leak memory ---
+setInterval(() => {
+    dataCache.flushAll();
+    console.log('🧹 Cache cleared to free memory');
+}, 2 * 60 * 60 * 1000); // Mỗi 2 giờ
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
