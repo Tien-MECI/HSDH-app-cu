@@ -18,8 +18,8 @@ import NodeCache from 'node-cache';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 
-// --- Cache để tối ưu bộ nhớ (TTL 1 giờ) ---
-const dataCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 }); // 1 giờ TTL, check mỗi 10 phút
+// --- Cache để tối ưu bộ nhớ (TẠM THỜI DISABLE) ---
+// const dataCache = new NodeCache({ stdTTL: 900, checkperiod: 300 }); // 15 phút TTL, check mỗi 5 phút
 
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
@@ -752,34 +752,18 @@ app.get("/dnc", async (req, res) => {
     }
 });
 
-// --- Hàm cached prepareYcvtData ---
-async function cachedPrepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang = null) {
-    const cacheKey = `ycvt_${maDonHang || 'all'}`;
-    let data = dataCache.get(cacheKey);
-    if (data) {
-        console.log('📋 Sử dụng cache cho YCVT');
-        return data;
-    }
-    data = await prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang);
-    dataCache.set(cacheKey, data);
-    return data;
+// --- Hàm cached prepareYcvtData (TẠM THỜI DISABLE CACHE) ---
+async function cachedPrepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang = null, forceRefresh = false) {
+    // Tạm thời không dùng cache để test memory leak
+    console.log('🔄 Không sử dụng cache, load trực tiếp từ Google Sheets');
+    return await prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang);
 }
 
-// --- Hàm cached preparexkvtData ---
+// --- Hàm cached preparexkvtData (TẠM THỜI DISABLE CACHE) ---
 async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang, forceRefresh = false) {
-    const cacheKey = `xkvt_${maDonHang}`;
-    if (!forceRefresh) {
-        let data = dataCache.get(cacheKey);
-        if (data) {
-            console.log('📋 Sử dụng cache cho XKVT');
-            return data;
-        }
-    } else {
-        console.log('🔄 Force refresh cache cho XKVT');
-    }
-    const data = await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
-    dataCache.set(cacheKey, data);
-    return data;
+    // Tạm thời không dùng cache để test memory leak
+    console.log('🔄 Không sử dụng cache, load trực tiếp từ Google Sheets');
+    return await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
 }
 
 //---YCVT-BOM---
@@ -11149,11 +11133,11 @@ async function importLastRowWithCoefficients() {
     }
 }
 
-// --- Clear cache định kỳ để tránh leak memory ---
-setInterval(() => {
-    dataCache.flushAll();
-    console.log('🧹 Cache cleared to free memory');
-}, 60 * 60 * 1000); // Mỗi 1 giờ
+// --- Clear cache định kỳ để tránh leak memory (TẠM THỜI DISABLE) ---
+// setInterval(() => {
+//     dataCache.flushAll();
+//     console.log('🧹 Cache cleared to free memory');
+// }, 30 * 60 * 1000); // Mỗi 30 phút
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
