@@ -18,8 +18,8 @@ import NodeCache from 'node-cache';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 
-// --- Cache để tối ưu bộ nhớ (TTL 30 phút) ---
-const dataCache = new NodeCache({ stdTTL: 1800, checkperiod: 600 }); // 30 phút TTL, check mỗi 10 phút
+// --- Cache để tối ưu bộ nhớ (TTL 1 giờ) ---
+const dataCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 }); // 1 giờ TTL, check mỗi 10 phút
 
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
@@ -766,14 +766,18 @@ async function cachedPrepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDon
 }
 
 // --- Hàm cached preparexkvtData ---
-async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang) {
+async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang, forceRefresh = false) {
     const cacheKey = `xkvt_${maDonHang}`;
-    let data = dataCache.get(cacheKey);
-    if (data) {
-        console.log('📋 Sử dụng cache cho XKVT');
-        return data;
+    if (!forceRefresh) {
+        let data = dataCache.get(cacheKey);
+        if (data) {
+            console.log('📋 Sử dụng cache cho XKVT');
+            return data;
+        }
+    } else {
+        console.log('🔄 Force refresh cache cho XKVT');
     }
-    data = await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
+    const data = await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
     dataCache.set(cacheKey, data);
     return data;
 }
@@ -11149,7 +11153,7 @@ async function importLastRowWithCoefficients() {
 setInterval(() => {
     dataCache.flushAll();
     console.log('🧹 Cache cleared to free memory');
-}, 2 * 60 * 60 * 1000); // Mỗi 2 giờ
+}, 60 * 60 * 1000); // Mỗi 1 giờ
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
