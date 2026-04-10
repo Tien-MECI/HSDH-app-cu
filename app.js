@@ -752,6 +752,19 @@ app.get("/dnc", async (req, res) => {
     }
 });
 
+// --- Hàm cached prepareYcvtData ---
+async function cachedPrepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang = null) {
+    const cacheKey = `ycvt_${maDonHang || 'all'}`;
+    let data = dataCache.get(cacheKey);
+    if (data) {
+        console.log('📋 Sử dụng cache cho YCVT');
+        return data;
+    }
+    data = await prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang);
+    dataCache.set(cacheKey, data);
+    return data;
+}
+
 // --- Hàm cached preparexkvtData ---
 async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang) {
     const cacheKey = `xkvt_${maDonHang}`;
