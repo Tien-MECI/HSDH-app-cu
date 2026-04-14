@@ -160,18 +160,21 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
         await batchPaste(pasteValueRanges);
         await sleep(600);
 
-        // 6) Cập nhật nội bộ Data_bom sau khi paste
-        for (const idx of matchesC) {
-          const row = data3[idx] || [];
-          while (row.length < 14) row.push('');
-          for (let j = 0; j < targetValues.length; j++) {
-            row[5 + j] = targetValues[j];
-          }
-          data3[idx] = row;
+        // 6) đọc lại Data_bom
+        let updatedData3 = null;
+        for (let attempts = 0; attempts < 5; attempts++) {
+          const res = await sheets.spreadsheets.values.get({
+            spreadsheetId: spreadsheetHcId,
+            range: 'Data_bom!A1:N'
+          });
+          updatedData3 = res.data.values || [];
+          const someBpopulated = updatedData3.some(r => r && r[1] && String(r[1]).trim() !== '');
+          if (someBpopulated) break;
+          await sleep(600);
         }
 
         // 7) thu thập dữ liệu theo A == hValue
-        for (const row of data3) {
+        for (const row of updatedData3) {
           if (String(row?.[0] || '').trim() === String(hValue).trim()) {
             const sliceBN = row.slice(1, 14);
             while (sliceBN.length < 13) sliceBN.push('');
@@ -183,14 +186,6 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
         if (pastedRanges.length > 0) {
           console.log(`🧹 Clear ${hValue}: ${pastedRanges.length} ranges...`);
           await batchClear(pastedRanges);
-          for (const idx of matchesC) {
-            const row = data3[idx] || [];
-            while (row.length < 14) row.push('');
-            for (let j = 0; j < targetValues.length; j++) {
-              row[5 + j] = '';
-            }
-            data3[idx] = row;
-          }
         }
       }
     }
