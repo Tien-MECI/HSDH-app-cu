@@ -207,8 +207,11 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
       const relatedRows = tableData.filter(item =>
         item.row[1] === c || item.row[2] === c
       );
-      const sum = relatedRows.reduce((s, item) =>
-        s + (parseFloat((item.row[9] || '').toString().replace(',', '.')) || 0), 0);
+      const sum = relatedRows.reduce((s, item) => {
+        const value = item.row[9] || '';
+        const parsedValue = parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+        return s + parsedValue;
+      }, 0);
       const desc = relatedRows.find(item => item.row[3])?.row[3] || '';
       const DVT = relatedRows.find(item => item.row[10])?.row[10] || '';
       return { stt: summaryDataB.length + i + 1, code: c, sum, desc, DVT };
