@@ -4096,7 +4096,7 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
             watermarkBase64,
             autoPrint: true,
             maDonHang: d4Value,
-            formatNumber1,
+            formatNumber,
             pathToFile: ''
         });
 
@@ -11133,11 +11133,11 @@ async function importLastRowWithCoefficients() {
     }
 }
 
-// --- Clear cache định kỳ để tránh leak memory (TẠM THỜI DISABLE) ---
-// setInterval(() => {
-//     dataCache.flushAll();
-//     console.log('🧹 Cache cleared to free memory');
-// }, 30 * 60 * 1000); // Mỗi 30 phút
+// --- Clear cache định kỳ để tránh leak memory ---
+setInterval(() => {
+    dataCache.flushAll();
+    console.log('🧹 Cache cleared to free memory');
+}, 30 * 60 * 1000); // Mỗi 30 phút
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
