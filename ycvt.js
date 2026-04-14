@@ -196,11 +196,18 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
 
     const summaryDataB = uniqueB.map((b, i) => {
       const relatedRows = tableData.filter(item => item.row[1] === b || item.row[2] === b);
-      const sum = relatedRows.reduce((s, item) =>
-        s + (parseFloat((item.row[9] || '').toString().replace(',', '.')) || 0), 0);
-      const desc = relatedRows.find(item => item.row[3])?.row[3] || '';
-      const DVT = relatedRows.find(item => item.row[10])?.row[10] || '';
-      return { stt: i + 1, code: b, sum, desc, DVT };
+      const sum = relatedRows.reduce((s, item) => {
+        const value = item.row[9] || '';
+        const parsedValue = parseFloat(value.toString().replace(/\./g, '').replace(',', '.')) || 0;
+        return s + parsedValue;
+      }, 0);
+      return {
+        stt: i + 1,
+        code: b,
+        desc: relatedRows[0]?.row[3] || '',
+        sum,
+        DVT: relatedRows[0]?.row[10] || ''
+      };
     });
 
     const summaryDataC = uniqueC.map((c, i) => {
