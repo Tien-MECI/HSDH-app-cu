@@ -789,6 +789,7 @@ app.get('/ycvt', async (req, res) => {
             watermarkBase64,
             autoPrint: true,
             maDonHang: d4Value,
+            formatNumber1, // Ensure formatNumber1 is passed to the EJS template
             pathToFile: ''
         });
 
