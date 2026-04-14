@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "start:large": "node --max-old-space-size=4096 app.js"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
