@@ -4096,7 +4096,7 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
             watermarkBase64,
             autoPrint: true,
             maDonHang: d4Value,
-            formatNumber,
+            formatNumber1,
             pathToFile: ''
         });
 
