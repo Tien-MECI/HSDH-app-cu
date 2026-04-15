@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "node app.js",
+    "start": "node --max-old-space-size=4096 app.js",
     "start:large": "node --max-old-space-size=4096 app.js"
   },
   "dependencies": {

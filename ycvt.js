@@ -27,6 +27,9 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
     while (writeTimestamps.length && (now - writeTimestamps[0]) > WRITE_WINDOW_MS) {
       writeTimestamps.shift();
     }
+    if (global.gc) {
+      global.gc(); // Trigger garbage collection
+    }
   }
 
   async function throttleIfNeeded() {
