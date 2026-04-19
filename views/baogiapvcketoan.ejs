@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Báo Giá PVC</title>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4 portrait; margin: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            margin: 0;
+            padding: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        td, th {
+            border: 1px solid black;
+            padding: 4px;
+            text-align: left;
+        }
+        .header { text-align: center; font-weight: bold; }
+        .logo { text-align: left; }
+        .header-right { text-align: right; }
+        .red { color: red; }
+        .center-text { text-align: center; }
+        .no-border { border: none; }
+        .text-right { text-align: right; }
+        .watermark {
+            position: fixed;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+            opacity: 0.1;
+            text-align: center;
+        }
+        .watermark img { width: 80vw; height: auto; }
+        @media print {
+            @page { size: A4 portrait; margin: 5mm; }
+            body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+    <% if (typeof autoPrint !== 'undefined' && autoPrint) { %>
+        <script>
+            window.onload = function () {
+                setTimeout(function () {
+                    window.print();
+                    setTimeout(function () {
+                        if (window.opener) window.close();
+                    }, 500);
+                }, 1000);
+            };
+        </script>
+    <% } %>
+</head>
+<body>
+    <% if (watermarkBase64) { %>
+        <div class="watermark">
+            <img src="<%= watermarkBase64 %>" />
+        </div>
+    <% } %>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td class="no-border">
+                <img class="logo" src="<%= logoBase64 %>" style="width: 80px; height: 40px;" />
+            </td>
+            <td class="no-border" style="text-align: right;">
+                <strong>CÔNG TY CỔ PHẦN CÔNG NGHIỆP MECI</strong>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="border: none; padding: 0;">
+                <div style="border-top: 3px double black; margin: -1px 0 0 0;"></div>
+            </td>
+        </tr>
+    </table>
+
+    <h2 class="center-text">BÁO GIÁ</h2>
+
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td colspan="2" style="font-weight: bold; text-align: center;" width="60%"><b>THÔNG TIN KHÁCH HÀNG</b></td>
+            <td width="15%" style="font-weight: bold; text-align: center;"><b>BÁO GIÁ SỐ</b></td>
+            <td width="25%" style="font-weight: bold; text-align: left;"><b><%= maDonHang || '' %></b></td>
+        </tr>
+        <tr>
+            <td width="15%" style="font-weight: bold;">Tên khách hàng:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[17] || '' %></td>
+            <td width="15%" style="font-weight: bold;">Ngày lập:</td>
+            <td style="text-align: left;" width="25%">
+                <% 
+                    var ngayLap = donHang[1] || new Date();
+                    if (ngayLap instanceof Date) {
+                        ngayLap = ngayLap.toLocaleDateString('vi-VN');
+                    }
+                %>
+                <%= ngayLap %>
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">Đơn vị:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[73] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Người lập:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[2] || '' %></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">Địa chỉ:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[72] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Điện thoại:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[44] || '' %></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">Điện thoại:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[74] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Zalo/Face:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[44] || '' %></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">Mã số thuế:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[71] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Email:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[45] || '' %></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" width="15%">Email:</td>
+            <td style="text-align: left;" width="45%"><%= donHang[19] || '' %></td>
+            <td style="font-weight: bold;" width="15%">Sản phẩm:</td>
+            <td style="text-align: left;" width="25%"><%= donHang[26] || '' %></td>
+        </tr>
+    </table>
+
+    <h2>BẢNG CHI TIẾT HÀNG HÓA</h2>
+
+    <% 
+    var columns = [
+        { header: "Mã ĐH chi tiết", key: "maDonHangChiTiet" },
+        { header: "Tên hàng hóa, dịch vụ", key: "tenHangHoa" },
+        { header: "Quy cách", key: "quyCach" },
+        { header: "Dài (mm)", key: "dai" },
+        { header: "Rộng (mm)", key: "rong" },
+        { header: "Cao (mm)", key: "cao" },
+        { header: "Số lượng", key: "soLuong" },
+        { header: "Đơn vị tính", key: "donViTinh" },
+        { header: "Tổng số lượng", key: "tongSoLuong" },
+        { header: "Đơn giá", key: "donGia" },
+        { header: "VAT", key: "vat" },
+        { header: "Thành tiền sau thuế", key: "thanhTien" }
+    ];
+
+    var filteredColumns = [];
+    if (Array.isArray(products)) {
+        for (var i = 0; i < columns.length; i++) {
+            var col = columns[i];
+            var hasData = false;
+            for (var j = 0; j < products.length; j++) {
+                if (products[j] && products[j][col.key]) {
+                    hasData = true;
+                    break;
+                }
+            }
+            if (hasData) {
+                filteredColumns.push(col);
+            }
+        }
+    }
+    %>
+
+    <table style="width: 100%; font-size: 11px;">
+        <thead>
+            <tr>
+                <% if (filteredColumns.length > 0) { %>
+                    <% for (var i = 0; i < filteredColumns.length; i++) { %>
+                        <th><%= filteredColumns[i].header %></th>
+                    <% } %>
+                <% } else { %>
+                    <th>Không có dữ liệu</th>
+                <% } %>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (Array.isArray(products) && products.length > 0) { %>
+                <% for (var i = 0; i < products.length; i++) { %>
+                    <tr>
+                        <% for (var j = 0; j < filteredColumns.length; j++) { %>
+                            <% 
+                                var value = products[i][filteredColumns[j].key] || '';
+                                if (['donGia', 'thanhTien'].includes(filteredColumns[j].key) && value) {
+                                    value = new Intl.NumberFormat('vi-VN').format(value);
+                                } else if (filteredColumns[j].key === 'vat' && value !== null) {
+                                    value = value;
+                                }
+                            %>
+                            <td style="text-align: center;"><%= value %></td>
+                        <% } %>
+                    </tr>
+                <% } %>
+            <% } else { %>
+                <tr><td colspan="12" style="text-align: center;">Không có sản phẩm</td></tr>
+            <% } %>
+
+            <tr>
+                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Tổng:</td>
+                <td style="text-align: center; font-weight: bold;" colspan="2">
+                    <%= new Intl.NumberFormat('vi-VN').format(tongTien || 0) %>
+                </td>
+            </tr>
+
+            <% if (chietKhau !== 0) { %>
+                <tr>
+                    <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Chiết Khấu:</td>
+                    <td style="text-align: center; font-weight: bold;" colspan="2">
+                        <%= new Intl.NumberFormat('vi-VN').format(chietKhau) %>
+                    </td>
+                </tr>
+            <% } %>
+
+            <% if (tamUng !== 0) { %>
+                <tr>
+                    <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Đặt Cọc/Tạm ứng:</td>
+                    <td style="text-align: center; font-weight: bold;" colspan="2">
+                        <%= new Intl.NumberFormat('vi-VN').format(tamUng) %>
+                    </td>
+                </tr>
+            <% } %>
+
+            <tr>
+                <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Tổng thành tiền:</td>
+                <td style="text-align: center; font-weight: bold;" colspan="2">
+                    <%= new Intl.NumberFormat('vi-VN').format(tongThanhTien || 0) %>
+                </td>
+            </tr>
+
+            <tr>
+                <td style="text-align: left; font-size: 11px;" colspan="2"><i>Bằng chữ:</i></td>
+                <td style="text-align: left;" colspan="<%= filteredColumns.length - 2 || 10 %>">
+                    <% if (typeof numberToWords === 'function') { %>
+                        <%= numberToWords(tongThanhTien || 0) %> đồng chẵn .//.
+                    <% } else { %>
+                        Lỗi: Hàm numberToWords không được định nghĩa
+                    <% } %>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="font-family: Arial; font-size: 11px;">
+        <p><b>Ghi chú:</b></p>
+        <ul>
+            <li>Thành tiền = "Tổng số lượng" x "đơn giá"</li>
+            <li>Thời gian giao hàng <%= donHang[52] || '...' %> ngày kể từ ngày nhận được thanh toán lần 1 (<%= donHang[61] || '...' %>).</li>
+            <li>Màn nhựa trong báo giá là màn tiêu chuẩn, độ dày dung sai cho phép -0.2mm.</li>
+            <li>Báo giá có hiệu lực trong vòng 7 ngày kể từ ngày lập báo giá.</li>
+        </ul>
+        <p>Trân trọng cảm ơn và rất mong được phục vụ khách hàng!</p>
+        <p>Mọi thông tin chi tiết xin vui lòng liên hệ: <b>Phòng kinh doanh - Cty CP Công Nghiệp M.E.C.I</b></p>
+        <p>Hotline: 0902.227.007</p>
+        <p>Địa chỉ trụ sở chính: Số 164, đường Nguyễn Trãi, phường Thanh Xuân, thành phố Hà Nội</p>
+        <p>Địa điểm sản xuất, kinh doanh: Số 162, đường 916, thôn La Gián, xã Đoài Phương, thành phố Hà Nội</p>
+        <p>Email: sale@meci.vn - Website: www.meci.vn</p>
+        <br>
+        <table style="border-collapse: collapse; width: 100%; border: 1px solid white;">
+            <thead>
+                <tr>
+                    <th style="text-align: center; border: 1px solid white;"><b>Khách hàng duyệt</b></th>
+                    <th style="text-align: center; border: 1px solid white;"><b>Sản xuất</b></th>
+                    <th style="text-align: center; border: 1px solid white;"><b>Kế toán</b></th>
+                    <th style="text-align: center; border: 1px solid white;"><b>Người lập</b></th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</body>
+</html>

@@ -3822,6 +3822,101 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+// HAM CHẠY BÁO GIÁ PVC KẾ TOÁN XUẤT VAT
+
+app.get("/baogiapvcketoan/:maDonHang", async (req, res) => {
+    try {
+        console.log("▶️ Bắt đầu xuất Báo Giá PVC cho Kế Toán ...");
+        console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
+
+        const { maDonHang } = req.params;
+        if (!maDonHang) {
+            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng.");
+        }
+        console.log(`✔️ Mã đơn hàng: ${maDonHang}`);
+
+        // --- Lấy đơn hàng từ sheet Don_hang ---
+        const donHangRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang!A1:BX",
+        });
+        const rows = donHangRes.data.values || [];
+        const data = rows.slice(1);
+        const donHang =
+            data.find((r) => r[5] === maDonHang) ||
+            data.find((r) => r[6] === maDonHang);
+        if (!donHang) {
+            return res.status(404).send(`❌ Không tìm thấy đơn hàng với mã: ${maDonHang}`);
+        }
+
+        // --- Lấy chi tiết sản phẩm PVC từ sheet Don_hang_PVC_ct ---
+        const ctRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Don_hang_PVC_ct!A1:AC",
+        });
+        const ctRows = (ctRes.data.values || []).slice(1);
+
+        const products = ctRows
+            .filter((r) => r[1] === maDonHang)
+            .map((r) => ({
+                maDonHangChiTiet: r[2],
+                tenHangHoa: r[9],
+                quyCach: r[10],
+                dai: r[16],
+                rong: r[17],
+                cao: r[18],
+                soLuong: r[21],
+                donViTinh: r[22],
+                tongSoLuong: r[20],
+                donGia: r[25],
+                vat: r[26] ? parseFloat(r[26]) : null,
+                thanhTien: r[27]
+            }));
+
+        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
+
+        // --- Tính tổng tiền, chiết khấu, tạm ứng ---
+        let tongTien = 0;
+        const chietKhauValue = donHang[32] || "0";
+        const chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
+        const tamUngValue = donHang[33] || "0";
+        const tamUngPercent = parseFloat(tamUngValue.toString().replace('%', '')) || 0;
+
+        products.forEach(product => {
+            tongTien += parseFloat(product.thanhTien) || 0;
+        });
+
+        const tamUng = (tongTien * tamUngPercent) / 100;
+        const chietKhau = (tongTien * chietKhauPercent) / 100;
+        const tongThanhTien = tongTien - chietKhau - tamUng;
+
+        // --- Logo & Watermark (vẫn load để hiển thị trên view) ---
+        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
+        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
+
+        // --- Render view, không xử lý gì thêm ---
+        res.render("baogiapvcketoan", {
+            donHang,
+            products,
+            logoBase64,
+            watermarkBase64,
+            autoPrint: false,
+            maDonHang,
+            tongTien,
+            chietKhau,
+            tamUng,
+            tongThanhTien,
+            numberToWords,
+            pathToFile: "" // không dùng đến
+        });
+
+    } catch (err) {
+        console.error("❌ Lỗi khi xuất Báo Giá PVC cho Kế Toán:", err.stack || err.message);
+        if (!res.headersSent) {
+            res.status(500).send("Lỗi server: " + (err.message || err));
+        }
+    }
+});
 
 /// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
