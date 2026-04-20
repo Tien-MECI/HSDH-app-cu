@@ -18,8 +18,8 @@ import NodeCache from 'node-cache';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 
-// --- Cache để tối ưu bộ nhớ (TẠM THỜI DISABLE) ---
-// const dataCache = new NodeCache({ stdTTL: 900, checkperiod: 300 }); // 15 phút TTL, check mỗi 5 phút
+// --- Cache để tối ưu bộ nhớ ---
+const dataCache = new NodeCache({ stdTTL: 900, checkperiod: 300 }); // 15 phút TTL, check mỗi 5 phút
 
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
