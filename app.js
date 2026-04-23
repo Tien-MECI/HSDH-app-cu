@@ -8823,37 +8823,28 @@ async function getNhanVienList() {
 /**
  * 4.1.1 Báo cáo báo giá & đơn hàng theo nhân viên
  */
-/**
- * Báo cáo báo giá & đơn hàng theo nhân viên
- * @param {string} filterType - 'month', 'quarter', 'custom', 'none'
- * @param {string|null} startDate - YYYY-MM-DD
- * @param {string|null} endDate - YYYY-MM-DD
- * @param {string} nhanVien - 'all' hoặc tên/mã nhân viên (hiện chưa dùng)
- * @returns {Array} - Danh sách đối tượng: { nhanVien, tongBaoGia, tongDonHang, tongDoanhSo, tyLeChuyenDoi }
- */
 async function getBaoCaoBaoGiaDonHang(
   filterType = 'month',
   startDate = null,
   endDate = null,
   nhanVien = 'all'
-) {
+    ) {
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
-    console.log(`Tham số: filterType=${filterType}, startDate=${startDate}, endDate=${endDate}`);
 
-    // 1. Đọc dữ liệu từ sheet Don_hang
     const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BS');
     if (!data || data.length < 2) {
       console.log('❌ Không có dữ liệu từ sheet Don_hang');
-      return []; // Trả về mảng rỗng để template không lỗi
+      return {};
     }
+
+    console.log(`✅ Tổng số dòng dữ liệu: ${data.length}`);
 
     const headers = data[0];
     const rows = data.slice(1);
-    console.log(`✅ Tổng số dòng dữ liệu: ${rows.length}`);
 
-    // 2. Định nghĩa chỉ số cột (0-based)
-    const col = {
+    // Map index cột (bắt đầu từ 0)
+    const colIndex = {
       ngayTao: 1,            // B
       tenNV: 2,              // C
       maNV: 3,               // D
@@ -8867,130 +8858,63 @@ async function getBaoCaoBaoGiaDonHang(
       thanhTien: 56,         // BE
       hoaHongQC: 65,         // BN
       doanhSoKPI: 69,        // BR
-      hoaHongKD: 70          // BS
+      hoaHongKD: 70          // BR (zero-based index)
     };
 
-    // 3. Lọc dữ liệu theo ngày
-    let filteredRows = rows;
+        // Lọc theo ngày
+        let filteredData = filterByDate(
+            rows,
+            colIndex.ngayTao,
+            filterType,
+            startDate,
+            endDate
+        );
+        // Nhóm theo nhân viên
+        const result = {};
+        filteredData.forEach(row => {
+            const nv = row[colIndex.tenNV] || 'Chưa xác định';
 
-    if (filterType !== 'none' && (startDate || endDate)) {
-      // Parse ngày bắt đầu và kết thúc (nếu có)
-      const from = startDate ? new Date(startDate) : null;
-      const to = endDate ? new Date(endDate) : null;
-
-      // Điều chỉnh to để bao gồm cả ngày cuối cùng (23:59:59)
-      if (to) {
-        to.setHours(23, 59, 59, 999);
-      }
-
-      filteredRows = rows.filter(row => {
-        const ngayTaoRaw = row[col.ngayTao];
-        if (!ngayTaoRaw) return false;
-
-        try {
-          // Xử lý định dạng ngày từ Google Sheets (có thể là Date object hoặc string)
-          let ngay;
-          if (ngayTaoRaw instanceof Date) {
-            ngay = ngayTaoRaw;
-          } else if (typeof ngayTaoRaw === 'string') {
-            // Thử parse chuỗi (định dạng phổ biến: DD/MM/YYYY hoặc YYYY-MM-DD)
-            ngay = parseDate(ngayTaoRaw);
-          } else {
-            return false;
-          }
-
-          if (isNaN(ngay.getTime())) return false;
-
-          // So sánh
-          if (from && ngay < from) return false;
-          if (to && ngay > to) return false;
-          return true;
-        } catch (e) {
-          console.warn(`Lỗi parse ngày: ${ngayTaoRaw}`, e.message);
-          return false;
-        }
-      });
-
-      console.log(`🔍 Sau khi lọc ngày: ${filteredRows.length} dòng`);
-    } else {
-      console.log(`🔍 Không lọc ngày, giữ nguyên ${filteredRows.length} dòng`);
-    }
-
-    // 4. Lọc theo nhân viên nếu cần (tùy chọn, hiện tại nhanVien chưa được dùng nhưng để mở rộng)
-    if (nhanVien && nhanVien !== 'all') {
-      filteredRows = filteredRows.filter(row => {
-        const tenNV = (row[col.tenNV] || '').toString().trim().toLowerCase();
-        const maNV = (row[col.maNV] || '').toString().trim().toLowerCase();
-        const search = nhanVien.toLowerCase();
-        return tenNV.includes(search) || maNV === search;
-      });
-      console.log(`🔍 Sau khi lọc nhân viên: ${filteredRows.length} dòng`);
-    }
-
-    // 5. Nhóm dữ liệu theo nhân viên
-    const nhanVienMap = new Map(); // key: tên NV, value: object thống kê
-
-    filteredRows.forEach(row => {
-      const tenNV = (row[col.tenNV] || 'Chưa xác định').toString().trim();
-      if (!tenNV) return;
-
-      const trangThai = row[col.trangThaiTao] || '';
-      const tinhTrang = row[col.tinhTrang] || '';
-
-      if (!nhanVienMap.has(tenNV)) {
-        nhanVienMap.set(tenNV, {
-          nhanVien: tenNV,
+      if (!result[nv]) {
+        result[nv] = {
           tongBaoGia: 0,
           tongDonHang: 0,
           tongDoanhSo: 0,
           tyLeChuyenDoi: 0
-        });
+        };
       }
 
-      const stats = nhanVienMap.get(tenNV);
+      const trangThai = row[colIndex.trangThaiTao];
+      const tinhTrang = row[colIndex.tinhTrang];
 
       if (trangThai === 'Báo giá') {
-        stats.tongBaoGia++;
+        result[nv].tongBaoGia++;
       } else if (trangThai === 'Đơn hàng') {
-        stats.tongDonHang++;
+        result[nv].tongDonHang++;
 
-        // Chỉ tính doanh số nếu đơn hàng đã chuyển sang trạng thái "Kế hoạch sản xuất"
         if (tinhTrang === 'Kế hoạch sản xuất') {
-          const doanhSo = parseFloat(row[col.doanhSoKPI]) || 0;
-          stats.tongDoanhSo += doanhSo;
+          const doanhSo = Number(row[colIndex.doanhSoKPI]) || 0;
+          result[nv].tongDoanhSo += doanhSo;
         }
       }
     });
 
-    // 6. Tính tỷ lệ chuyển đổi và chuyển Map thành mảng
-    const result = [];
-    for (const stats of nhanVienMap.values()) {
-      const totalQuotes = stats.tongBaoGia + stats.tongDonHang;
-      if (totalQuotes > 0) {
-        stats.tyLeChuyenDoi = (stats.tongDonHang / totalQuotes) * 100;
-      } else {
-        stats.tyLeChuyenDoi = 0;
-      }
-      // Giới hạn 2 chữ số thập phân
-      stats.tyLeChuyenDoi = Math.round(stats.tyLeChuyenDoi * 100) / 100;
-      result.push(stats);
-    }
+        // Tính tỷ lệ chuyển đổi
+        Object.keys(result).forEach(nv => {
+            const totalQuotes = (result[nv].tongBaoGia || 0) + (result[nv].tongDonHang || 0);
+            if (totalQuotes > 0) {
+                result[nv].tyLeChuyenDoi = (result[nv].tongDonHang / totalQuotes) * 100;
+            } else {
+                result[nv].tyLeChuyenDoi = 0;
+            }
+        });
 
-    // Sắp xếp theo tên nhân viên
-    result.sort((a, b) => a.nhanVien.localeCompare(b.nhanVien));
-
-    console.log(`✅ Kết quả: ${result.length} nhân viên`);
     return result;
 
   } catch (error) {
-    console.error('❌ Lỗi trong getBaoCaoBaoGiaDonHang:', error);
-    console.error(error.stack);
-    // Trả về mảng rỗng để không làm vỡ template
-    return [];
+    console.error('❌ Lỗi getBaoCaoBaoGiaDonHang:', error);
+    throw error; // để API layer xử lý tiếp
   }
 }
-
-
 
 
 /**
@@ -10337,6 +10261,7 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
                 { id: SPREADSHEET_ID, label: 'MAIN' },
                 { id: SPREADSHEET_HC_ID, label: 'HC' },
                 { id: SPREADSHEET_QC_TT_ID, label: 'QC_TT' },
+                { id: SPREADSHEET_BOM_ID, label: 'BOM' },
                 { id: SPREADSHEET_KHVT_ID, label: 'KHVT' }
             ]);
         }
@@ -10470,23 +10395,11 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
                     donHangHuy,
                     topKhachHang
                 ] = await Promise.all([
-    getBaoCaoBaoGiaDonHang(filterType, startDate, endDate).catch(err => {
-        console.error('Lỗi getBaoCaoBaoGiaDonHang:', err.stack || err);
-        return []; // hoặc cấu trúc mặc định phù hợp với template
-    }),
-    getDoanhSoTheoNhanVien(filterType, startDate, endDate).catch(err => {
-        console.error('Lỗi getDoanhSoTheoNhanVien:', err.stack || err);
-        return [];
-    }),
-    getDonHangHuy(1, 5, filterType, startDate, endDate).catch(err => {
-        console.error('Lỗi getDonHangHuy:', err.stack || err);
-        return { data: [], total: 0 };
-    }),
-    getTopKhachHang(filterType, startDate, endDate).catch(err => {
-        console.error('Lỗi getTopKhachHang:', err.stack || err);
-        return [];
-    })
-]);
+                    getBaoCaoBaoGiaDonHang(filterType, startDate, endDate),
+                    getDoanhSoTheoNhanVien(filterType, startDate, endDate),
+                    getDonHangHuy(1, 5, filterType, startDate, endDate),
+                    getTopKhachHang(filterType, startDate, endDate)
+                ]);
                 
                 data = {
                     baoGiaDonHang,
@@ -10517,7 +10430,6 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         
     } catch (error) {
         console.error('Lỗi khi xử lý báo cáo KPI:', error);
-        console.error(error.stack); // Thêm dòng này
         res.status(500).send('Lỗi server khi xử lý báo cáo');
     }
 });
