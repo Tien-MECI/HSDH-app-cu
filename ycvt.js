@@ -27,6 +27,10 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
     while (writeTimestamps.length && (now - writeTimestamps[0]) > WRITE_WINDOW_MS) {
       writeTimestamps.shift();
     }
+    // Giới hạn kích thước của writeTimestamps để tránh tiêu tốn bộ nhớ
+    if (writeTimestamps.length > WRITE_LIMIT * 2) {
+      writeTimestamps.splice(0, writeTimestamps.length - WRITE_LIMIT * 2);
+    }
     if (global.gc) {
       global.gc(); // Trigger garbage collection
     }
@@ -35,13 +39,13 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
   async function throttleIfNeeded() {
     pruneOldTimestamps();
     if (writeTimestamps.length < WRITE_LIMIT) return;
-    // chờ đến khi một slot trống
+    console.log(`🧠 Memory usage before throttling: ${JSON.stringify(process.memoryUsage())}`);
     const now = Date.now();
     const oldest = writeTimestamps[0];
     const waitFor = WRITE_WINDOW_MS - (now - oldest) + 50; // add small buffer
-    console.log(`⏳ Throttling writes: ${writeTimestamps.length}/${WRITE_LIMIT} in last minute. Waiting ${waitFor}ms`);
     await sleep(waitFor);
     pruneOldTimestamps();
+    console.log(`🧠 Memory usage after throttling: ${JSON.stringify(process.memoryUsage())}`);
   }
 
   async function makeWriteRequest(fn) {
