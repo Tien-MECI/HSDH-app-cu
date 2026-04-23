@@ -10430,6 +10430,7 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         
     } catch (error) {
         console.error('Lỗi khi xử lý báo cáo KPI:', error);
+        console.error(error.stack); // Thêm dòng này
         res.status(500).send('Lỗi server khi xử lý báo cáo');
     }
 });
