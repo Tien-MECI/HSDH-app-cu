@@ -7,23 +7,17 @@ import { dirname } from "path";
 import ejs from "ejs";
 import fetch from "node-fetch";
 import { promisify } from "util";
+import webPush from 'web-push';
 import { prepareYcvtData } from './ycvt.js';
 import { preparexkvtData } from './xuatvattu.js';
 import { buildAttendanceData } from "./helpers/chamcong.js";
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
+import { userGroups, notificationRules } from './config/userGroups.js';
 import { v4 as uuidv4 } from 'uuid';
-import NodeCache from 'node-cache';
 
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
-
-// --- QUAN TRỌNG: Cấu hình Trust Proxy cho production (Render, Heroku, etc.) ---
-// Điều này cho phép Express nhận query parameters nhiều lớp proxy
-app.set('trust proxy', 1);
-
-// --- Cache để tối ưu bộ nhớ ---
-const dataCache = new NodeCache({ stdTTL: 900, checkperiod: 300 }); // 15 phút TTL, check mỗi 5 phút
 
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
@@ -97,6 +91,10 @@ const GAS_WEBAPP_URL_BBSV = process.env.GAS_WEBAPP_URL_BBSV;
 const GAS_WEBAPP_URL_DNC = process.env.GAS_WEBAPP_URL_DNC;
 const GAS_WEBAPP_URL_PYCVT = process.env.GAS_WEBAPP_URL_PYCVT;
 
+// --- Web Push VAPID Keys ---
+const publicVapidKey = process.env.PUBLIC_VAPID_KEY;
+const privateVapidKey = process.env.PRIVATE_VAPID_KEY;
+
 if (!SPREADSHEET_ID || !SPREADSHEET_HC_ID || !SPREADSHEET_QC_TT_ID || !GAS_WEBAPP_URL || !GAS_WEBAPP_URL_BBNT || !GOOGLE_CREDENTIALS_B64 || !GAS_WEBAPP_URL_BBSV || !GAS_WEBAPP_URL_DNC) {
     console.error(
         "❌ Thiếu biến môi trường: SPREADSHEET_ID / SPREADSHEET_HC_ID / GAS_WEBAPP_URL / GAS_WEBAPP_URL_BBNT / GOOGLE_CREDENTIALS_B64 / GAS_WEBAPP_URL_BBSV / GAS_WEBAPP_URL_DNC"
@@ -104,6 +102,13 @@ if (!SPREADSHEET_ID || !SPREADSHEET_HC_ID || !SPREADSHEET_QC_TT_ID || !GAS_WEBAP
     process.exit(1);
 }
 
+//if (!publicVapidKey || !privateVapidKey) {
+    //console.error("❌ Thiếu biến môi trường PUBLIC_VAPID_KEY hoặc PRIVATE_VAPID_KEY");
+    //process.exit(1);
+//}
+
+// Cần đặt email hợp lệ để liên hệ khi có sự cố[citation:1][citation:3]
+//webPush.setVapidDetails('mailto:tech@meci.vn', publicVapidKey, privateVapidKey);
 
 // --- Giải mã Service Account JSON ---
 const credentials = JSON.parse(
@@ -131,6 +136,61 @@ const PORT = process.env.PORT || 3000;
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+// --- Lưu trữ subscriptions (tạm thời trong bộ nhớ, và đồng bộ với file) ---
+const SUBSCRIPTIONS_FILE = './subscriptions.json';
+let pushSubscriptions = []; // Mỗi subscription có: {endpoint, username, createdAt}
+
+// Helper function: Lấy danh sách usernames từ các group
+function getTargetUsernames(rule, data) {
+  let usernames = [];
+  
+  // Xử lý các targetGroups từ rule
+  rule.targetGroups.forEach(group => {
+    if (group === 'creator' && data.nguoi_tao) {
+      usernames.push(data.nguoi_tao);
+    } else if (userGroups[group]) {
+      usernames = usernames.concat(userGroups[group]);
+    }
+  });
+  
+  // Xử lý additionalGroups nếu có
+  if (rule.additionalGroups) {
+    rule.additionalGroups.forEach(group => {
+      if (userGroups[group]) {
+        usernames = usernames.concat(userGroups[group]);
+      }
+    });
+  }
+  
+  // Loại bỏ trùng lặp và trả về
+  return [...new Set(usernames)];
+}
+
+// Hàm load subscriptions từ file Phục vụ đăng ký nhận pushweb
+async function loadSubscriptions() {
+  try {
+    if (existsSync(SUBSCRIPTIONS_FILE)) {
+      const data = await fs.readFile(SUBSCRIPTIONS_FILE, 'utf8');
+      pushSubscriptions = JSON.parse(data);
+      console.log(`✅ Loaded ${pushSubscriptions.length} subscriptions from file`);
+    }
+  } catch (err) {
+    console.error('Error loading subscriptions:', err);
+  }
+}
+
+// Hàm save subscriptions (lưu Phục vụ đăng ký nhận pushweb)
+async function saveSubscriptions() {
+  try {
+    await fs.writeFile(SUBSCRIPTIONS_FILE, JSON.stringify(pushSubscriptions, null, 2));
+    console.log(`💾 Saved ${pushSubscriptions.length} subscriptions to file`);
+  } catch (err) {
+    console.error('Error saving subscriptions:', err);
+  }
+}
+
+// Tải subscriptions khi khởi động
+loadSubscriptions();
 // === Hàm tải ảnh từ Google Drive về base64 (tự động xử lý export khi cần) ===
 async function loadDriveImageBase64(fileId) {
   try {
@@ -756,20 +816,6 @@ app.get("/dnc", async (req, res) => {
     }
 });
 
-// --- Hàm cached prepareYcvtData (TẠM THỜI DISABLE CACHE) ---
-async function cachedPrepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang = null, forceRefresh = false) {
-    // Tạm thời không dùng cache để test memory leak
-    console.log('🔄 Không sử dụng cache, load trực tiếp từ Google Sheets');
-    return await prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang);
-}
-
-// --- Hàm cached preparexkvtData (TẠM THỜI DISABLE CACHE) ---
-async function cachedPreparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang, forceRefresh = false) {
-    // Tạm thời không dùng cache để test memory leak
-    console.log('🔄 Không sử dụng cache, load trực tiếp từ Google Sheets');
-    return await preparexkvtData(auth, spreadsheetId, spreadsheetHcId, spreadsheetKhvtId, maDonHang);
-}
-
 //---YCVT-BOM---
 
 app.get('/ycvt', async (req, res) => {
@@ -783,7 +829,7 @@ app.get('/ycvt', async (req, res) => {
         ]);
 
         // Chuẩn bị dữ liệu
-        const data = await cachedPrepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
+        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID);
         const { d4Value, lastRowWithData } = data;
 
         // Render cho client
@@ -1796,7 +1842,7 @@ if (!maDonHang) {
 return res.status(400).send('Thiếu mã đơn hàng trong URL');
 }
 // Chuẩn bị dữ liệu (sử dụng maDonHang được cung cấp)
-const result = await cachedPreparexkvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, SPREADSHEET_KHVT_ID, maDonHang);
+const result = await preparexkvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, SPREADSHEET_KHVT_ID, maDonHang);
 console.log('✔️ Hoàn tất xử lý xuất kho VT cho:', maDonHang);
 // Trả về phản hồi cho client
 res.json({
@@ -2984,7 +3030,6 @@ app.get("/baocaolotrinh", async (req, res) => {
         };
       }
     });
-    console.log("Dữ liệu phương tiện:", phuongTienInfo);
 
     // TÍNH ĐƠN GIÁ TRUNG BÌNH RIÊNG CHO TỪNG LOẠI NHIÊN LIỆU (DO & RON)
     const giaTB_TheoLoai = { DO: { lit: 0, tien: 0 }, RON: { lit: 0, tien: 0 } };
@@ -3036,14 +3081,6 @@ app.get("/baocaolotrinh", async (req, res) => {
 
     console.log(`\nTổng số bản ghi lộ trình thỏa tháng ${month}/${year}: ${records.length} dòng`);
 
-    // Tính tienEpass theo user
-    const userEpass = {};
-    records.forEach(r => {
-      if (r.tienEpass && r.nguoiSD) {
-        userEpass[r.nguoiSD] = (userEpass[r.nguoiSD] || 0) + r.tienEpass;
-      }
-    });
-
     // Xử lý dữ liệu xe (giữ nguyên logic cũ)
     const danhSachXe = [...new Set(records.map(r => r.phuongTien))].filter(Boolean);
     const dataXe = {};
@@ -3060,7 +3097,6 @@ app.get("/baocaolotrinh", async (req, res) => {
         nguoiSD_QuangMinh: new Set(),
         nguoiSD_CaNhan: new Set(),
         tienEpass: 0,
-        userKmMap: {},
       };
     });
 
@@ -3075,10 +3111,7 @@ app.get("/baocaolotrinh", async (req, res) => {
       }
       if (r.mucDich === "Cá nhân") {
         xe.kmCaNhan += r.soKm;
-        if (r.nguoiSD) {
-          xe.userKmMap[r.nguoiSD] = (xe.userKmMap[r.nguoiSD] || 0) + r.soKm;
-          xe.nguoiSD_CaNhan.add(r.nguoiSD);
-        }
+        if (r.nguoiSD) xe.nguoiSD_CaNhan.add(r.nguoiSD);
       }
     });
 
@@ -3089,16 +3122,8 @@ app.get("/baocaolotrinh", async (req, res) => {
 
       const giaNL = donGiaTB[xe.loaiNhienLieu] || 0;
       xe.tienNhienLieu = Math.round((kmCaNhan * xe.dinhMucNL / 100) * giaNL);
-          // Thêm log để kiểm tra giá trị trong quá trình tính toán
-        console.log(`\nKiểm tra xe: ${xe.tenXe}`);
-        console.log(`  - kmCaNhan: ${kmCaNhan}`);
-        console.log(`  - dinhMucNL: ${xe.dinhMucNL}`);
-        console.log(`  - giaNL: ${giaNL}`);
-        console.log(`  - tienNhienLieu (tạm tính): ${Math.round((kmCaNhan * xe.dinhMucNL / 100) * giaNL)}`);
       xe.thanhTien = xe.tienKhauHao + xe.tienNhienLieu;
     });
-
-
 
     const xeArray = Object.values(dataXe);
 
@@ -3125,7 +3150,6 @@ app.get("/baocaolotrinh", async (req, res) => {
         tongEpass,
         tongCuoi,
         coXeQuangMinh: dataXe['Xe Quang Minh']?.kmQuangMinh > 0,
-        userEpass,
       },
       logo: await loadDriveImageBase64(LOGO_FILE_ID),
       watermark: await loadDriveImageBase64(WATERMARK_FILE_ID),
@@ -3826,101 +3850,6 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
-// HAM CHẠY BÁO GIÁ PVC KẾ TOÁN XUẤT VAT
-
-app.get("/baogiapvcketoan/:maDonHang", async (req, res) => {
-    try {
-        console.log("▶️ Bắt đầu xuất Báo Giá PVC cho Kế Toán ...");
-        console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
-
-        const { maDonHang } = req.params;
-        if (!maDonHang) {
-            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng.");
-        }
-        console.log(`✔️ Mã đơn hàng: ${maDonHang}`);
-
-        // --- Lấy đơn hàng từ sheet Don_hang ---
-        const donHangRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A1:BX",
-        });
-        const rows = donHangRes.data.values || [];
-        const data = rows.slice(1);
-        const donHang =
-            data.find((r) => r[5] === maDonHang) ||
-            data.find((r) => r[6] === maDonHang);
-        if (!donHang) {
-            return res.status(404).send(`❌ Không tìm thấy đơn hàng với mã: ${maDonHang}`);
-        }
-
-        // --- Lấy chi tiết sản phẩm PVC từ sheet Don_hang_PVC_ct ---
-        const ctRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A1:AC",
-        });
-        const ctRows = (ctRes.data.values || []).slice(1);
-
-        const products = ctRows
-            .filter((r) => r[1] === maDonHang)
-            .map((r) => ({
-                maDonHangChiTiet: r[2],
-                tenHangHoa: r[9],
-                quyCach: r[10],
-                dai: r[16],
-                rong: r[17],
-                cao: r[18],
-                soLuong: r[21],
-                donViTinh: r[22],
-                tongSoLuong: r[20],
-                donGia: r[25],
-                vat: r[26] ? parseFloat(r[26]) : null,
-                thanhTien: r[27]
-            }));
-
-        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
-
-        // --- Tính tổng tiền, chiết khấu, tạm ứng ---
-        let tongTien = 0;
-        const chietKhauValue = donHang[32] || "0";
-        const chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
-        const tamUngValue = donHang[33] || "0";
-        const tamUngPercent = parseFloat(tamUngValue.toString().replace('%', '')) || 0;
-
-        products.forEach(product => {
-            tongTien += parseFloat(product.thanhTien) || 0;
-        });
-
-        const tamUng = (tongTien * tamUngPercent) / 100;
-        const chietKhau = (tongTien * chietKhauPercent) / 100;
-        const tongThanhTien = tongTien - chietKhau - tamUng;
-
-        // --- Logo & Watermark (vẫn load để hiển thị trên view) ---
-        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
-
-        // --- Render view, không xử lý gì thêm ---
-        res.render("baogiapvcketoan", {
-            donHang,
-            products,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: false,
-            maDonHang,
-            tongTien,
-            chietKhau,
-            tamUng,
-            tongThanhTien,
-            numberToWords,
-            pathToFile: "" // không dùng đến
-        });
-
-    } catch (err) {
-        console.error("❌ Lỗi khi xuất Báo Giá PVC cho Kế Toán:", err.stack || err.message);
-        if (!res.headersSent) {
-            res.status(500).send("Lỗi server: " + (err.message || err));
-        }
-    }
-});
 
 /// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
@@ -4185,7 +4114,7 @@ app.get('/ycvt/:maDonHang-:soLan', async (req, res) => {
         ]);
 
         // --- Chuẩn bị dữ liệu (giữ nguyên logic cũ) ---
-        const data = await cachedPrepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
+        const data = await prepareYcvtData(auth, SPREADSHEET_ID, SPREADSHEET_BOM_ID, maDonHang);
         const d4Value = maDonHang;
 
         // --- Render cho client (ngay, không chặn UI) ---
@@ -5011,6 +4940,169 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
+/// Tạo endpoint /subscribe cho trình duyệt đăng ký
+///Tạo endpoint /webhook-from-appsheet để nhận yêu cầu từ AppSheet:
+// Route để client lấy public VAPID key
+app.get('/get-vapid-key', (req, res) => {
+  res.json({ publicKey: publicVapidKey });
+});
+
+// Endpoint subscribe mới với username
+app.post('/subscribe', async (req, res) => {
+  const { subscription, username } = req.body;
+  
+  if (!subscription || !username) {
+    return res.status(400).json({ 
+      error: 'Subscription và Username là bắt buộc.' 
+    });
+  }
+  
+  // Kiểm tra subscription đã tồn tại chưa
+  const existsIndex = pushSubscriptions.findIndex(
+    sub => sub.endpoint === subscription.endpoint
+  );
+  
+  const userSubscription = {
+    ...subscription,
+    username: username.trim().toUpperCase(), // Chuẩn hóa username
+    createdAt: new Date().toISOString()
+  };
+  
+  if (existsIndex > -1) {
+    // Cập nhật subscription cũ
+    pushSubscriptions[existsIndex] = userSubscription;
+    console.log(`🔄 Updated subscription for: ${username}`);
+  } else {
+    // Thêm mới
+    pushSubscriptions.push(userSubscription);
+    console.log(`✅ New subscription for: ${username}`);
+  }
+  
+  await saveSubscriptions();
+  res.json({ 
+    success: true, 
+    message: `Đã lưu subscription cho ${username}` 
+  });
+});
+
+// Endpoint webhook mới với logic thông minh
+app.post('/webhook-from-appsheet', async (req, res) => {
+  try {
+    const orderData = req.body;
+    console.log('📨 Nhận webhook:', orderData.ma_dh);
+    
+    // 1. Xác định trạng thái cần xử lý
+    let statusField = null;
+    let statusValue = null;
+    
+    // Kiểm tra các trường trạng thái theo thứ tự ưu tiên
+    const statusFields = ['tiep_nhan_don_hang', 'Phe_duyet', 'tinh_trang_tao_don'];
+    for (const field of statusFields) {
+      if (orderData[field]) {
+        statusField = field;
+        statusValue = orderData[field];
+        break;
+      }
+    }
+    
+    if (!statusValue) {
+      console.log('⚠️ Không xác định được trạng thái');
+      return res.json({ success: false, message: 'Không xác định được trạng thái' });
+    }
+    
+    // 2. Tìm rule phù hợp
+    const rule = notificationRules[statusValue];
+    if (!rule) {
+      console.log(`⚠️ Không có rule cho trạng thái: ${statusValue}`);
+      return res.json({ success: false, message: 'Không có rule phù hợp' });
+    }
+    
+    // 3. Lấy danh sách người nhận
+    const targetUsernames = getTargetUsernames(rule, orderData);
+    console.log(`🎯 Người nhận: ${targetUsernames.join(', ')}`);
+    
+    // 4. Lọc subscriptions
+    const subscriptionsToNotify = pushSubscriptions.filter(sub => 
+      targetUsernames.includes(sub.username)
+    );
+    
+    console.log(`📋 Tìm thấy ${subscriptionsToNotify.length} subscriptions`);
+    
+    if (subscriptionsToNotify.length === 0) {
+      return res.json({ success: true, message: 'Không có người nhận phù hợp' });
+    }
+    
+    // 5. Tạo thông báo
+    const notificationPayload = {
+      title: rule.titleTemplate(orderData),
+      body: rule.bodyTemplate(orderData),
+      data: {
+        url: orderData.url || `https://appsheet.com/start/YourAppID#view=OrderDetail&row=${orderData.id}`,
+        orderId: orderData.ma_dh,
+        status: statusValue
+      }
+    };
+    
+    // 6. Gửi thông báo (giữ nguyên logic gửi cũ)
+    const payload = JSON.stringify(notificationPayload);
+    const results = [];
+    
+    for (let i = 0; i < subscriptionsToNotify.length; i++) {
+      const sub = subscriptionsToNotify[i];
+      try {
+        await webPush.sendNotification(sub, payload);
+        results.push({ username: sub.username, status: 'success' });
+      } catch (err) {
+        console.error(`❌ Lỗi gửi cho ${sub.username}:`, err.message);
+        // Xử lý subscription hết hạn (410)
+        if (err.statusCode === 410) {
+          pushSubscriptions = pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
+        }
+        results.push({ username: sub.username, status: 'failed', error: err.message });
+      }
+    }
+    
+    // 7. Lưu subscriptions (nếu có thay đổi)
+    await saveSubscriptions();
+    
+    res.json({
+      success: true,
+      message: `Đã xử lý thông báo cho ${statusValue}`,
+      details: {
+        order: orderData.ma_dh,
+        status: statusValue,
+        targetCount: targetUsernames.length,
+        sentCount: results.filter(r => r.status === 'success').length,
+        failedCount: results.filter(r => r.status === 'failed').length
+      }
+    });
+    
+  } catch (error) {
+    console.error('💥 Lỗi xử lý webhook:', error);
+    res.status(500).json({ error: 'Lỗi server', details: error.message });
+  }
+});
+
+// Endpoint quản lý subscriptions
+app.get('/admin/subscriptions', (req, res) => {
+  const summary = {};
+  pushSubscriptions.forEach(sub => {
+    if (!summary[sub.username]) {
+      summary[sub.username] = { count: 0, devices: [] };
+    }
+    summary[sub.username].count++;
+    summary[sub.username].devices.push({
+      endpoint: sub.endpoint.substring(0, 50) + '...',
+      created: sub.createdAt
+    });
+  });
+  
+  res.json({
+    totalSubscriptions: pushSubscriptions.length,
+    totalUsers: Object.keys(summary).length,
+    users: summary
+  });
+});
 
 
 ///KHOÁN DỊCH VỤ
@@ -10237,65 +10329,6 @@ app.get('/debug-data', async (req, res) => {
     }
 });
 
-// Debug route để test query parameters trên production
-app.get('/debug-query', (req, res) => {
-    res.json({
-        message: 'Query Parameters Debug',
-        query: req.query,
-        url: req.url,
-        originalUrl: req.originalUrl,
-        headers: {
-            'x-forwarded-for': req.get('X-Forwarded-For'),
-            'x-forwarded-proto': req.get('X-Forwarded-Proto'),
-            'x-forwarded-host': req.get('X-Forwarded-Host'),
-            'host': req.get('Host')
-        }
-    });
-});
-
-// Test page for simple GET requests
-app.get('/test-query-form', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Test Query Parameters</title>
-        </head>
-        <body>
-            <h1>Test Query Parameters</h1>
-            
-            <h2>Test 1: Simple GET link</h2>
-            <a href="/debug-query?filterType=month&startDate=2026-04&nhanVien=MC001">
-                Click here to test query params with debug-query endpoint
-            </a>
-            
-            <h2>Test 2: Form submission (GET)</h2>
-            <form method="GET" action="/debug-query">
-                <input type="text" name="filterType" value="month" />
-                <input type="text" name="startDate" value="2026-04" />
-                <input type="text" name="nhanVien" value="MC001" />
-                <button type="submit">Submit Form to /debug-query</button>
-            </form>
-            
-            <h2>Test 3: Direct URL</h2>
-            <p><a href="/debug-query?test=value123&foo=bar456">Simple test</a></p>
-            
-            <h2>Current Query Parameters on this page:</h2>
-            <pre id="currentParams">Loading...</pre>
-            
-            <script>
-                // Show current page's query params
-                const params = new URLSearchParams(window.location.search);
-                document.getElementById('currentParams').textContent = 
-                    'URL: ' + window.location.href + '\\n\\n' +
-                    'Params: ' + JSON.stringify(Object.fromEntries(params), null, 2);
-            </script>
-        </body>
-        </html>
-    `);
-});
-
 // Route chính cho báo cáo KPI
 app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
     try {
@@ -10331,16 +10364,8 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
 
         // Debug: log raw query parameters for troubleshooting duplicate/malformed startDate
         try {
+            console.log('--- [KPI ROUTE] Raw req.query.startDate ->', req.query.startDate);
             console.log('--- [KPI ROUTE] Full req.query ->', JSON.stringify(req.query));
-            console.log('--- [KPI ROUTE] filterType:', filterType, '| startDate:', startDate, '| endDate:', endDate);
-            console.log('--- [KPI ROUTE] req.originalUrl ->', req.originalUrl);
-            console.log('--- [KPI ROUTE] req.url ->', req.url);
-            // Debug proxy headers
-            console.log('--- [KPI ROUTE] X-Forwarded-For:', req.get('X-Forwarded-For'));
-            console.log('--- [KPI ROUTE] X-Forwarded-Proto:', req.get('X-Forwarded-Proto'));
-            if (filterType !== 'none' && !startDate) {
-                console.warn('⚠️ [KPI ROUTE] WARNING: filterType is', filterType, 'but startDate is empty!');
-            }
         } catch (e) {
             console.log('--- [KPI ROUTE] Error logging req.query', e && e.message);
         }
@@ -10348,9 +10373,9 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         let data = {};
         let reportTitle = 'Báo cáo tổng hợp KPI';
         
-     // Lấy danh sách nhân viên
+        // Lấy danh sách nhân viên
         const dsNhanVien = await getNhanVienList();
-           
+        
         // Xử lý các loại báo cáo...
         switch(loaiBaoCao) {
             case 'baoGiaDonHang':
@@ -11298,12 +11323,6 @@ async function importLastRowWithCoefficients() {
         throw error;
     }
 }
-
-// --- Clear cache định kỳ để tránh leak memory ---
-setInterval(() => {
-    dataCache.flushAll();
-    console.log('🧹 Cache cleared to free memory');
-}, 30 * 60 * 1000); // Mỗi 30 phút
 
 // --- Start server ---
 app.listen(PORT, () => console.log(`✅ Server is running on port ${PORT}`));
