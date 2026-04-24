@@ -2032,9 +2032,14 @@
                 if (endDateInput) endDateInput.remove();
             }
             
-            // Log debug (có thể xóa sau khi fix)
-            console.log('Form submission - filterType:', filterType);
-            console.log('startDate to be sent:', startDateToKeep?.value || 'none');
+            // Log debug - kiểm tra form data trước submit
+            const formData = new FormData(form);
+            console.log('🚀 [CLIENT] Form Submission Debug:');
+            console.log('   filterType:', filterType);
+            console.log('   Query string will be:', new URLSearchParams(formData).toString());
+            for (let [key, value] of formData.entries()) {
+                console.log(`   ${key}: "${value}"`);
+            }
         });
     </script>
 </body>

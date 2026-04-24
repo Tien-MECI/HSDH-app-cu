@@ -18,6 +18,10 @@ import NodeCache from 'node-cache';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 
+// --- QUAN TRỌNG: Cấu hình Trust Proxy cho production (Render, Heroku, etc.) ---
+// Điều này cho phép Express nhận query parameters nhiều lớp proxy
+app.set('trust proxy', 1);
+
 // --- Cache để tối ưu bộ nhớ ---
 const dataCache = new NodeCache({ stdTTL: 900, checkperiod: 300 }); // 15 phút TTL, check mỗi 5 phút
 
@@ -10233,6 +10237,65 @@ app.get('/debug-data', async (req, res) => {
     }
 });
 
+// Debug route để test query parameters trên production
+app.get('/debug-query', (req, res) => {
+    res.json({
+        message: 'Query Parameters Debug',
+        query: req.query,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        headers: {
+            'x-forwarded-for': req.get('X-Forwarded-For'),
+            'x-forwarded-proto': req.get('X-Forwarded-Proto'),
+            'x-forwarded-host': req.get('X-Forwarded-Host'),
+            'host': req.get('Host')
+        }
+    });
+});
+
+// Test page for simple GET requests
+app.get('/test-query-form', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Test Query Parameters</title>
+        </head>
+        <body>
+            <h1>Test Query Parameters</h1>
+            
+            <h2>Test 1: Simple GET link</h2>
+            <a href="/debug-query?filterType=month&startDate=2026-04&nhanVien=MC001">
+                Click here to test query params with debug-query endpoint
+            </a>
+            
+            <h2>Test 2: Form submission (GET)</h2>
+            <form method="GET" action="/debug-query">
+                <input type="text" name="filterType" value="month" />
+                <input type="text" name="startDate" value="2026-04" />
+                <input type="text" name="nhanVien" value="MC001" />
+                <button type="submit">Submit Form to /debug-query</button>
+            </form>
+            
+            <h2>Test 3: Direct URL</h2>
+            <p><a href="/debug-query?test=value123&foo=bar456">Simple test</a></p>
+            
+            <h2>Current Query Parameters on this page:</h2>
+            <pre id="currentParams">Loading...</pre>
+            
+            <script>
+                // Show current page's query params
+                const params = new URLSearchParams(window.location.search);
+                document.getElementById('currentParams').textContent = 
+                    'URL: ' + window.location.href + '\\n\\n' +
+                    'Params: ' + JSON.stringify(Object.fromEntries(params), null, 2);
+            </script>
+        </body>
+        </html>
+    `);
+});
+
 // Route chính cho báo cáo KPI
 app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
     try {
@@ -10270,6 +10333,11 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         try {
             console.log('--- [KPI ROUTE] Full req.query ->', JSON.stringify(req.query));
             console.log('--- [KPI ROUTE] filterType:', filterType, '| startDate:', startDate, '| endDate:', endDate);
+            console.log('--- [KPI ROUTE] req.originalUrl ->', req.originalUrl);
+            console.log('--- [KPI ROUTE] req.url ->', req.url);
+            // Debug proxy headers
+            console.log('--- [KPI ROUTE] X-Forwarded-For:', req.get('X-Forwarded-For'));
+            console.log('--- [KPI ROUTE] X-Forwarded-Proto:', req.get('X-Forwarded-Proto'));
             if (filterType !== 'none' && !startDate) {
                 console.warn('⚠️ [KPI ROUTE] WARNING: filterType is', filterType, 'but startDate is empty!');
             }
