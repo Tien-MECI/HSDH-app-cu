@@ -2056,8 +2056,11 @@
         console.log('✅ [FORM SETUP] filterForm found:', !!filterFormElement);
         
         if (filterFormElement) {
+            // Add submit handler
             filterFormElement.addEventListener('submit', function(e) {
                 console.log('🚀 [FORM SUBMIT] Event triggered!');
+                e.preventDefault(); // Prevent default submission for now
+                
                 const filterType = document.getElementById('filterTypeSelect').value;
                 const form = this;
                 
@@ -2074,25 +2077,20 @@
                 
                 switch(filterType) {
                     case 'none':
-                        // Không gửi startDate
                         startDateToKeep = null;
                         break;
                     case 'day':
                     case 'week':
                     case 'range':
-                        // Giữ dateInput1
                         startDateToKeep = document.getElementById('dateInput1');
                         break;
                     case 'month':
-                        // Giữ monthYearValue
                         startDateToKeep = document.getElementById('monthYearValue');
                         break;
                     case 'quarter':
-                        // Giữ quarterYearValue
                         startDateToKeep = document.getElementById('quarterYearValue');
                         break;
                     case 'year':
-                        // Giữ yearOnlyValue
                         startDateToKeep = document.getElementById('yearOnlyValue');
                         break;
                 }
@@ -2104,13 +2102,11 @@
                 startDateInputs.forEach((input, idx) => {
                     if (startDateToKeep && input === startDateToKeep) {
                         console.log(`  ✅ Keeping startDate input #${idx} (${input.id}): "${input.value}"`);
-                        // Giữ lại input này - đảm bảo nó có value
                         if (!input.value || input.value.toString().trim() === '') {
                             console.warn('⚠️ WARNING: startDate input is empty for filterType:', filterType);
                         }
                     } else {
                         console.log(`  ❌ Removing startDate input #${idx} (${input.id})`);
-                        // Xóa input không cần thiết
                         input.remove();
                     }
                 });
@@ -2127,7 +2123,6 @@
                         form.appendChild(newInput);
                     }
                 } else {
-                    // Nếu không phải range, xóa endDate input
                     const endDateInput = document.getElementById('dateInput2');
                     if (endDateInput) {
                         console.log('🚀 [FORM SUBMIT] Removing endDate input (not range filter)');
@@ -2144,8 +2139,13 @@
                     console.log(`   ${key}: "${value}"`);
                 }
                 
-                // Log cuối cùng trước khi submit
-                console.log('🚀 [FORM SUBMIT] About to submit form to:', form.action + (queryString ? '?' + queryString : ''));
+                // Build URL and submit
+                const baseUrl = form.action;
+                const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+                console.log('🚀 [FORM SUBMIT] About to navigate to:', fullUrl);
+                
+                // Navigate using window.location instead of form.submit()
+                window.location.href = fullUrl;
             });
         } else {
             console.error('❌ [FORM SETUP] filterForm NOT found!');
