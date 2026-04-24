@@ -10268,8 +10268,11 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
 
         // Debug: log raw query parameters for troubleshooting duplicate/malformed startDate
         try {
-            console.log('--- [KPI ROUTE] Raw req.query.startDate ->', req.query.startDate);
             console.log('--- [KPI ROUTE] Full req.query ->', JSON.stringify(req.query));
+            console.log('--- [KPI ROUTE] filterType:', filterType, '| startDate:', startDate, '| endDate:', endDate);
+            if (filterType !== 'none' && !startDate) {
+                console.warn('⚠️ [KPI ROUTE] WARNING: filterType is', filterType, 'but startDate is empty!');
+            }
         } catch (e) {
             console.log('--- [KPI ROUTE] Error logging req.query', e && e.message);
         }
