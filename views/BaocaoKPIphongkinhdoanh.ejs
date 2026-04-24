@@ -1713,8 +1713,55 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     <script>
+        console.log('✅ [KPI PAGE] Script loaded successfully');
+        console.log('✅ [KPI PAGE] filterForm element:', document.getElementById('filterForm'));
+        console.log('✅ [KPI PAGE] filterTypeSelect element:', document.getElementById('filterTypeSelect'));
+        
+        // Kiểm tra tất cả form inputs khi page load
+        (function() {
+            console.log('\n📋 [FORM INPUTS AUDIT] - Checking all form inputs:');
+            const form = document.getElementById('filterForm');
+            if (!form) {
+                console.error('❌ Form not found in DOM!');
+                return;
+            }
+            
+            // Check all inputs
+            const allInputs = form.querySelectorAll('input');
+            console.log(`   Total inputs in form: ${allInputs.length}`);
+            
+            // Check by name
+            const inputsByName = {};
+            allInputs.forEach(input => {
+                const name = input.name || '(no name)';
+                if (!inputsByName[name]) inputsByName[name] = [];
+                inputsByName[name].push({
+                    id: input.id,
+                    type: input.type,
+                    value: input.value,
+                    hidden: input.hidden || (input.offsetParent === null)
+                });
+            });
+            
+            console.log('   Inputs grouped by name:');
+            Object.entries(inputsByName).forEach(([name, inputs]) => {
+                console.log(`     ${name}: ${inputs.length} input(s)`);
+                inputs.forEach((inp, idx) => {
+                    console.log(`       [${idx}] id=${inp.id}, type=${inp.type}, value="${inp.value}", hidden=${inp.hidden}`);
+                });
+            });
+            
+            // Check all selects
+            const allSelects = form.querySelectorAll('select');
+            console.log(`   Total selects in form: ${allSelects.length}`);
+            allSelects.forEach((sel) => {
+                console.log(`     - ${sel.name || sel.id}: value="${sel.value}"`);
+            });
+        })();
+        
         // Khởi tạo DataTable
         $(document).ready(function() {
+            console.log('✅ [KPI PAGE] jQuery ready - initializing DataTable');
             $('table').DataTable({
                 pageLength: 10,
                 language: {
@@ -1730,6 +1777,7 @@
         // Cập nhật date inputs dựa trên filterType
         function updateDateInputs() {
             const filterType = document.getElementById('filterTypeSelect').value;
+            console.log('📋 [UPDATE DATE INPUTS] filterType:', filterType);
             
             // Ẩn tất cả các container trước
             document.getElementById('dateInput1Container').style.display = 'none';
@@ -1741,40 +1789,48 @@
             switch(filterType) {
                 case 'none':
                     // Không hiển thị gì cả
+                    console.log('📋 [UPDATE DATE INPUTS] mode: none (no date inputs)');
                     break;
                     
                 case 'day':
                     document.getElementById('dateInput1Container').style.display = 'block';
                     document.getElementById('dateInput1Label').textContent = 'Ngày';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: day');
                     break;
                     
                 case 'week':
                     document.getElementById('dateInput1Container').style.display = 'block';
                     document.getElementById('dateInput1Label').textContent = 'Tuần bắt đầu';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: week');
                     break;
                     
                 case 'month':
                     document.getElementById('monthYearContainer').style.display = 'block';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: month');
                     break;
                     
                 case 'quarter':
                     document.getElementById('quarterYearContainer').style.display = 'block';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: quarter');
                     break;
                     
                 case 'year':
                     document.getElementById('yearOnlyContainer').style.display = 'block';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: year');
                     break;
                     
                 case 'range':
                     document.getElementById('dateInput1Container').style.display = 'block';
                     document.getElementById('dateInput1Label').textContent = 'Từ ngày';
                     document.getElementById('dateInput2Container').style.display = 'block';
+                    console.log('📋 [UPDATE DATE INPUTS] mode: range');
                     break;
             }
         }
         
         // Hiển thị modal chọn tháng/năm
         function showMonthYearModal() {
+            console.log('📅 [MODAL] showMonthYearModal called');
             // Set giá trị hiện tại nếu có - lấy từ hidden input (client-side)
             const monthYearVal = document.getElementById('monthYearValue')?.value;
             if (monthYearVal) {
@@ -1782,12 +1838,14 @@
                 if (monthParts.length === 2) {
                     $('#monthSelect').val(monthParts[1]);
                     $('#yearSelect').val(monthParts[0]);
+                    console.log('📅 [MODAL] Set values to month:', monthParts[1], 'year:', monthParts[0]);
                 }
             } else {
                 // Set mặc định là tháng và năm hiện tại
                 const now = new Date();
                 $('#monthSelect').val(('0' + (now.getMonth() + 1)).slice(-2));
                 $('#yearSelect').val(now.getFullYear());
+                console.log('📅 [MODAL] Using current month/year');
             }
             // Đảm bảo filterType được cập nhật
             const filterSelect = document.getElementById('filterTypeSelect');
@@ -1800,6 +1858,7 @@
         
         // Hiển thị modal chọn quý/năm
         function showQuarterYearModal() {
+            console.log('📅 [MODAL] showQuarterYearModal called');
             // Lấy giá trị hiện tại từ hidden input (client-side)
             const quarterYearVal = document.getElementById('quarterYearValue')?.value;
             if (quarterYearVal) {
@@ -1807,6 +1866,7 @@
                 if (quarterParts.length === 2) {
                     $('#quarterSelect').val(quarterParts[0]);
                     $('#quarterYearSelect').val(quarterParts[1]);
+                    console.log('📅 [MODAL] Set values to quarter:', quarterParts[0], 'year:', quarterParts[1]);
                 }
             } else {
                 // Set mặc định là quý và năm hiện tại
@@ -1814,6 +1874,7 @@
                 const currentQuarter = Math.floor((now.getMonth() + 3) / 3);
                 $('#quarterSelect').val(currentQuarter);
                 $('#quarterYearSelect').val(now.getFullYear());
+                console.log('📅 [MODAL] Using current quarter/year');
             }
             // Đảm bảo filterType được cập nhật
             const filterSelectQ = document.getElementById('filterTypeSelect');
@@ -1826,14 +1887,17 @@
         
         // Hiển thị modal chọn năm
         function showYearOnlyModal() {
+            console.log('📅 [MODAL] showYearOnlyModal called');
             // Lấy giá trị hiện tại từ hidden input (client-side)
             const yearOnlyVal = document.getElementById('yearOnlyValue')?.value;
             if (yearOnlyVal) {
                 $('#yearOnlySelect').val(yearOnlyVal);
+                console.log('📅 [MODAL] Set year to:', yearOnlyVal);
             } else {
                 // Set mặc định là năm hiện tại
                 const now = new Date();
                 $('#yearOnlySelect').val(now.getFullYear());
+                console.log('📅 [MODAL] Using current year');
             }
             // Đảm bảo filterType được cập nhật
             const filterSelectY = document.getElementById('filterTypeSelect');
@@ -1853,6 +1917,8 @@
             const monthYearValue = `${year}-${month}`;
             const displayValue = `Tháng ${month}/${year}`;
             
+            console.log('💾 [SAVE MONTH YEAR] month:', month, 'year:', year, 'value:', monthYearValue);
+            
             document.getElementById('monthYearDisplay').value = displayValue;
             document.getElementById('monthYearValue').value = monthYearValue;
             
@@ -1868,6 +1934,8 @@
             const quarterYearValue = `${quarter}-${year}`;
             const displayValue = `Quý ${quarter}/${year}`;
             
+            console.log('💾 [SAVE QUARTER YEAR] quarter:', quarter, 'year:', year, 'value:', quarterYearValue);
+            
             document.getElementById('quarterYearDisplay').value = displayValue;
             document.getElementById('quarterYearValue').value = quarterYearValue;
             
@@ -1878,6 +1946,8 @@
         function saveYearOnly() {
             const year = $('#yearOnlySelect').val();
             
+            console.log('💾 [SAVE YEAR ONLY] year:', year);
+            
             document.getElementById('yearOnlyDisplay').value = `Năm ${year}`;
             document.getElementById('yearOnlyValue').value = year;
             
@@ -1886,6 +1956,7 @@
         
         // Reset filters
         function resetFilters() {
+            console.log('🔄 [RESET FILTERS] Called');
             window.location.href = '/baocao-kpi-phong-kinh-doanh';
         }
         
@@ -1919,14 +1990,23 @@
         // Khi thay đổi 'Loại báo cáo' -> submit form với bộ lọc hiện tại
         (function() {
             const loaiSelect = document.getElementById('loaiBaoCaoSelect');
-            if (!loaiSelect) return;
+            if (!loaiSelect) {
+                console.error('❌ [LOAI SELECT] loaiBaoCaoSelect not found');
+                return;
+            }
 
+            console.log('✅ [LOAI SELECT] Attaching change listener');
             loaiSelect.addEventListener('change', function() {
+                console.log('🔄 [LOAI SELECT] Change event triggered, value:', this.value);
                 const form = document.getElementById('filterForm');
-                if (!form) return;
+                if (!form) {
+                    console.error('❌ [LOAI SELECT] filterForm not found');
+                    return;
+                }
 
                 // Lấy filterType hiện tại
                 const filterType = document.getElementById('filterTypeSelect').value;
+                console.log('📋 [LOAI SELECT] Current filterType:', filterType);
                 
                 // Đảm bảo các input startDate được thiết lập đúng trước submit
                 if (filterType === 'month') {
@@ -1939,6 +2019,7 @@
                             const month = match[1] || match[3];
                             const year = match[2] || match[4];
                             monthHidden.value = `${year}-${month}`;
+                            console.log('📋 [LOAI SELECT] Set monthYearValue to:', monthHidden.value);
                         }
                     }
                 } else if (filterType === 'quarter') {
@@ -1949,6 +2030,7 @@
                         const match = quarterDisplay.value.match(/(\d)\/(\d{4})$/);
                         if (match) {
                             quarterHidden.value = `${match[1]}-${match[2]}`;
+                            console.log('📋 [LOAI SELECT] Set quarterYearValue to:', quarterHidden.value);
                         }
                     }
                 } else if (filterType === 'year') {
@@ -1959,88 +2041,115 @@
                         const match = yearDisplay.value.match(/(\d{4})$/);
                         if (match) {
                             yearHidden.value = match[1];
+                            console.log('📋 [LOAI SELECT] Set yearOnlyValue to:', yearHidden.value);
                         }
                     }
                 }
 
+                console.log('🚀 [LOAI SELECT] Submitting form...');
                 form.submit();
             });
         })();
         
         // Xử lý form submission - đảm bảo chỉ gửi các parameter cần thiết
-        document.getElementById('filterForm').addEventListener('submit', function(e) {
-            const filterType = document.getElementById('filterTypeSelect').value;
-            const form = this;
-            
-            // Lấy tất cả input[name="startDate"]
-            const startDateInputs = Array.from(form.querySelectorAll('input[name="startDate"]'));
-            
-            // Xác định input nào cần giữ dựa trên filterType
-            let startDateToKeep = null;
-            
-            switch(filterType) {
-                case 'none':
-                    // Không gửi startDate
-                    startDateToKeep = null;
-                    break;
-                case 'day':
-                case 'week':
-                case 'range':
-                    // Giữ dateInput1
-                    startDateToKeep = document.getElementById('dateInput1');
-                    break;
-                case 'month':
-                    // Giữ monthYearValue
-                    startDateToKeep = document.getElementById('monthYearValue');
-                    break;
-                case 'quarter':
-                    // Giữ quarterYearValue
-                    startDateToKeep = document.getElementById('quarterYearValue');
-                    break;
-                case 'year':
-                    // Giữ yearOnlyValue
-                    startDateToKeep = document.getElementById('yearOnlyValue');
-                    break;
-            }
-            
-            // Xóa tất cả input[name="startDate"] không cần thiết trước submit
-            startDateInputs.forEach(input => {
-                if (startDateToKeep && input === startDateToKeep) {
-                    // Giữ lại input này - đảm bảo nó có value
-                    if (!input.value || input.value.toString().trim() === '') {
-                        console.warn('Warning: startDate input is empty for filterType:', filterType);
+        const filterFormElement = document.getElementById('filterForm');
+        console.log('✅ [FORM SETUP] filterForm found:', !!filterFormElement);
+        
+        if (filterFormElement) {
+            filterFormElement.addEventListener('submit', function(e) {
+                console.log('🚀 [FORM SUBMIT] Event triggered!');
+                const filterType = document.getElementById('filterTypeSelect').value;
+                const form = this;
+                
+                console.log('🚀 [FORM SUBMIT] filterType:', filterType);
+                console.log('🚀 [FORM SUBMIT] Form action:', form.action);
+                console.log('🚀 [FORM SUBMIT] Form method:', form.method);
+                
+                // Lấy tất cả input[name="startDate"]
+                const startDateInputs = Array.from(form.querySelectorAll('input[name="startDate"]'));
+                console.log('🚀 [FORM SUBMIT] startDateInputs found:', startDateInputs.length);
+                
+                // Xác định input nào cần giữ dựa trên filterType
+                let startDateToKeep = null;
+                
+                switch(filterType) {
+                    case 'none':
+                        // Không gửi startDate
+                        startDateToKeep = null;
+                        break;
+                    case 'day':
+                    case 'week':
+                    case 'range':
+                        // Giữ dateInput1
+                        startDateToKeep = document.getElementById('dateInput1');
+                        break;
+                    case 'month':
+                        // Giữ monthYearValue
+                        startDateToKeep = document.getElementById('monthYearValue');
+                        break;
+                    case 'quarter':
+                        // Giữ quarterYearValue
+                        startDateToKeep = document.getElementById('quarterYearValue');
+                        break;
+                    case 'year':
+                        // Giữ yearOnlyValue
+                        startDateToKeep = document.getElementById('yearOnlyValue');
+                        break;
+                }
+                
+                console.log('🚀 [FORM SUBMIT] startDateToKeep:', startDateToKeep?.id || 'null');
+                console.log('🚀 [FORM SUBMIT] startDateToKeep value:', startDateToKeep?.value || 'none');
+                
+                // Xóa tất cả input[name="startDate"] không cần thiết trước submit
+                startDateInputs.forEach((input, idx) => {
+                    if (startDateToKeep && input === startDateToKeep) {
+                        console.log(`  ✅ Keeping startDate input #${idx} (${input.id}): "${input.value}"`);
+                        // Giữ lại input này - đảm bảo nó có value
+                        if (!input.value || input.value.toString().trim() === '') {
+                            console.warn('⚠️ WARNING: startDate input is empty for filterType:', filterType);
+                        }
+                    } else {
+                        console.log(`  ❌ Removing startDate input #${idx} (${input.id})`);
+                        // Xóa input không cần thiết
+                        input.remove();
+                    }
+                });
+                
+                // Nếu filterType là 'range', đảm bảo endDate input tồn tại
+                if (filterType === 'range') {
+                    const endDateInput = document.getElementById('dateInput2');
+                    if (!endDateInput) {
+                        console.log('🚀 [FORM SUBMIT] Creating endDate input for range');
+                        const newInput = document.createElement('input');
+                        newInput.type = 'hidden';
+                        newInput.name = 'endDate';
+                        newInput.id = 'dateInput2';
+                        form.appendChild(newInput);
                     }
                 } else {
-                    // Xóa input không cần thiết
-                    input.remove();
+                    // Nếu không phải range, xóa endDate input
+                    const endDateInput = document.getElementById('dateInput2');
+                    if (endDateInput) {
+                        console.log('🚀 [FORM SUBMIT] Removing endDate input (not range filter)');
+                        endDateInput.remove();
+                    }
                 }
+                
+                // Log debug - kiểm tra form data trước submit
+                const formData = new FormData(form);
+                const queryString = new URLSearchParams(formData).toString();
+                console.log('🚀 [FORM DATA] Query string will be:', queryString);
+                console.log('🚀 [FORM DATA] All form data:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(`   ${key}: "${value}"`);
+                }
+                
+                // Log cuối cùng trước khi submit
+                console.log('🚀 [FORM SUBMIT] About to submit form to:', form.action + (queryString ? '?' + queryString : ''));
             });
-            
-            // Nếu filterType là 'range', đảm bảo endDate input tồn tại
-            if (filterType === 'range') {
-                const endDateInput = document.getElementById('dateInput2');
-                if (!endDateInput) {
-                    const newInput = document.createElement('input');
-                    newInput.type = 'hidden';
-                    newInput.name = 'endDate';
-                    newInput.id = 'dateInput2';
-                    form.appendChild(newInput);
-                }
-            } else {
-                // Nếu không phải range, xóa endDate input
-                const endDateInput = document.getElementById('dateInput2');
-                if (endDateInput) endDateInput.remove();
-            }
-            
-            // Log debug - kiểm tra form data trước submit
-            const formData = new FormData(form);
-            console.log('🚀 [CLIENT] Form Submission Debug:');
-            console.log('   filterType:', filterType);
-            console.log('   Query string will be:', new URLSearchParams(formData).toString());
-            for (let [key, value] of formData.entries()) {
-                console.log(`   ${key}: "${value}"`);
-            }
-        });
+        } else {
+            console.error('❌ [FORM SETUP] filterForm NOT found!');
+        }
     </script>
 </body>
 </html>
