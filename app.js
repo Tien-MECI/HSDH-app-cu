@@ -10348,9 +10348,21 @@ app.get('/baocao-kpi-phong-kinh-doanh', async (req, res) => {
         let data = {};
         let reportTitle = 'Báo cáo tổng hợp KPI';
         
-        // Lấy danh sách nhân viên
-        const dsNhanVien = await getNhanVienList();
+        // Lấy danh sách nhân viên - chỉ load khi cần thiết
+        let dsNhanVien = [];
+        try {
+            dsNhanVien = await getNhanVienList();
+        } catch (error) {
+            console.warn('⚠️ Không thể load danh sách nhân viên, sử dụng mảng trống:', error.message);
+            dsNhanVien = [];
+        }
         
+        // Xử lý các loại báo cáo - chỉ load dữ liệu khi có filter
+        let data = {};
+        
+        // Nếu không có filter hoặc filterType là 'none', không load dữ liệu nặng
+        if (filterType !== 'none' && filterType) {
+            try {   
         // Xử lý các loại báo cáo...
         switch(loaiBaoCao) {
             case 'baoGiaDonHang':
