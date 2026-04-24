@@ -19,6 +19,19 @@ import { v4 as uuidv4 } from 'uuid';
 const renderFileAsync = promisify(ejs.renderFile);
 const app = express();
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+  process.exit(1);
+});
+// Trước tất cả route, thêm middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err);
+  res.status(500).send('Lỗi máy chủ nội bộ');
+});
+
 // --- CORS middleware thay vì dùng package cors ---
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
