@@ -93,8 +93,8 @@ async function prepareYcvtData(auth, spreadsheetId, spreadsheetHcId, maDonHang =
   try {
     // 1) Lấy dữ liệu ban đầu
     const [data1Res, data2Res, data3Res, data5Res] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang_PVC_ct!A1:AE' }),
-      sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang!A1:CF' }),
+      sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang_PVC_ct!A1000:AE' }),
+      sheets.spreadsheets.values.get({ spreadsheetId, range: 'Don_hang!A7000:CF' }),
       sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetHcId, range: 'Data_bom!A1:N' }),
       sheets.spreadsheets.values.get({ spreadsheetId, range: 'File_BOM_ct!A1:D' })
     ]);
