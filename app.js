@@ -8934,55 +8934,54 @@ async function getNhanVienList() {
  */
 async function getBaoCaoBaoGiaDonHang(
   filterType = 'month',
-  startDate = null,
-  endDate = null,
+  startDate = '4',
+  endDate = '4',
   nhanVien = 'all'
-) {
+    ) {
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
 
-    const ranges = [
-      'Don_hang!B8420:B',  // ngayTao
-      'Don_hang!C8420:C',  // tenNV
-      'Don_hang!AM8420:AM', // trangThaiTao
-      'Don_hang!AJ8420:AJ', // tinhTrang
-      'Don_hang!BR8420:BR'  // doanhSoKPI
-    ];
+    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A8420:BS');
+    if (!data || data.length < 2) {
+      console.log('❌ Không có dữ liệu từ sheet Don_hang');
+      return {};
+    }
 
-    const res = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId: SPREADSHEET_ID,
-      ranges
-    });
+    console.log(`✅ Tổng số dòng dữ liệu: ${data.length}`);
 
-    const cols = res.data.valueRanges.map(r => r.values || []);
+    const headers = data[0];
+    const rows = data.slice(1);
 
-    const colNgayTao = cols[0];
-    const colTenNV = cols[1];
-    const colTrangThai = cols[2];
-    const colTinhTrang = cols[3];
-    const colDoanhSo = cols[4];
+    // Map index cột (bắt đầu từ 0)
+    const colIndex = {
+      ngayTao: 1,            // B
+      tenNV: 2,              // C
+      maNV: 3,               // D
+      maDon: 6,              // G
+      tinhTrang: 35,         // AJ
+      trangThaiTao: 38,      // AM
+      pheDuyet: 39,          // AN
+      nhanVienPheDuyet: 40,  // AO
+      ngayPheDuyet: 41,      // AP
+      thoiGianChot: 48,      // AW
+      thanhTien: 56,         // BE
+      hoaHongQC: 65,         // BN
+      doanhSoKPI: 69,        // BR
+      hoaHongKD: 70          // BR (zero-based index)
+    };
 
-    const numRows = Math.max(
-      colNgayTao.length,
-      colTenNV.length,
-      colTrangThai.length
-    );
-
-    console.log(`✅ Tổng số dòng: ${numRows}`);
-
-    const result = {};
-
-    for (let i = 0; i < numRows; i++) {
-      const ngayTao = colNgayTao[i]?.[0];
-      const tenNV = colTenNV[i]?.[0];
-      const trangThai = colTrangThai[i]?.[0];
-      const tinhTrang = colTinhTrang[i]?.[0];
-      const doanhSo = Number(colDoanhSo[i]?.[0]) || 0;
-
-      // 👉 filter date trực tiếp (tránh crash)
-      if (!isValidDate(ngayTao, filterType, startDate, endDate)) continue;
-
-      const nv = tenNV || 'Chưa xác định';
+        // Lọc theo ngày
+        let filteredData = filterByDate(
+            rows,
+            colIndex.ngayTao,
+            filterType,
+            startDate,
+            endDate
+        );
+        // Nhóm theo nhân viên
+        const result = {};
+        filteredData.forEach(row => {
+            const nv = row[colIndex.tenNV] || 'Chưa xác định';
 
       if (!result[nv]) {
         result[nv] = {
@@ -8993,78 +8992,39 @@ async function getBaoCaoBaoGiaDonHang(
         };
       }
 
+      const trangThai = row[colIndex.trangThaiTao];
+      const tinhTrang = row[colIndex.tinhTrang];
+
       if (trangThai === 'Báo giá') {
         result[nv].tongBaoGia++;
       } else if (trangThai === 'Đơn hàng') {
         result[nv].tongDonHang++;
 
         if (tinhTrang === 'Kế hoạch sản xuất') {
+          const doanhSo = Number(row[colIndex.doanhSoKPI]) || 0;
           result[nv].tongDoanhSo += doanhSo;
         }
       }
-    }
-
-    // tính tỷ lệ
-    Object.keys(result).forEach(nv => {
-      const total =
-        result[nv].tongBaoGia + result[nv].tongDonHang;
-
-      result[nv].tyLeChuyenDoi =
-        total > 0 ? (result[nv].tongDonHang / total) * 100 : 0;
     });
+
+        // Tính tỷ lệ chuyển đổi
+        Object.keys(result).forEach(nv => {
+            const totalQuotes = (result[nv].tongBaoGia || 0) + (result[nv].tongDonHang || 0);
+            if (totalQuotes > 0) {
+                result[nv].tyLeChuyenDoi = (result[nv].tongDonHang / totalQuotes) * 100;
+            } else {
+                result[nv].tyLeChuyenDoi = 0;
+            }
+        });
 
     return result;
 
   } catch (error) {
-    console.error('❌ Lỗi:', error);
-    throw error;
+    console.error('❌ Lỗi getBaoCaoBaoGiaDonHang:', error);
+    throw error; // để API layer xử lý tiếp
   }
 }
 
-function isValidDate(dateStr, filterType, startDate, endDate) {
-  if (!dateStr) return false;
-
-  const d = new Date(dateStr);
-  if (isNaN(d)) return false;
-
-  const now = new Date();
-
-  switch (filterType) {
-    case 'today':
-      return d.toDateString() === now.toDateString();
-
-    case 'week': {
-      const firstDay = new Date(now);
-      firstDay.setDate(now.getDate() - now.getDay()); // CN đầu tuần
-      firstDay.setHours(0, 0, 0, 0);
-
-      const lastDay = new Date(firstDay);
-      lastDay.setDate(firstDay.getDate() + 6);
-      lastDay.setHours(23, 59, 59, 999);
-
-      return d >= firstDay && d <= lastDay;
-    }
-
-    case 'month':
-      return (
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear()
-      );
-
-    case 'range':
-      if (!startDate || !endDate) return true;
-
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      end.setHours(23, 59, 59, 999);
-
-      return d >= start && d <= end;
-
-    default:
-      return true;
-  }
-}
 
 /**
  * 4.1.2 Doanh số theo nhân viên
