@@ -8937,22 +8937,11 @@ async function getBaoCaoBaoGiaDonHang(
   startDate = null,
   endDate = null,
   nhanVien = 'all'
-    ) {
+) {
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
 
-    const data = await readSheet(SPREADSHEET_ID, 'Don_hang!A:BS');
-    if (!data || data.length < 2) {
-      console.log('❌ Không có dữ liệu từ sheet Don_hang');
-      return {};
-    }
-
-    console.log(`✅ Tổng số dòng dữ liệu: ${data.length}`);
-
-    const headers = data[0];
-    const rows = data.slice(1);
-
-    // Map index cột (bắt đầu từ 0)
+    // Map index cột (giữ nguyên của bạn)
     const colIndex = {
       ngayTao: 1,            // B
       tenNV: 2,              // C
@@ -8967,21 +8956,90 @@ async function getBaoCaoBaoGiaDonHang(
       thanhTien: 56,         // BE
       hoaHongQC: 65,         // BN
       doanhSoKPI: 69,        // BR
-      hoaHongKD: 70          // BR (zero-based index)
+      hoaHongKD: 70          // BS (fix lại comment)
     };
 
-        // Lọc theo ngày
-        let filteredData = filterByDate(
-            rows,
-            colIndex.ngayTao,
-            filterType,
-            startDate,
-            endDate
-        );
-        // Nhóm theo nhân viên
-        const result = {};
-        filteredData.forEach(row => {
-            const nv = row[colIndex.tenNV] || 'Chưa xác định';
+    // 👉 Chỉ lấy các cột cần thiết
+    const ranges = [
+      'Don_hang!B8420:B',
+      'Don_hang!C8420:C',
+      'Don_hang!D8420:D',
+      'Don_hang!G8420:G',
+      'Don_hang!AJ8420:AJ',
+      'Don_hang!AM8420:AM',
+      'Don_hang!AN8420:AN',
+      'Don_hang!AO8420:AO',
+      'Don_hang!AP8420:AP',
+      'Don_hang!AW8420:AW',
+      'Don_hang!BE8420:BE',
+      'Don_hang!BN8420:BN',
+      'Don_hang!BR8420:BR',
+      'Don_hang!BS8420:BS'
+    ];
+
+    const res = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: SPREADSHEET_ID,
+      ranges
+    });
+
+    const valueRanges = res.data.valueRanges;
+
+    if (!valueRanges || valueRanges.length === 0) {
+      console.log('❌ Không có dữ liệu từ sheet Don_hang');
+      return {};
+    }
+
+    // 👉 Merge lại thành rows giống format cũ
+    const numRows = Math.max(
+      ...valueRanges.map(r => (r.values ? r.values.length : 0))
+    );
+
+    const rows = Array.from({ length: numRows }, () => []);
+
+    valueRanges.forEach((col, colIdx) => {
+      const values = col.values || [];
+
+      values.forEach((cell, rowIdx) => {
+        // Map lại đúng index gốc
+        const originalIndexes = [
+          colIndex.ngayTao,
+          colIndex.tenNV,
+          colIndex.maNV,
+          colIndex.maDon,
+          colIndex.tinhTrang,
+          colIndex.trangThaiTao,
+          colIndex.pheDuyet,
+          colIndex.nhanVienPheDuyet,
+          colIndex.ngayPheDuyet,
+          colIndex.thoiGianChot,
+          colIndex.thanhTien,
+          colIndex.hoaHongQC,
+          colIndex.doanhSoKPI,
+          colIndex.hoaHongKD
+        ];
+
+        const originalIndex = originalIndexes[colIdx];
+
+        rows[rowIdx][originalIndex] = cell[0];
+      });
+    });
+
+    console.log(`✅ Tổng số dòng dữ liệu: ${rows.length}`);
+
+    // ===== GIỮ NGUYÊN LOGIC CỦA BẠN =====
+
+    let filteredData = filterByDate(
+      rows,
+      colIndex.ngayTao,
+      filterType,
+      startDate,
+      endDate
+    );
+
+    const result = {};
+
+    filteredData.forEach(row => {
+      const nv = row[colIndex.tenNV] || 'Chưa xác định';
 
       if (!result[nv]) {
         result[nv] = {
@@ -9007,21 +9065,22 @@ async function getBaoCaoBaoGiaDonHang(
       }
     });
 
-        // Tính tỷ lệ chuyển đổi
-        Object.keys(result).forEach(nv => {
-            const totalQuotes = (result[nv].tongBaoGia || 0) + (result[nv].tongDonHang || 0);
-            if (totalQuotes > 0) {
-                result[nv].tyLeChuyenDoi = (result[nv].tongDonHang / totalQuotes) * 100;
-            } else {
-                result[nv].tyLeChuyenDoi = 0;
-            }
-        });
+    Object.keys(result).forEach(nv => {
+      const totalQuotes =
+        (result[nv].tongBaoGia || 0) +
+        (result[nv].tongDonHang || 0);
+
+      result[nv].tyLeChuyenDoi =
+        totalQuotes > 0
+          ? (result[nv].tongDonHang / totalQuotes) * 100
+          : 0;
+    });
 
     return result;
 
   } catch (error) {
     console.error('❌ Lỗi getBaoCaoBaoGiaDonHang:', error);
-    throw error; // để API layer xử lý tiếp
+    throw error;
   }
 }
 
