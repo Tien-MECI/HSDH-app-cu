@@ -9021,6 +9021,50 @@ async function getBaoCaoBaoGiaDonHang(
   }
 }
 
+function isValidDate(dateStr, filterType, startDate, endDate) {
+  if (!dateStr) return false;
+
+  const d = new Date(dateStr);
+  if (isNaN(d)) return false;
+
+  const now = new Date();
+
+  switch (filterType) {
+    case 'today':
+      return d.toDateString() === now.toDateString();
+
+    case 'week': {
+      const firstDay = new Date(now);
+      firstDay.setDate(now.getDate() - now.getDay()); // CN đầu tuần
+      firstDay.setHours(0, 0, 0, 0);
+
+      const lastDay = new Date(firstDay);
+      lastDay.setDate(firstDay.getDate() + 6);
+      lastDay.setHours(23, 59, 59, 999);
+
+      return d >= firstDay && d <= lastDay;
+    }
+
+    case 'month':
+      return (
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      );
+
+    case 'range':
+      if (!startDate || !endDate) return true;
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      end.setHours(23, 59, 59, 999);
+
+      return d >= start && d <= end;
+
+    default:
+      return true;
+  }
+}
 
 /**
  * 4.1.2 Doanh số theo nhân viên
