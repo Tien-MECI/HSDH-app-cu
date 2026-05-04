@@ -8941,40 +8941,12 @@ async function getBaoCaoBaoGiaDonHang(
   try {
     console.log(`\n=== [DEBUG] getBaoCaoBaoGiaDonHang() called ===`);
 
-    // Map index cột (giữ nguyên của bạn)
-    const colIndex = {
-      ngayTao: 1,            // B
-      tenNV: 2,              // C
-      maNV: 3,               // D
-      maDon: 6,              // G
-      tinhTrang: 35,         // AJ
-      trangThaiTao: 38,      // AM
-      pheDuyet: 39,          // AN
-      nhanVienPheDuyet: 40,  // AO
-      ngayPheDuyet: 41,      // AP
-      thoiGianChot: 48,      // AW
-      thanhTien: 56,         // BE
-      hoaHongQC: 65,         // BN
-      doanhSoKPI: 69,        // BR
-      hoaHongKD: 70          // BS (fix lại comment)
-    };
-
-    // 👉 Chỉ lấy các cột cần thiết
     const ranges = [
-      'Don_hang!B8420:B',
-      'Don_hang!C8420:C',
-      'Don_hang!D8420:D',
-      'Don_hang!G8420:G',
-      'Don_hang!AJ8420:AJ',
-      'Don_hang!AM8420:AM',
-      'Don_hang!AN8420:AN',
-      'Don_hang!AO8420:AO',
-      'Don_hang!AP8420:AP',
-      'Don_hang!AW8420:AW',
-      'Don_hang!BE8420:BE',
-      'Don_hang!BN8420:BN',
-      'Don_hang!BR8420:BR',
-      'Don_hang!BS8420:BS'
+      'Don_hang!B8420:B',  // ngayTao
+      'Don_hang!C8420:C',  // tenNV
+      'Don_hang!AM8420:AM', // trangThaiTao
+      'Don_hang!AJ8420:AJ', // tinhTrang
+      'Don_hang!BR8420:BR'  // doanhSoKPI
     ];
 
     const res = await sheets.spreadsheets.values.batchGet({
@@ -8982,64 +8954,35 @@ async function getBaoCaoBaoGiaDonHang(
       ranges
     });
 
-    const valueRanges = res.data.valueRanges;
+    const cols = res.data.valueRanges.map(r => r.values || []);
 
-    if (!valueRanges || valueRanges.length === 0) {
-      console.log('❌ Không có dữ liệu từ sheet Don_hang');
-      return {};
-    }
+    const colNgayTao = cols[0];
+    const colTenNV = cols[1];
+    const colTrangThai = cols[2];
+    const colTinhTrang = cols[3];
+    const colDoanhSo = cols[4];
 
-    // 👉 Merge lại thành rows giống format cũ
     const numRows = Math.max(
-      ...valueRanges.map(r => (r.values ? r.values.length : 0))
+      colNgayTao.length,
+      colTenNV.length,
+      colTrangThai.length
     );
 
-    const rows = Array.from({ length: numRows }, () => []);
-
-    valueRanges.forEach((col, colIdx) => {
-      const values = col.values || [];
-
-      values.forEach((cell, rowIdx) => {
-        // Map lại đúng index gốc
-        const originalIndexes = [
-          colIndex.ngayTao,
-          colIndex.tenNV,
-          colIndex.maNV,
-          colIndex.maDon,
-          colIndex.tinhTrang,
-          colIndex.trangThaiTao,
-          colIndex.pheDuyet,
-          colIndex.nhanVienPheDuyet,
-          colIndex.ngayPheDuyet,
-          colIndex.thoiGianChot,
-          colIndex.thanhTien,
-          colIndex.hoaHongQC,
-          colIndex.doanhSoKPI,
-          colIndex.hoaHongKD
-        ];
-
-        const originalIndex = originalIndexes[colIdx];
-
-        rows[rowIdx][originalIndex] = cell[0];
-      });
-    });
-
-    console.log(`✅ Tổng số dòng dữ liệu: ${rows.length}`);
-
-    // ===== GIỮ NGUYÊN LOGIC CỦA BẠN =====
-
-    let filteredData = filterByDate(
-      rows,
-      colIndex.ngayTao,
-      filterType,
-      startDate,
-      endDate
-    );
+    console.log(`✅ Tổng số dòng: ${numRows}`);
 
     const result = {};
 
-    filteredData.forEach(row => {
-      const nv = row[colIndex.tenNV] || 'Chưa xác định';
+    for (let i = 0; i < numRows; i++) {
+      const ngayTao = colNgayTao[i]?.[0];
+      const tenNV = colTenNV[i]?.[0];
+      const trangThai = colTrangThai[i]?.[0];
+      const tinhTrang = colTinhTrang[i]?.[0];
+      const doanhSo = Number(colDoanhSo[i]?.[0]) || 0;
+
+      // 👉 filter date trực tiếp (tránh crash)
+      if (!isValidDate(ngayTao, filterType, startDate, endDate)) continue;
+
+      const nv = tenNV || 'Chưa xác định';
 
       if (!result[nv]) {
         result[nv] = {
@@ -9050,36 +8993,30 @@ async function getBaoCaoBaoGiaDonHang(
         };
       }
 
-      const trangThai = row[colIndex.trangThaiTao];
-      const tinhTrang = row[colIndex.tinhTrang];
-
       if (trangThai === 'Báo giá') {
         result[nv].tongBaoGia++;
       } else if (trangThai === 'Đơn hàng') {
         result[nv].tongDonHang++;
 
         if (tinhTrang === 'Kế hoạch sản xuất') {
-          const doanhSo = Number(row[colIndex.doanhSoKPI]) || 0;
           result[nv].tongDoanhSo += doanhSo;
         }
       }
-    });
+    }
 
+    // tính tỷ lệ
     Object.keys(result).forEach(nv => {
-      const totalQuotes =
-        (result[nv].tongBaoGia || 0) +
-        (result[nv].tongDonHang || 0);
+      const total =
+        result[nv].tongBaoGia + result[nv].tongDonHang;
 
       result[nv].tyLeChuyenDoi =
-        totalQuotes > 0
-          ? (result[nv].tongDonHang / totalQuotes) * 100
-          : 0;
+        total > 0 ? (result[nv].tongDonHang / total) * 100 : 0;
     });
 
     return result;
 
   } catch (error) {
-    console.error('❌ Lỗi getBaoCaoBaoGiaDonHang:', error);
+    console.error('❌ Lỗi:', error);
     throw error;
   }
 }
