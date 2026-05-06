@@ -120,8 +120,16 @@
             <td style="text-align: left;" width="25%"><%= donHang[44] || '' %></td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" width="15%">Mã số thuế:</td>
-            <td style="text-align: left;" width="45%"><%= donHang[71] || '' %></td>
+            <%
+            const mst = donHang[71] && donHang[71].trim();
+            %>
+
+            <td style="font-weight: bold;" width="15%">
+                <%= mst ? 'Mã số thuế:' : 'Căn cước CD:' %>
+            </td>
+            <td style="text-align: left;" width="45%">
+                <%= mst || donHang[75] || '' %>
+            </td>
             <td style="font-weight: bold;" width="15%">Email:</td>
             <td style="text-align: left;" width="25%"><%= donHang[45] || '' %></td>
         </tr>
