@@ -4367,7 +4367,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A1:AC",
+            range: "Don_hang_PVC_ct!A10000:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
@@ -4519,7 +4519,7 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
         // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_nk_ct!A1:AC",
+            range: "Don_hang_nk_ct!A1000:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
@@ -4673,7 +4673,7 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
         // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A1:AC",
+            range: "Don_hang_PVC_ct!A10000:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
@@ -4825,7 +4825,7 @@ app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
         // --- Chi tiết sản phẩm ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_nk_ct!A1:AC",
+            range: "Don_hang_nk_ct!A1000:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
