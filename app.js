@@ -4686,6 +4686,7 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
                 soLuong: r[23],
                 donVi: r[22],
                 tongSoLuong: r[21],
+                tongSLGiao:"",
                 ghiChu: "",
             }));
 
