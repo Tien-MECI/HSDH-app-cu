@@ -116,7 +116,8 @@
                 <th style="text-align: left;">Tên sản phẩm chi tiết</th>
                 <th style="text-align: center;" class="<%= hideSLGiao ? 'hide-sl-giao' : '' %>">SL giao (Sợi)</th>
                 <th style="text-align: center;">Đơn vị</th>
-                <th style="text-align: center;">Tổng số lượng</th>
+                <th style="text-align: center;">Tổng SL YC</th>
+                <th style="text-align: center;">Tổng SL giao</th>
                 <th style="text-align: center;">Ghi chú</th>
             </tr>
         </thead>
@@ -128,6 +129,7 @@
                 <td style="text-align: center;" class="<%= hideSLGiao ? 'hide-sl-giao' : '' %>"><%= product.soLuong %></td>
                 <td style="text-align: center;"><%= product.donVi %></td>
                 <td style="text-align: center;"><%= product.tongSoLuong %></td>
+                <td style="text-align: center;"><%= product.tongSLGiao %></td>
                 <td style="text-align: center;"><%= product.ghiChu %></td>
             </tr>
             <% }); %>
