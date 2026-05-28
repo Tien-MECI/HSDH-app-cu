@@ -133,8 +133,8 @@
                 </span></p>
             <br>
 
-            <!-- Thông tin bên nhận -->
-            <p><b>I. ĐẠI DIỆN BÊN NHẬN BÀN GIAO: </b>
+            <!-- Thông tin bên nghiệm thu -->
+            <p><b>I. ĐẠI DIỆN BÊN NGHIỆM THU: </b>
                 <%= donHang[9] %>
             </p>
             <p>- Ông/Bà: <span class="red">
@@ -150,13 +150,12 @@
             <br>
 
             <!-- Thông tin bên giao -->
-            <p><b><strong>II. ĐẠI DIỆN BÊN BÀN GIAO:</strong></b> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</p>
+            <p><b><strong>II. ĐẠI DIỆN BÊN NGHIỆM THU:</strong></b> CÔNG TY CỔ PHẦN CÔNG NGHIỆP M.E.C.I</p>
             <p>- Ông/Bà:...........................................................| Chức
                 vụ:..........................................</p>
             <p>- Điện thoại:.......................................................| Số
                 CMND/CCCD:.....................................</p>
             <p>- Địa chỉ trụ sở chính: Số 164, đường Nguyễn Trãi, phường Thanh Xuân, thành phố Hà Nội</p>
-            <p>- Địa điểm sản xuất, kinh doanh: Số 162, đường 916, thôn La Gián, xã Đoài Phương, thành phố Hà Nội</p>
             <p>- Nhân viên theo dõi hợp đồng/đơn hàng: <span class="red">
                     <%= donHang[2] %>
                 </span> | Điện thoại: <span class="red">
@@ -170,10 +169,10 @@
                     <tr>
                         <th style="text-align: center;">STT</th>
                         <th style="text-align: left;">Tên sản phẩm chi tiết</th>
-                        <th style="text-align: center;">SL giao</th>
                         <th style="text-align: center;">Đơn vị</th>
                         <th style="text-align: center;">Số lượng yêu cầu</th>
-                        <th style="text-align: center;">Thực tế giao nhận</th>
+                        <th style="text-align: center;">Thực tế Nghiệm thu</th>
+                        <th style="text-align: center;">Đánh giá</th>
                         <th style="text-align: center;">Ghi chú</th>
                     </tr>
                 </thead>
@@ -187,9 +186,6 @@
                                 <%= product.tenSanPham %>
                             </td>
                             <td style="text-align: center;">
-                                <%= product.soLuong %>
-                            </td>
-                            <td style="text-align: center;">
                                 <%= product.donVi %>
                             </td>
                             <td style="text-align: center;">
@@ -201,13 +197,16 @@
                             <td style="text-align: center;">
                                 <%= product.ghiChu %>
                             </td>
+                            <td style="text-align: center;">
+                                <%= product.ghiChu %>
+                            </td>
                         </tr>
                         <% }); %>
                 </tbody>
             </table>
 
             <br>
-            <p>Hai bên đồng ý với nội dung giao nhận trên, biên bản giao nhận được lập thành 02 bản, mỗi bên giữ 1 bản
+            <p>Hai bên đồng ý với nội dung nghiệm thu trên, biên bản nghiệm thu được lập thành 02 bản, mỗi bên giữ 1 bản
                 có giá trị pháp lý như nhau để làm căn cứ thanh quyết toán.</p>
             <p>Đề nghị quý khách hàng nhận hàng, kiểm tra hàng và phản ánh tình trạng hàng hóa ngay sau khi nhận hàng.
                 Thời gian tiếp nhận và xử lý hàng hóa không quá 24 giờ kể từ khi khách nhận được hàng.</p>
@@ -215,8 +214,8 @@
             <!-- Ký tên -->
             <table class="no-border">
                 <tr>
-                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN GIAO<br>(Ký và ghi rõ họ tên)</td>
-                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN NHẬN<br>(Ký và ghi rõ họ tên)</td>
+                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN BÀN GIAO<br>(Ký và ghi rõ họ tên)</td>
+                    <td style="text-align: center; border: none;">ĐẠI DIỆN BÊN NGHIỆM THU<br>(Ký và ghi rõ họ tên)</td>
                 </tr>
             </table>
 </body>
