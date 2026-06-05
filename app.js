@@ -2213,6 +2213,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
     }
 
     console.log(`✅ Có ${orderDetails.length} dòng chi tiết đơn hàng.`);
+    console.log(`🔍 DEBUG - Dòng đầu tiên:`, orderDetails[0]);
+    console.log(`🔍 DEBUG - quantityIndex=${quantityIndex}, Cột V (0-indexed)`, orderDetails[0]?.[quantityIndex]);
 
     // === 3️⃣ Xử lý dữ liệu sản phẩm ===
     const products = orderDetails.map((row, i) => {
@@ -2220,6 +2222,8 @@ app.get("/taohoadon-:madh", async (req, res) => {
       const amountchuathue = parseFloat(row[unitPriceIndex]) || 0; 
       const taxRate = parseFloat(row[taxRateIndex]) || 0;            // Thuế suất
       const totalAfterTax = parseFloat(row[totalAfterTaxIndex]) || 0;// Thành tiền sau thuế
+
+      console.log(`🔍 Dòng ${i}: Cột V (raw)="${row[quantityIndex]}", quantity=${quantity}`);
 
       // 👉 Tính toán lại theo chuẩn kế toán
       const amount = amountchuathue/ (1 + taxRate / 100);            // đơn giá chưa thuế
