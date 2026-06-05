@@ -2218,10 +2218,10 @@ app.get("/taohoadon-:madh", async (req, res) => {
 
     // === 3️⃣ Xử lý dữ liệu sản phẩm ===
     const products = orderDetails.map((row, i) => {
-      const quantity = parseFloat(row[quantityIndex]) || 0;          // Số lượng
-      const amountchuathue = parseFloat(row[unitPriceIndex]) || 0; 
-      const taxRate = parseFloat(row[taxRateIndex]) || 0;            // Thuế suất
-      const totalAfterTax = parseFloat(row[totalAfterTaxIndex]) || 0;// Thành tiền sau thuế
+      const quantity = parseFloat(String(row[quantityIndex]).replace(/,/g, '.')) || 0;          // Số lượng - FIX dấu phẩy
+      const amountchuathue = parseFloat(String(row[unitPriceIndex]).replace(/,/g, '.')) || 0; 
+      const taxRate = parseFloat(String(row[taxRateIndex]).replace(/,/g, '.')) || 0;            // Thuế suất
+      const totalAfterTax = parseFloat(String(row[totalAfterTaxIndex]).replace(/,/g, '.')) || 0;// Thành tiền sau thuế
 
       console.log(`🔍 Dòng ${i}: Cột V (raw)="${row[quantityIndex]}", quantity=${quantity}`);
 
@@ -2417,7 +2417,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
         stt: i + 1,
         description: row[descriptionIndex] || "",
         unit: row[unitIndex] || "",
-        quantity: parseFloat(row[quantityIndex]) || 0,
+        quantity: parseFloat(String(row[quantityIndex]).replace(/,/g, '.')) || 0,  // FIX dấu phẩy
       };
     });
 
