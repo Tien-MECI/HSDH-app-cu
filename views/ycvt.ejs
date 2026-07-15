@@ -31,14 +31,14 @@
         @media print {
             body { margin: 0; padding: 15px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
-
         /* Ẩn cột theo cờ truyền vào */
-        <% if (!hasDataF) { %> .col-f { display: none; } <% } %>
-        <% if (!hasDataG) { %> .col-g { display: none; } <% } %>
-        <% if (!hasDataH) { %> .col-h { display: none; } <% } %>
-        <% if (!hasDataI) { %> .col-i { display: none; } <% } %>
-        <% if (!hasDataJ) { %> .col-j { display: none; } <% } %>
-        <% if (!hasDataM) { %> .col-m { display: none; } <% } %>
+    <style>
+        <% if (!hasDataF) { %>.col-f { display: none; }<% } %>
+        <% if (!hasDataG) { %>.col-g { display: none; }<% } %>
+        <% if (!hasDataH) { %>.col-h { display: none; }<% } %>
+        <% if (!hasDataI) { %>.col-i { display: none; }<% } %>
+        <% if (!hasDataJ) { %>.col-j { display: none; }<% } %>
+        <% if (!hasDataM) { %>.col-m { display: none; }<% } %>
     </style>
 
     <% if (autoPrint) { %>

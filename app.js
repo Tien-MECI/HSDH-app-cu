@@ -2197,7 +2197,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
 
     const madhDetailIndex = colToIndex("B"); // Mã đơn hàng
     const descriptionIndex = colToIndex("J"); // Diễn giải
-    const quantityIndex = colToIndex("V"); // Số lượng
+    const quantityIndex = colToIndex("U"); // Số lượng
     const unitIndex = colToIndex("W"); // ĐVT
     const unitPriceIndex = colToIndex("Z"); // Đơn giá (có thể là giá sau thuế)
     const taxRateIndex = colToIndex("AA"); // Thuế suất %
