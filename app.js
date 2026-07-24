@@ -300,7 +300,7 @@ app.get("/gghnk", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -561,7 +561,7 @@ app.get("/bbsv/madonhang-:madonhang/solan-:solan", async (req, res) => {
         // --- Lấy dữ liệu từ sheet Don_hang ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:Z",
+            range: "Don_hang!A1000:Z",
         });
         
         const donHangRows = donHangRes.data.values || [];
@@ -708,7 +708,7 @@ app.get("/dnc", async (req, res) => {
         // --- Lấy dữ liệu từ sheet Don_hang ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:Z",
+            range: "Don_hang!A1000:Z",
         });
         const donHangRows = donHangRes.data.values || [];
         const donHangData = donHangRows.slice(1);
@@ -2150,7 +2150,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
     console.log("📄 Đang lấy sheet Don_hang...");
     const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A7000:Z",
+      range: "Don_hang!A1000:Z",
     });
 
     const donhangData = donhangRes.data.values;
@@ -2321,7 +2321,7 @@ app.get("/phieubaohanh-:madh", async (req, res) => {
     console.log("📄 Đang lấy sheet Don_hang...");
     const donhangRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SPREADSHEET_ID,
-      range: "Don_hang!A7000:AD",
+      range: "Don_hang!A1000:AD",
     });
 
     const donhangData = donhangRes.data.values;
@@ -3360,7 +3360,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -3523,7 +3523,7 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -3687,7 +3687,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -3883,7 +3883,7 @@ app.get("/baogiapvcketoan/:maDonHang", async (req, res) => {
         // --- Lấy đơn hàng từ sheet Don_hang ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BX",
+            range: "Don_hang!A1000:BX",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4008,7 +4008,7 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BW",
+            range: "Don_hang!A1000:BW",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4356,7 +4356,7 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4509,7 +4509,7 @@ app.get("/bbgnnk/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4663,7 +4663,7 @@ app.get("/bbnt/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4819,7 +4819,7 @@ app.get("/bbntnk/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
@@ -4964,7 +4964,7 @@ app.get("/ggh/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy đơn hàng ---
         const donHangRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A7000:BJ",
+            range: "Don_hang!A1000:BJ",
         });
         const rows = donHangRes.data.values || [];
         const data = rows.slice(1);
