@@ -3373,7 +3373,7 @@ app.get("/lenhpvc/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy chi tiết sản phẩm PVC ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A10000:AC",
+            range: "Don_hang_PVC_ct!A8000:AC",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
