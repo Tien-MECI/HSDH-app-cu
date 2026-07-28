@@ -3536,7 +3536,7 @@ app.get("/lenhnk/:maDonHang-:soLan", async (req, res) => {
         // --- Lấy chi tiết sản phẩm Nhôm Kính ---
         const ctRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_nk_ct!A1000:U",
+            range: "Don_hang_nk_ct!A1:U",
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
