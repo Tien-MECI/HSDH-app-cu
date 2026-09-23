@@ -209,7 +209,7 @@
                 </td>
             </tr>
 
-            <% if (chietKhau !== 0) { %>
+              <% if (chietKhau !== null && chietKhau !== undefined && chietKhau !== '' && Number(chietKhau) !== 0) { %>
                 <tr>
                     <td style="text-align: left; font-weight: bold;" colspan="<%= filteredColumns.length - 1 || 10 %>">Chiết Khấu:</td>
                     <td style="text-align: center; font-weight: bold;" colspan="2">
