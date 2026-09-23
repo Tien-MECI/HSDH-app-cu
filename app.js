@@ -3734,7 +3734,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
             tongTien += parseFloat(product.thanhTien) || 0;
         });
         let tamUng = (tongTien * tamUngPercent) / 100;
-        let chietKhau = (tongTien * chietKhauPercent) / 100;
+        let chietKhau = chietKhauValue;
         let tongThanhTien = tongTien - chietKhau - tamUng;
 
         // --- Logo & Watermark ---
@@ -4066,9 +4066,7 @@ app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
         // --- Xử lý chiết khấu ---
         let chietKhauValue = donHang[32] || "0";
         let chietKhauPercent = parseVietNumber(chietKhauValue.toString().replace('%', '')) || 0;
-        let chietKhau = chietKhauValue.toString().includes('%')
-            ? (tongTien * chietKhauPercent) / 100
-            : chietKhauPercent;
+        let chietKhau = chietKhauValue;
 
         let tamUng = parseVietNumber(donHang[33]) || 0;
         let tongThanhTien = tongTien - chietKhau - tamUng;
