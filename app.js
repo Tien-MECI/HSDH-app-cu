@@ -2198,6 +2198,7 @@ app.get("/taohoadon-:madh", async (req, res) => {
     const madhDetailIndex = colToIndex("B"); // Mã đơn hàng
     const descriptionIndex = colToIndex("J"); // Diễn giải
     const quantityIndex = colToIndex("V"); // Số lượng
+    const areaQuantityIndex = colToIndex("U"); // Số lượng theo m2
     const unitIndex = colToIndex("W"); // ĐVT
     const unitPriceIndex = colToIndex("Z"); // Đơn giá (có thể là giá sau thuế)
     const taxRateIndex = colToIndex("AA"); // Thuế suất %
@@ -2218,12 +2219,13 @@ app.get("/taohoadon-:madh", async (req, res) => {
 
     // === 3️⃣ Xử lý dữ liệu sản phẩm ===
     const products = orderDetails.map((row, i) => {
-      const quantity = parseFloat(String(row[quantityIndex]).replace(/,/g, '.')) || 0;          // Số lượng - FIX dấu phẩy
+            const selectedQuantityIndex = (row[unitIndex] || "").trim() === "m2" ? areaQuantityIndex : quantityIndex;
+            const quantity = parseFloat(String(row[selectedQuantityIndex]).replace(/,/g, '.')) || 0;  // Số lượng - FIX dấu phẩy
       const amountchuathue = parseFloat(String(row[unitPriceIndex]).replace(/,/g, '.')) || 0; 
       const taxRate = parseFloat(String(row[taxRateIndex]).replace(/,/g, '.')) || 0;            // Thuế suất
       const totalAfterTax = parseFloat(String(row[totalAfterTaxIndex]).replace(/,/g, '.')) || 0;// Thành tiền sau thuế
 
-      console.log(`🔍 Dòng ${i}: Cột V (raw)="${row[quantityIndex]}", quantity=${quantity}`);
+    console.log(`🔍 Dòng ${i}: Cột ${selectedQuantityIndex === areaQuantityIndex ? "U" : "V"} (raw)="${row[selectedQuantityIndex]}", quantity=${quantity}`);
 
       // 👉 Tính toán lại theo chuẩn kế toán
       const amount = amountchuathue/ (1 + taxRate / 100);            // đơn giá chưa thuế
