@@ -3705,6 +3705,28 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         });
         const ctRows = (ctRes.data.values || []).slice(1);
 
+        const parseSheetNumber = (value) => {
+            if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+            if (value === null || value === undefined || value === '') return null;
+
+            let normalized = String(value).trim().replace(/\s/g, '');
+            const lastComma = normalized.lastIndexOf(',');
+            const lastDot = normalized.lastIndexOf('.');
+
+            if (lastComma !== -1 && lastDot !== -1) {
+                normalized = lastComma > lastDot
+                    ? normalized.replace(/\./g, '').replace(',', '.')
+                    : normalized.replace(/,/g, '');
+            } else if (lastComma !== -1) {
+                normalized = normalized.replace(/\./g, '').replace(',', '.');
+            } else if (/^-?\d{1,3}(\.\d{3})+$/.test(normalized)) {
+                normalized = normalized.replace(/\./g, '');
+            }
+
+            const number = Number(normalized);
+            return Number.isFinite(number) ? number : null;
+        };
+
         // --- Lọc và map dữ liệu (giữ nguyên logic của bạn) ---
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
@@ -3718,9 +3740,9 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
                 soLuong: r[21],
                 donViTinh: r[22],
                 tongSoLuong: r[20],
-                donGia: r[25],
+                donGia: parseSheetNumber(r[25]),
                 vat: r[26] ? parseFloat(r[26]) : null,
-                thanhTien: r[27]
+                thanhTien: parseSheetNumber(r[27])
             }));
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
@@ -3733,7 +3755,7 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
         let tamUngPercent =parseFloat(tamUngValue.toString().replace('%', '')) || 0;
 
         products.forEach(product => {
-            tongTien += parseFloat(product.thanhTien) || 0;
+            tongTien += product.thanhTien || 0;
         });
         let tamUng = (tongTien * tamUngPercent) / 100;
         let chietKhau = chietKhauValue;
