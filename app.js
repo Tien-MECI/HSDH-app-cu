@@ -3891,101 +3891,6 @@ app.get("/baogiapvc/:maDonHang-:soLan", async (req, res) => {
     }
 });
 
-// HAM CHẠY BÁO GIÁ PVC KẾ TOÁN XUẤT VAT
-
-app.get("/baogiapvcketoan/:maDonHang", async (req, res) => {
-    try {
-        console.log("▶️ Bắt đầu xuất Báo Giá PVC cho Kế Toán ...");
-        console.log("📘 SPREADSHEET_ID:", process.env.SPREADSHEET_ID);
-
-        const { maDonHang } = req.params;
-        if (!maDonHang) {
-            return res.status(400).send("⚠️ Thiếu tham số mã đơn hàng.");
-        }
-        console.log(`✔️ Mã đơn hàng: ${maDonHang}`);
-
-        // --- Lấy đơn hàng từ sheet Don_hang ---
-        const donHangRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang!A1000:BX",
-        });
-        const rows = donHangRes.data.values || [];
-        const data = rows.slice(1);
-        const donHang =
-            data.find((r) => r[5] === maDonHang) ||
-            data.find((r) => r[6] === maDonHang);
-        if (!donHang) {
-            return res.status(404).send(`❌ Không tìm thấy đơn hàng với mã: ${maDonHang}`);
-        }
-
-        // --- Lấy chi tiết sản phẩm PVC từ sheet Don_hang_PVC_ct ---
-        const ctRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: "Don_hang_PVC_ct!A10000:AC",
-        });
-        const ctRows = (ctRes.data.values || []).slice(1);
-
-        const products = ctRows
-            .filter((r) => r[1] === maDonHang)
-            .map((r) => ({
-                maDonHangChiTiet: r[2],
-                tenHangHoa: r[9],
-                quyCach: r[10],
-                dai: r[16],
-                rong: r[17],
-                cao: r[18],
-                soLuong: r[21],
-                donViTinh: r[22],
-                tongSoLuong: r[20],
-                donGia: r[25],
-                vat: r[26] ? parseFloat(r[26]) : null,
-                thanhTien: r[27]
-            }));
-
-        console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
-
-        // --- Tính tổng tiền, chiết khấu, tạm ứng ---
-        let tongTien = 0;
-        const chietKhauValue = donHang[32] || "0";
-        const chietKhauPercent = parseFloat(chietKhauValue.toString().replace('%', '')) || 0;
-        const tamUngValue = donHang[33] || "0";
-        const tamUngPercent = parseFloat(tamUngValue.toString().replace('%', '')) || 0;
-
-        products.forEach(product => {
-            tongTien += parseFloat(product.thanhTien) || 0;
-        });
-
-        const tamUng = (tongTien * tamUngPercent) / 100;
-        const chietKhau = (tongTien * chietKhauPercent) / 100;
-        const tongThanhTien = tongTien - chietKhau - tamUng;
-
-        // --- Logo & Watermark (vẫn load để hiển thị trên view) ---
-        const logoBase64 = await loadDriveImageBase64(LOGO_FILE_ID);
-        const watermarkBase64 = await loadDriveImageBase64(WATERMARK_FILE_ID);
-
-        // --- Render view, không xử lý gì thêm ---
-        res.render("baogiapvcketoan", {
-            donHang,
-            products,
-            logoBase64,
-            watermarkBase64,
-            autoPrint: false,
-            maDonHang,
-            tongTien,
-            chietKhau,
-            tamUng,
-            tongThanhTien,
-            numberToWords,
-            pathToFile: "" // không dùng đến
-        });
-
-    } catch (err) {
-        console.error("❌ Lỗi khi xuất Báo Giá PVC cho Kế Toán:", err.stack || err.message);
-        if (!res.headersSent) {
-            res.status(500).send("Lỗi server: " + (err.message || err));
-        }
-    }
-});
 
 /// HÀM BÁO GIÁ NK ỨNG VỚI MÃ ĐƠN VÀ SỐ LẦN
 app.get("/baogiank/:maDonHang-:soLan", async (req, res) => {
@@ -6692,6 +6597,28 @@ app.get("/export/lapdat", async (req, res) => {
             xacNhanThanhToan: 13 // Cột N
         };
 
+        // Parse số từ Google Sheets, hỗ trợ cả "13,6" / "1.234,5" (VN) và "13.6" / "1,234.5" (US)
+        const toNumber = (value) => {
+            if (value === null || value === undefined || value === '') return 0;
+            if (typeof value === 'number') return value;
+            let s = String(value).replace(/\s/g, '');
+            const lastComma = s.lastIndexOf(',');
+            const lastDot = s.lastIndexOf('.');
+            if (lastComma > -1 && lastDot > -1) {
+                // Dấu xuất hiện sau cùng là dấu thập phân
+                if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+                else s = s.replace(/,/g, '');
+            } else if (lastComma > -1) {
+                // Nhiều dấu phẩy => phân cách nghìn; một dấu phẩy => thập phân
+                s = (s.match(/,/g).length > 1) ? s.replace(/,/g, '') : s.replace(',', '.');
+            } else if (lastDot > -1) {
+                // Nhiều dấu chấm, hoặc dạng "1.000" => phân cách nghìn
+                if (s.match(/\./g).length > 1 || /^-?[1-9]\d{0,2}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+            }
+            const num = parseFloat(s);
+            return isNaN(num) ? 0 : num;
+        };
+
         // Bỏ qua dòng tiêu đề nếu có
         let dataRows = data;
         if (data.length > 0) {
@@ -6786,9 +6713,9 @@ app.get("/export/lapdat", async (req, res) => {
         const donHangMap = new Map();
         filteredData.forEach(row => {
             const maDonHang = row[colIndex.maDonHang] || '';
-            const tienKhoan = parseFloat(row[colIndex.tienKhoanLD] || 0);
-            const tongHeSo = parseFloat(row[colIndex.tongDiemHeSo] || 0);
-            
+            const tienKhoan = toNumber(row[colIndex.tienKhoanLD]);
+            const tongHeSo = toNumber(row[colIndex.tongDiemHeSo]);
+
             if (maDonHang) {
                 if (!donHangMap.has(maDonHang)) {
                     donHangMap.set(maDonHang, {
@@ -6832,8 +6759,8 @@ app.get("/export/lapdat", async (req, res) => {
                 if (colNumber === 3) { // Cột giá trị khoán
                     cell.numFmt = '#,##0';
                     cell.alignment = { horizontal: 'right' };
-                } else if (colNumber === 4) { // Cột tổng hệ số điểm
-                    cell.numFmt = '#,##0.0'; // 1 chữ số thập phân
+                } else if (colNumber === 4) { // Cột tổng hệ số điểm - giữ nguyên giá trị, không làm tròn
+                    cell.numFmt = 'General';
                     cell.alignment = { horizontal: 'right' };
                 }
                 
@@ -6913,14 +6840,11 @@ app.get("/export/lapdat", async (req, res) => {
         let tongThanhTien = 0;
         filteredData.forEach((row, index) => {
             const dataRow = sheet2.getRow(rowIndex);
-            const thanhTien = parseFloat(row[colIndex.thanhTien] || 0);
-            
-            // Xử lý hệ số điểm (giữ nguyên định dạng dấu phẩy)
-            let heSoDiem = row[colIndex.heSoDiem] || '0';
-            if (typeof heSoDiem === 'string' && heSoDiem.includes('.')) {
-                heSoDiem = heSoDiem.replace('.', ',');
-            }
-            
+            const thanhTien = toNumber(row[colIndex.thanhTien]);
+
+            // Hệ số điểm: chuyển sang số, giữ nguyên phần thập phân
+            const heSoDiem = toNumber(row[colIndex.heSoDiem]);
+
             dataRow.values = [
                 index + 1,
                 row[colIndex.maDonHang] || '',
@@ -6928,7 +6852,7 @@ app.get("/export/lapdat", async (req, res) => {
                 row[colIndex.hoTen] || '',
                 row[colIndex.vaiTro] || '',
                 heSoDiem,
-                parseFloat(row[colIndex.donGiaTB] || 0),
+                toNumber(row[colIndex.donGiaTB]),
                 thanhTien
             ];
             
@@ -6943,10 +6867,11 @@ app.get("/export/lapdat", async (req, res) => {
                     right: { style: 'thin' }
                 };
                 
-                if (colNumber === 6) { // Cột đơn giá trung bình
-                    cell.numFmt = '#,##0';
+                if (colNumber === 6) { // Cột hệ số điểm - giữ nguyên giá trị, không làm tròn
+                    cell.numFmt = 'General';
                     cell.alignment = { horizontal: 'right' };
-                } else if (colNumber === 7) { // Cột hệ số điểm - giữ nguyên chuỗi
+                } else if (colNumber === 7) { // Cột đơn giá trung bình
+                    cell.numFmt = '#,##0';
                     cell.alignment = { horizontal: 'right' };
                 } else if (colNumber === 8) { // Cột thành tiền
                     cell.numFmt = '#,##0';
