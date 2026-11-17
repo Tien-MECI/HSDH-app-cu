@@ -1982,11 +1982,32 @@ app.get("/copy-:madh", async (req, res) => {
             })
             .filter((n) => n > 0);
 
+        // AppSheet đã sinh mã đơn mới (vd 2051) vào Don_hang TRƯỚC khi gọi route này,
+        // nên số lớn nhất trong cột E chính là mã đơn mới cần ghi dữ liệu.
         const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
         const newNum = maxNum;
         const newNumStr = String(newNum).padStart(4, "0");
 
-        const madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
+        // Ưu tiên mã mới do AppSheet truyền vào (?madhmoi=MC26-0-2051) để tránh lệch mã
+        // khi AppSheet chưa kịp đồng bộ dòng mới xuống Google Sheet.
+        const madhMoiParam = (req.query.madhmoi || "").toString().trim();
+        let madhNew = `${codePrefix}${yearNow}-${kinhdoanhCode}-${newNumStr}`;
+        if (madhMoiParam) {
+            if (madhMoiParam.split("-").length !== 3) {
+                return res.send(`❌ Mã đơn hàng mới không hợp lệ: ${madhMoiParam}`);
+            }
+            madhNew = madhMoiParam;
+        }
+
+        if (madhNew === madh) {
+            return res.send(`❌ Mã đơn mới trùng với mã đơn gốc (${madh}). Kiểm tra lại dữ liệu Don_hang.`);
+        }
+
+        // Chặn ghi đè: nếu mã mới đã có dữ liệu chi tiết trong Don_hang_PVC_ct thì dừng
+        const daCoChiTiet = rowsPVC.some((r, i) => i > 0 && r[madhIndex] === madhNew);
+        if (daCoChiTiet) {
+            return res.send(`❌ Đơn ${madhNew} đã có dữ liệu chi tiết trong ${sheetNamePVC}, không sao chép để tránh trùng.`);
+        }
         console.log(`🔢 Mã đơn hàng mới: ${madhNew} (max: ${maxNum}, tiếp theo: ${newNum})`);
 
         // === 4️⃣ Tạo dữ liệu mới ===
@@ -2021,7 +2042,10 @@ app.get("/copy-:madh", async (req, res) => {
             row[0] = randomUID();
             row[1] = madhNew;
             
-            if (row[2] && row[2].length >= 11) {
+            // Thay phần mã đơn cũ ở đầu cột C bằng mã mới (không phụ thuộc độ dài mã)
+            if (row[2] && row[2].startsWith(madh)) {
+                row[2] = madhNew + row[2].substring(madh.length);
+            } else if (row[2] && row[2].length >= 11) {
                 row[2] = madhNew + row[2].substring(11);
             }
             
