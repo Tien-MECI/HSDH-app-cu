@@ -6398,6 +6398,37 @@ app.locals.formatDate = function(dateStr) {
     return date.toLocaleDateString('vi-VN');
 };
 
+// Parse số từ Google Sheets, hỗ trợ cả "13,6" / "1.234,5" (VN) và "13.6" / "1,234.5" (US)
+function parseSheetNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return value;
+    let s = String(value).replace(/\s/g, '');
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+        // Dấu xuất hiện sau cùng là dấu thập phân
+        if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(/,/g, '');
+    } else if (lastComma > -1) {
+        // Nhiều dấu phẩy => phân cách nghìn; một dấu phẩy => thập phân
+        s = (s.match(/,/g).length > 1) ? s.replace(/,/g, '') : s.replace(',', '.');
+    } else if (lastDot > -1) {
+        // Nhiều dấu chấm, hoặc dạng "1.000" => phân cách nghìn
+        if (s.match(/\./g).length > 1 || /^-?[1-9]\d{0,2}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+    }
+    const num = parseFloat(s);
+    return isNaN(num) ? 0 : num;
+}
+
+// Hiển thị số giữ nguyên phần thập phân (không làm tròn), định dạng VN: 1.234,56
+app.locals.formatDecimal = function(value) {
+    const num = parseSheetNumber(value);
+    // Khử sai số dấu phẩy động (vd 0.1+0.2) nhưng không cắt bớt chữ số có nghĩa
+    const [intPart, decPart] = String(parseFloat(num.toPrecision(12))).split('.');
+    const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return decPart ? `${intFormatted},${decPart}` : intFormatted;
+};
+
 
 // Route báo cáo khoán lắp đặt theo nhân sự
 app.get("/lapdat-:manv", async (req, res) => {
@@ -6491,8 +6522,8 @@ app.get("/lapdat-:manv", async (req, res) => {
         
         filteredData.forEach(row => {
             const maDonHang = row[colIndex.maDonHang] || '';
-            const tienKhoan = parseFloat(row[colIndex.tienKhoanLD] || 0);
-            const tongHeSo = parseFloat(row[colIndex.tongDiemHeSo] || 0);
+            const tienKhoan = parseSheetNumber(row[colIndex.tienKhoanLD]);
+            const tongHeSo = parseSheetNumber(row[colIndex.tongDiemHeSo]);
             
             if (maDonHang) {
                 if (!donHangMap.has(maDonHang)) {
@@ -6527,9 +6558,9 @@ app.get("/lapdat-:manv", async (req, res) => {
             maLanThucHien: row[colIndex.maLanThucHien] || '',
             hoTen: row[colIndex.hoTen] || '',
             vaiTro: row[colIndex.vaiTro] || '',
-            heSoDiem: row[colIndex.heSoDiem] || '0', // Giữ nguyên chuỗi để xử lý dấu phẩy
-            donGiaTB: parseFloat(row[colIndex.donGiaTB] || 0),
-            thanhTien: parseFloat(row[colIndex.thanhTien] || 0),
+            heSoDiem: parseSheetNumber(row[colIndex.heSoDiem]),
+            donGiaTB: parseSheetNumber(row[colIndex.donGiaTB]),
+            thanhTien: parseSheetNumber(row[colIndex.thanhTien]),
             maDonHang: row[colIndex.maDonHang] || ''
         }));
 
@@ -6595,28 +6626,6 @@ app.get("/export/lapdat", async (req, res) => {
             thanhTien: 11,   // Cột L
             ngayBaoCao: 12,  // Cột M
             xacNhanThanhToan: 13 // Cột N
-        };
-
-        // Parse số từ Google Sheets, hỗ trợ cả "13,6" / "1.234,5" (VN) và "13.6" / "1,234.5" (US)
-        const toNumber = (value) => {
-            if (value === null || value === undefined || value === '') return 0;
-            if (typeof value === 'number') return value;
-            let s = String(value).replace(/\s/g, '');
-            const lastComma = s.lastIndexOf(',');
-            const lastDot = s.lastIndexOf('.');
-            if (lastComma > -1 && lastDot > -1) {
-                // Dấu xuất hiện sau cùng là dấu thập phân
-                if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
-                else s = s.replace(/,/g, '');
-            } else if (lastComma > -1) {
-                // Nhiều dấu phẩy => phân cách nghìn; một dấu phẩy => thập phân
-                s = (s.match(/,/g).length > 1) ? s.replace(/,/g, '') : s.replace(',', '.');
-            } else if (lastDot > -1) {
-                // Nhiều dấu chấm, hoặc dạng "1.000" => phân cách nghìn
-                if (s.match(/\./g).length > 1 || /^-?[1-9]\d{0,2}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
-            }
-            const num = parseFloat(s);
-            return isNaN(num) ? 0 : num;
         };
 
         // Bỏ qua dòng tiêu đề nếu có
@@ -6713,8 +6722,8 @@ app.get("/export/lapdat", async (req, res) => {
         const donHangMap = new Map();
         filteredData.forEach(row => {
             const maDonHang = row[colIndex.maDonHang] || '';
-            const tienKhoan = toNumber(row[colIndex.tienKhoanLD]);
-            const tongHeSo = toNumber(row[colIndex.tongDiemHeSo]);
+            const tienKhoan = parseSheetNumber(row[colIndex.tienKhoanLD]);
+            const tongHeSo = parseSheetNumber(row[colIndex.tongDiemHeSo]);
 
             if (maDonHang) {
                 if (!donHangMap.has(maDonHang)) {
@@ -6840,10 +6849,10 @@ app.get("/export/lapdat", async (req, res) => {
         let tongThanhTien = 0;
         filteredData.forEach((row, index) => {
             const dataRow = sheet2.getRow(rowIndex);
-            const thanhTien = toNumber(row[colIndex.thanhTien]);
+            const thanhTien = parseSheetNumber(row[colIndex.thanhTien]);
 
             // Hệ số điểm: chuyển sang số, giữ nguyên phần thập phân
-            const heSoDiem = toNumber(row[colIndex.heSoDiem]);
+            const heSoDiem = parseSheetNumber(row[colIndex.heSoDiem]);
 
             dataRow.values = [
                 index + 1,
@@ -6852,7 +6861,7 @@ app.get("/export/lapdat", async (req, res) => {
                 row[colIndex.hoTen] || '',
                 row[colIndex.vaiTro] || '',
                 heSoDiem,
-                toNumber(row[colIndex.donGiaTB]),
+                parseSheetNumber(row[colIndex.donGiaTB]),
                 thanhTien
             ];
             

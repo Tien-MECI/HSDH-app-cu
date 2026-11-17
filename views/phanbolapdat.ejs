@@ -170,20 +170,7 @@
                                         <td><%= item.stt %></td>
                                         <td><%= item.maDonHang %></td>
                                         <td class="number-cell"><%= formatNumber(item.giaTriKhoan) %></td>
-                                        <td class="number-cell">
-                                            <% 
-                                                // Xử lý hiển thị số thập phân với dấu phẩy
-                                                let tongHeSo = item.tongHeSoDiem;
-                                                if (typeof tongHeSo === 'string' && tongHeSo.includes(',')) {
-                                                    // Nếu là chuỗi có dấu phẩy, hiển thị nguyên bản
-                                                    tongHeSo = tongHeSo.replace('.', ',');
-                                                } else {
-                                                    // Nếu là số, format với 1 chữ số thập phân
-                                                    tongHeSo = formatNumber(item.tongHeSoDiem, 1);
-                                                }
-                                            %>
-                                            <%= tongHeSo %>
-                                        </td>
+                                        <td class="number-cell"><%= formatDecimal(item.tongHeSoDiem) %></td>
                                     </tr>
                                 <% }); %>
                             </tbody>
@@ -230,20 +217,7 @@
                                         <td><%= item.maLanThucHien %></td>
                                         <td><%= item.hoTen %></td>
                                         <td><%= item.vaiTro %></td>
-                                        <td class="number-cell">
-                                            <% 
-                                                // Xử lý hiển thị hệ số điểm
-                                                let heSo = item.heSoDiem;
-                                                if (typeof heSo === 'string' && heSo.includes(',')) {
-                                                    // Nếu là chuỗi có dấu phẩy, hiển thị nguyên bản
-                                                    heSo = heSo.replace('.', ',');
-                                                } else {
-                                                    // Nếu là số, format với 1 chữ số thập phân
-                                                    heSo = formatNumber(item.heSoDiem, 1);
-                                                }
-                                            %>
-                                            <%= heSo %>
-                                        </td>
+                                        <td class="number-cell"><%= formatDecimal(item.heSoDiem) %></td>
                                         <td class="number-cell"><%= formatNumber(item.donGiaTB) %></td>
                                         <td class="number-cell"><strong><%= formatNumber(item.thanhTien) %></strong></td>
                                     </tr>
