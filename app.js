@@ -4328,15 +4328,20 @@ app.get("/bbgn/:maDonHang-:soLan", async (req, res) => {
 
         const products = ctRows
             .filter((r) => r[1] === maDonHang)
-            .map((r, i) => ({
-                stt: i + 1,
-                tenSanPham: r[9],
-                soLuong: r[23],
-                donVi: r[22],
-                tongSoLuong: r[21],
-                tongSLGiao:"",
-                ghiChu: "",
-            }));
+            .map((r, i) => {
+                // Đơn vị m2 (hoặc m²) => lấy tổng số lượng ở cột U (r[20]), còn lại lấy cột V (r[21])
+                const donViNorm = (r[22] || "").toString().trim().toLowerCase();
+                const laM2 = donViNorm === "m2" || donViNorm === "m²";
+                return {
+                    stt: i + 1,
+                    tenSanPham: r[9],
+                    soLuong: r[23],
+                    donVi: r[22],
+                    tongSoLuong: laM2 ? r[20] : r[21],
+                    tongSLGiao:"",
+                    ghiChu: "",
+                };
+            });
 
         console.log(`✔️ Tìm thấy ${products.length} sản phẩm.`);
 
